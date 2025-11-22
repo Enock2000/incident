@@ -1,12 +1,28 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IncidentTable } from "@/components/incidents/incident-table";
-import { allIncidents } from "@/lib/data";
-import { Activity, AlertTriangle, CheckCircle, PlusCircle } from "lucide-react";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { collection } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { Activity, AlertTriangle, CheckCircle, PlusCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { Incident } from "@/lib/types";
 
 export default function DashboardPage() {
-  const incidents = allIncidents;
+  const firestore = useFirestore();
+  const incidentsCollection = firestore ? collection(firestore, "incidents") : null;
+  const { data: incidents, loading } = useCollection<Incident>(incidentsCollection);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const totalIncidents = incidents.length;
   const resolvedIncidents = incidents.filter(i => i.status === 'Resolved').length;
   const activeIncidents = incidents.filter(i => i.status === 'In Progress' || i.status === 'Team Dispatched').length;

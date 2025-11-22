@@ -1,4 +1,5 @@
-import { allIncidents } from "@/lib/data";
+"use client";
+
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -9,17 +10,31 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, MapPin, User, X } from "lucide-react";
+import { ArrowLeft, Check, MapPin, User, X, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { doc } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { Incident } from "@/lib/types";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
-  const incident = allIncidents.find((i) => i.id === params.id);
+  const firestore = useFirestore();
+  const incidentRef = firestore ? doc(firestore, "incidents", params.id) : null;
+  const { data: incident, loading } = useDoc<Incident>(incidentRef);
+
+  const mapImage = PlaceHolderImages.find((img) => img.id === "map_placeholder");
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!incident) {
     notFound();
   }
-
-  const mapImage = PlaceHolderImages.find((img) => img.id === "map_placeholder");
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

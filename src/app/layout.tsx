@@ -3,6 +3,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 export const metadata: Metadata = {
   title: "Zambia Tracking Incident System",
@@ -33,7 +34,9 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased")}>
-        <AppShell>{children}</AppShell>
+        <FirebaseClientProvider>
+          <AppShell>{children}</AppShell>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

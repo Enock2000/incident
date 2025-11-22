@@ -7,9 +7,24 @@ export type IncidentStatus =
 
 export type Priority = 'Low' | 'Medium' | 'High';
 
+export type Role =
+  | 'Citizen'
+  | 'Admin'
+  | 'RegionalAuthority'
+  | 'ResponseUnit'
+  | 'DataAnalyst';
+
 export type Reporter = {
   name: string;
   contact?: string;
+};
+
+export type UserProfile = {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  role: Role;
 };
 
 export type Incident = {
@@ -19,7 +34,7 @@ export type Incident = {
   location: string;
   status: IncidentStatus;
   priority: Priority;
-  dateReported: string;
+  dateReported: any; // Using `any` for Firebase Timestamp
   reporter?: Reporter;
   media: string[];
 };

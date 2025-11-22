@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for reusable logic
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+
+    /**
+     * Checks if the requesting user has administrative privileges.
+     * Role is granted if a document with the user's UID exists in the /roles_admin collection.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Validates that a user is creating their own user document and that the
+     * document's internal 'id' field correctly matches their auth UID.
+     */
+    function isCreatingOwnUserDoc(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that the 'id' field of a user document remains unchanged during an update.
+     * This prevents re-assigning the document to a different user.
+     */
+    function isUpdatingOwnUserDoc() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+
+    /**
+     * @description Stores user account information. Each user can only access their own document.
+     * @path /users/{userId}
+     * @allow (get, update) Authenticated user `xyz` requests their own document at `/users/xyz`.
+     * @allow (create) New user `xyz` creates their profile at `/users/xyz` and includes `id: 'xyz'` in the data.
+     * @deny (list) Any user attempts to list the `/users` collection.
+     * @deny (get) User `abc` attempts to read user `xyz`'s document at `/users/xyz`.
+     * @principle Restricts access to a user's own data tree and enforces relational integrity.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isCreatingOwnUserDoc(userId);
+      allow update: if isExistingOwner(userId) && isUpdatingOwnUserDoc();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Stores information about government agencies. Managed exclusively by admins.
+     * @path /agencies/{agencyId}
+     * @allow (get, list, create, update, delete) A user with admin role performs any operation on `/agencies`.
+     * @deny (get, list, create, update, delete) A non-admin user attempts any operation on `/agencies`.
+     * @principle Enforces role-based access control for administrative data.
+     */
+    match /agencies/{agencyId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    /**
+     * @description Manages admin role assignments. Only existing admins can add or remove other admins.
+     * @path /roles_admin/{userId}
+     * @allow (get, list, create, delete) An existing admin manages role documents in `/roles_admin`.
+     * @deny (get, list, create, delete) A non-admin user attempts to view or modify admin roles.
+     * @principle Secures role management by restricting it to users who already hold the role.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages regional authority role assignments. Only admins can manage these roles.
+     * @path /roles_regionalAuthority/{userId}
+     * @allow (get, list, create, delete) An admin manages role documents in `/roles_regionalAuthority`.
+     * @deny (get, list, create, update, delete) A non-admin user attempts to view or modify regional authority roles.
+     * @principle Centralizes role management under a single administrative role.
+     */
+    match /roles_regionalAuthority/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages response unit role assignments. Only admins can manage these roles.
+     * @path /roles_responseUnit/{userId}
+     * @allow (get, list, create, delete) An admin manages role documents in `/roles_responseUnit`.
+     * @deny (get, list, create, update, delete) A non-admin user attempts to view or modify response unit roles.
+     * @principle Centralizes role management under a single administrative role.
+     */
+    match /roles_responseUnit/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages data analyst role assignments. Only admins can manage these roles.
+     * @path /roles_dataAnalyst/{userId}
+     * @allow (get, list, create, delete) An admin manages role documents in `/roles_dataAnalyst`.
+     * @deny (get, list, create, update, delete) A non-admin user attempts to view or modify data analyst roles.
+     * @principle Centralizes role management under a single administrative role.
+     */
+    match /roles_dataAnalyst/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}
