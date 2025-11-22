@@ -139,5 +139,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
