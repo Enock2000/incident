@@ -77,13 +77,13 @@ service cloud.firestore {
     }
 
     /**
-     * @description Stores information about government agencies. Managed exclusively by admins.
-     * @path /agencies/{agencyId}
-     * @allow (get, list, create, update, delete) A user with admin role performs any operation on `/agencies`.
-     * @deny (get, list, create, update, delete) A non-admin user attempts any operation on `/agencies`.
+     * @description Stores information about government departments. Managed exclusively by admins.
+     * @path /departments/{departmentId}
+     * @allow (get, list, create, update, delete) A user with admin role performs any operation on `/departments`.
+     * @deny (get, list, create, update, delete) A non-admin user attempts any operation on `/departments`.
      * @principle Enforces role-based access control for administrative data.
      */
-    match /agencies/{agencyId} {
+    match /departments/{departmentId} {
       allow get: if isAdmin();
       allow list: if isAdmin();
       allow create: if isAdmin();
@@ -168,3 +168,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

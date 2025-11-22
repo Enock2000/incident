@@ -35,9 +35,9 @@
           "type": "string",
           "description": "The unique identifier from the social login provider, if applicable."
         },
-        "agencyId": {
+        "departmentId": {
           "type": "string",
-          "description": "Reference to Agency. (Relationship: User 1:N Agency). Nullable: Not applicable for citizen accounts."
+          "description": "Reference to Department. (Relationship: User 1:N Department). Nullable: Not applicable for citizen accounts."
         }
       },
       "required": [
@@ -47,23 +47,23 @@
         "lastName"
       ]
     },
-    "Agency": {
+    "Department": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Agency",
+      "title": "Department",
       "type": "object",
-      "description": "Represents a government agency or official department.",
+      "description": "Represents a government department or official agency.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the agency entity."
+          "description": "Unique identifier for the department entity."
         },
         "name": {
           "type": "string",
-          "description": "The name of the agency."
+          "description": "The name of the department."
         },
         "description": {
           "type": "string",
-          "description": "A brief description of the agency."
+          "description": "A brief description of the department."
         }
       },
       "required": [
@@ -232,7 +232,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user account information, including citizen and official accounts. 'userId' is the Firebase Auth UID. Includes 'agencyId' for official accounts. Uses path-based ownership, where each user can only read/write their own document.",
+          "description": "Stores user account information, including citizen and official accounts. 'userId' is the Firebase Auth UID. Includes 'departmentId' for official accounts. Uses path-based ownership, where each user can only read/write their own document.",
           "params": [
             {
               "name": "userId",
@@ -242,17 +242,17 @@
         }
       },
       {
-        "path": "/agencies/{agencyId}",
+        "path": "/departments/{departmentId}",
         "definition": {
-          "entityName": "Agency",
+          "entityName": "Department",
           "schema": {
-            "$ref": "#/backend/entities/Agency"
+            "$ref": "#/backend/entities/Department"
           },
-          "description": "Stores information about government agencies. Only admins can create, read, update, and delete agencies. The agencyId should be used to link official users to their respective agencies.",
+          "description": "Stores information about government departments. Only admins can create, read, update, and delete departments. The departmentId should be used to link official users to their respective departments.",
           "params": [
             {
-              "name": "agencyId",
-              "description": "The unique identifier of the agency."
+              "name": "departmentId",
+              "description": "The unique identifier of the department."
             }
           ]
         }
@@ -338,6 +338,8 @@
         }
       }
     ],
-    "reasoning": "This Firestore data structure is designed to support user management (citizen and government agency/official accounts) with role-based access for the Zambia Tracking Incident System. It prioritizes authorization independence and QAPs (Rules are not Filters) using denormalization and structural segregation. User roles are managed via dedicated collections to avoid custom claims (DBAC). \n\nThe core strategy is to maintain clarity around access control and ownership, using path-based ownership where applicable and membership maps for collaborative data. The design leverages structural segregation by isolating data with differing security requirements into distinct collections. This approach allows for simpler and more robust security rules.\n\nSpecifically:\n\n*   **Authorization Independence:** No `get()` calls are needed in security rules because relevant authorization data (like user type and agencyId) is directly available within the document or can be evaluated from the path.\n*   **QAPs (Rules are not Filters):** Each collection has a homogeneous security posture, allowing secure `list` operations. For example, only admins can list all agencies, while regional authorities can only access agencies they are associated with via a separate query that filters by agencyId.\n*   **DBAC (No Custom Claims):** User roles are determined by their presence in dedicated role collections (e.g., `/roles_admin/{uid}`).\n*   **User Management:** Citizen and official user accounts are stored in the `/users/{userId}` collection. Agency details are stored in the `/agencies/{agencyId}` collection. The `agencyId` field in the `User` document links officials to their respective agencies. Role-based access is managed through dedicated collections for each role type (e.g., `/roles_admin/{userId}`, `/roles_regionalAuthority/{userId}`)."
+    "reasoning": "This Firestore data structure is designed to support user management (citizen and government agency/official accounts) with role-based access for the Zambia Tracking Incident System. It prioritizes authorization independence and QAPs (Rules are not Filters) using denormalization and structural segregation. User roles are managed via dedicated collections to avoid custom claims (DBAC). \n\nThe core strategy is to maintain clarity around access control and ownership, using path-based ownership where applicable and membership maps for collaborative data. The design leverages structural segregation by isolating data with differing security requirements into distinct collections. This approach allows for simpler and more robust security rules.\n\nSpecifically:\n\n*   **Authorization Independence:** No `get()` calls are needed in security rules because relevant authorization data (like user type and departmentId) is directly available within the document or can be evaluated from the path.\n*   **QAPs (Rules are not Filters):** Each collection has a homogeneous security posture, allowing secure `list` operations. For example, only admins can list all departments, while regional authorities can only access departments they are associated with via a separate query that filters by departmentId.\n*   **DBAC (No Custom Claims):** User roles are determined by their presence in dedicated role collections (e.g., `/roles_admin/{uid}`).\n*   **User Management:** Citizen and official user accounts are stored in the `/users/{userId}` collection. Department details are stored in the `/departments/{departmentId}` collection. The `departmentId` field in the `User` document links officials to their respective departments. Role-based access is managed through dedicated collections for each role type (e.g., `/roles_admin/{userId}`, `/roles_regionalAuthority/{userId}`)."
   }
 }
+
+    
