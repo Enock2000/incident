@@ -134,7 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {navItems.map((item) =>
               (item.requiresAuth && user) || !item.requiresAuth ? (
                 <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} legacyBehavior passHref>
+                  <Link href={item.href} >
                     <SidebarMenuButton
                       isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                       tooltip={item.label}
@@ -155,7 +155,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                  {managementItems.map((item) =>
                    (item.requiresAuth && user) || !item.requiresAuth ? (
                      <SidebarMenuItem key={item.href}>
-                       <Link href={item.href} legacyBehavior passHref>
+                       <Link href={item.href} >
                          <SidebarMenuButton
                            isActive={pathname.startsWith(item.href)}
                            tooltip={item.label}
@@ -176,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {electionModules.map((item) =>
                     (user) ? (
                     <SidebarMenuItem key={item.href}>
-                        <Link href={item.href} legacyBehavior passHref>
+                        <Link href={item.href} >
                         <SidebarMenuButton
                             isActive={pathname.startsWith(item.href)}
                             tooltip={item.label}
@@ -251,5 +251,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
