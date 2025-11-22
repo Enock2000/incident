@@ -7,12 +7,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { initializeFirebase } from "@/firebase";
-import { getAuth } from "firebase/auth";
 
 const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(20, "Description must be at least 20 characters long."),
   location: z.string().min(3, "Location is required."),
+  category: z.string().min(3, "Category is required."),
   isAnonymous: z.boolean(),
   userId: z.string().optional(), // Added to link the incident to the user
 });
@@ -21,6 +21,11 @@ export type FormState = {
   message: string;
   fields?: Record<string, string>;
   issues?: string[];
+  aiSuggestions?: {
+    category?: string[];
+    duplicate?: boolean;
+    suspicious?: boolean;
+  };
 };
 
 export async function createIncident(
@@ -46,11 +51,14 @@ export async function createIncident(
         title: parsed.error.formErrors.fieldErrors.title?.join(", ") ?? "",
         description: parsed.error.formErrors.fieldErrors.description?.join(", ") ?? "",
         location: parsed.error.formErrors.fieldErrors.location?.join(", ") ?? "",
+        category: parsed.error.formErrors.fieldErrors.category?.join(", ") ?? "",
       }
     };
   }
 
-  const { title, description, location, isAnonymous, userId } = parsed.data;
+  const { title, description, location, isAnonymous, userId, category } = parsed.data;
+
+  let aiSuggestions: FormState['aiSuggestions'] = {};
 
   // --- AI INTEGRATION ---
   try {
@@ -59,19 +67,28 @@ export async function createIncident(
       reportDescription: description,
       reportData: { title, location },
     });
+    aiSuggestions.category = categorySuggestions.suggestedCategories;
     console.log("AI Suggestions:", categorySuggestions);
 
     console.log("AI: Detecting duplicates...");
     const duplicateCheck = await detectDuplicateOrSuspiciousReports({
       reportContent: `${title}: ${description}`,
       location: location,
-      metadata: { timestamp: new Date().toISOString(), userId: userId },
+      metadata: { timestamp: new Date().toISOString(), userId: userId || 'anonymous' },
     });
+    aiSuggestions.duplicate = duplicateCheck.isDuplicate;
+    aiSuggestions.suspicious = duplicateCheck.isSuspicious;
     console.log("AI Duplicate Check:", duplicateCheck);
 
   } catch (error) {
     console.error("AI processing failed:", error);
     // Continue without AI data if it fails
+  }
+
+  // If AI flags as suspicious or duplicate, we can return early for user confirmation
+  // For now, let's just log it and proceed with saving. In a real app, you might want a confirmation step.
+  if (aiSuggestions.duplicate || aiSuggestions.suspicious) {
+     console.warn("AI flagged this report as potentially duplicate or suspicious.", aiSuggestions);
   }
 
   try {
@@ -80,6 +97,7 @@ export async function createIncident(
       title,
       description,
       location,
+      category,
       status: "Reported",
       priority: "Medium", // Default priority
       dateReported: serverTimestamp(),
@@ -88,6 +106,11 @@ export async function createIncident(
         userId: isAnonymous ? null : userId,
       },
       media: [], // Handle file uploads separately
+      aiMetadata: {
+        suggestedCategories: aiSuggestions.category ?? [],
+        isDuplicate: aiSuggestions.duplicate ?? false,
+        isSuspicious: aiSuggestions.suspicious ?? false,
+      }
     });
     console.log("New incident reported:", parsed.data);
   } catch (e) {

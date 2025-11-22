@@ -138,6 +138,10 @@
           "type": "string",
           "description": "Location of the incident."
         },
+        "category": {
+          "type": "string",
+          "description": "Category of the incident (e.g., Crime, Fire)."
+        },
         "status": {
           "type": "string",
           "description": "Current status of the incident."
@@ -167,9 +171,17 @@
           "items": {
             "type": "string"
           }
+        },
+        "aiMetadata": {
+            "type": "object",
+            "properties": {
+              "suggestedCategories": { "type": "array", "items": { "type": "string" } },
+              "isDuplicate": { "type": "boolean" },
+              "isSuspicious": { "type": "boolean" }
+            }
         }
       },
-      "required": ["title", "description", "location", "status", "dateReported", "reporter"]
+      "required": ["title", "description", "location", "category", "status", "dateReported", "reporter"]
     }
   },
   "auth": {

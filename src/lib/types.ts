@@ -39,4 +39,10 @@ export type Incident = {
   dateReported: any; // Using `any` for Firebase Timestamp
   reporter?: Reporter;
   media: string[];
+  category: string;
+  aiMetadata?: {
+    suggestedCategories?: string[];
+    isDuplicate?: boolean;
+    isSuspicious?: boolean;
+  };
 };

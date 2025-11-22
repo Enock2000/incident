@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { Loader2, Lightbulb, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const initialState: FormState = {
   message: "",
@@ -26,10 +28,23 @@ function SubmitButton() {
   );
 }
 
+const incidentCategories = [
+  "Crime",
+  "Fire",
+  "Road Accident",
+  "Medical Emergency",
+  "Power Outage",
+  "Water Leakage",
+  "Hazardous Material",
+  "Public Disturbance",
+  "Other",
+];
+
 export function ReportIncidentForm() {
   const { user } = useUser();
   const [state, formAction] = useFormState(createIncident, initialState);
   const { toast } = useToast();
+  const [category, setCategory] = useState<string>('');
 
   useEffect(() => {
     if (state?.message && state.issues) {
@@ -46,6 +61,17 @@ export function ReportIncidentForm() {
       });
     }
   }, [state, toast]);
+  
+  const handleSuggestedCategoryClick = (suggestedCategory: string) => {
+    if(incidentCategories.includes(suggestedCategory)){
+      setCategory(suggestedCategory);
+    } else {
+      // If the AI suggests a category not in our list, we could either add it,
+      // or default to 'Other'. For now, we'll set it and let the `Select` component handle it.
+      setCategory(suggestedCategory);
+    }
+  };
+
 
   return (
     <form action={formAction} className="space-y-6">
@@ -62,11 +88,55 @@ export function ReportIncidentForm() {
         <Textarea id="description" name="description" placeholder="Provide a detailed description of the incident..." required rows={6} />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input id="location" name="location" placeholder="e.g., Lusaka, Zambia" required />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="location">Location</Label>
+          <Input id="location" name="location" placeholder="e.g., Lusaka, Zambia" required />
+          <p className="text-sm text-muted-foreground">You can also use GPS or pin a location on the map (coming soon).</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+           <Select name="category" required value={category} onValueChange={setCategory}>
+            <SelectTrigger id="category">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {incidentCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      
+       {state?.aiSuggestions?.category && state.aiSuggestions.category.length > 0 && (
+         <Alert>
+          <Lightbulb className="h-4 w-4" />
+           <AlertTitle>AI Suggestion</AlertTitle>
+           <AlertDescription>
+             Based on your description, we suggest the following categories:
+             <div className="flex gap-2 mt-2">
+              {state.aiSuggestions.category.map(c => (
+                 <Button key={c} size="sm" variant="outline" onClick={() => handleSuggestedCategoryClick(c)}>{c}</Button>
+              ))}
+             </div>
+           </AlertDescription>
+         </Alert>
+       )}
+       {(state?.aiSuggestions?.duplicate || state?.aiSuggestions?.suspicious) && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>AI Warning</AlertTitle>
+            <AlertDescription>
+              {state.aiSuggestions.duplicate && "This report might be a duplicate of an existing one. "}
+              {state.aiSuggestions.suspicious && "This report has been flagged as potentially suspicious. "}
+              Please review the details before submitting.
+            </AlertDescription>
+          </Alert>
+       )}
+
+
       <div className="space-y-2">
         <Label htmlFor="media">Photos/Videos</Label>
         <Input id="media" name="media" type="file" />

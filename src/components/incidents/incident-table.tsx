@@ -28,6 +28,7 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Title</TableHead>
+          <TableHead>Category</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Priority</TableHead>
           <TableHead>Date Reported</TableHead>
@@ -38,6 +39,7 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
         {incidents.map((incident) => (
           <TableRow key={incident.id}>
             <TableCell className="font-medium">{incident.title}</TableCell>
+            <TableCell>{incident.category}</TableCell>
             <TableCell>
               <IncidentStatusBadge status={incident.status} />
             </TableCell>
