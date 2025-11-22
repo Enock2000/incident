@@ -11,7 +11,6 @@ import { IncidentTimelineChart } from '@/components/analytics/incident-timeline-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { getCollectionPath } from '@/lib/utils';
 
 export default function AnalyticsPage() {
   const firestore = useFirestore();
@@ -20,7 +19,7 @@ export default function AnalyticsPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), orderBy('dateReported', 'desc'))
         : null,
     [firestore, user]
   );

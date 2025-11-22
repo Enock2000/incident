@@ -34,7 +34,7 @@ export default function PollingStationMonitoringPage() {
   const stationsQuery = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, 'pollingStations'), orderBy('name'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/pollingStations'), orderBy('name'))
         : null,
     [firestore, user]
   );

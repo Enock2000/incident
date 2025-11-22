@@ -60,7 +60,7 @@ export default function DepartmentsPage() {
   const departmentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, 'departments'), orderBy('name'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/departments'), orderBy('name'))
         : null,
     [firestore, user]
   );
@@ -80,7 +80,7 @@ export default function DepartmentsPage() {
 
     try {
         const categoryToSave = newDept.category === 'Other' ? newDept.otherCategory : newDept.category;
-        await addDoc(collection(firestore, 'departments'), {
+        await addDoc(collection(firestore, 'artifacts/default-app-id/public/data/departments'), {
             name: newDept.name,
             category: categoryToSave,
             province: newDept.province,

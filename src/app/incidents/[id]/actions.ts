@@ -5,7 +5,6 @@ import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore'
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase';
 import type { IncidentStatus, Priority, Responder } from '@/lib/types';
-import { getCollectionPath } from '@/lib/utils';
 
 const updateIncidentSchema = z.object({
   incidentId: z.string(),
@@ -26,7 +25,7 @@ export async function updateIncident(formData: FormData) {
   const { incidentId, status, priority } = parsed.data;
 
   try {
-    const incidentRef = doc(firestore, getCollectionPath('incidents'), incidentId);
+    const incidentRef = doc(firestore, 'artifacts/default-app-id/public/data/incidents', incidentId);
     const updateData: { status?: IncidentStatus, priority?: Priority, dateVerified?: any, dateResolved?: any } = {};
     if (status) {
         updateData.status = status as IncidentStatus;
@@ -73,7 +72,7 @@ export async function addInvestigationNote(formData: FormData) {
   const { incidentId, note, userId, userName } = parsed.data;
 
   try {
-    const incidentRef = doc(firestore, getCollectionPath('incidents'), incidentId);
+    const incidentRef = doc(firestore, 'artifacts/default-app-id/public/data/incidents', incidentId);
     await updateDoc(incidentRef, {
       investigationNotes: arrayUnion({
         note: note,
@@ -110,7 +109,7 @@ export async function assignResponder(formData: FormData) {
   const { incidentId, responder } = parsed.data;
 
   try {
-    const incidentRef = doc(firestore, getCollectionPath('incidents'), incidentId);
+    const incidentRef = doc(firestore, 'artifacts/default-app-id/public/data/incidents', incidentId);
     await updateDoc(incidentRef, {
       assignedTo: responder as Responder,
       status: 'Team Dispatched',

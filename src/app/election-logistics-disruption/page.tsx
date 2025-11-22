@@ -12,7 +12,6 @@ import { collection, query, where, orderBy } from "firebase/firestore";
 import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import type { Incident } from "@/lib/types";
 import { format } from "date-fns";
-import { getCollectionPath } from "@/lib/utils";
 
 const getImpactBadge = (impact: string) => {
     switch (impact) {
@@ -41,7 +40,7 @@ export default function ElectionLogisticsDisruptionPage() {
     () =>
       firestore && user
         ? query(
-            collection(firestore, getCollectionPath('incidents')), 
+            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
             where('category', '==', 'Logistics Disruption'),
             orderBy('dateReported', 'desc')
           )

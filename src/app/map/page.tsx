@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { InteractiveMap, type MapPin } from '@/components/map/map';
 import { incidentCategories } from '@/lib/incident-categories';
-import { getCollectionPath } from '@/lib/utils';
 
 export default function MapPage() {
     const firestore = useFirestore();
@@ -35,7 +34,7 @@ export default function MapPage() {
             constraints.push(where('status', '==', filters.status));
         }
 
-        return query(collection(firestore, getCollectionPath('incidents')), ...constraints);
+        return query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), ...constraints);
 
     }, [firestore, user, filters]);
     

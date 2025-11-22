@@ -54,14 +54,6 @@ const getStatusIcon = (status: string) => {
     }
 }
 
-// Helper function to build the correct collection path
-function getCollectionPath(collectionName: string): string {
-    // This variable is assumed to be globally available in the Canvas environment.
-    // We check for its existence to avoid ReferenceErrors.
-    const appId = typeof (globalThis as any).__app_id !== 'undefined' ? (globalThis as any).__app_id : 'default-app-id';
-    return `artifacts/${appId}/public/data/${collectionName}`;
-}
-
 
 export default function ElectionSecurityAlertsPage() {
   const firestore = useFirestore();
@@ -70,7 +62,7 @@ export default function ElectionSecurityAlertsPage() {
   const alertsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, getCollectionPath('election-security-alerts')), orderBy('timestamp', 'desc'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/election-security-alerts'), orderBy('timestamp', 'desc'))
         : null,
     [firestore, user]
   );

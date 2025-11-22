@@ -34,7 +34,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   const firestore = useFirestore();
 
   const departmentRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, "departments", params.id) : null),
+    () => (firestore ? doc(firestore, "artifacts/default-app-id/public/data/departments", params.id) : null),
     [firestore, params.id]
   );
   const { data: department, isLoading } = useDoc<Department>(departmentRef);
@@ -181,5 +181,4 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
-
     

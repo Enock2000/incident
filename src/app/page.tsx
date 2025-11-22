@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), orderBy('dateReported', 'desc'))
         : null,
     [firestore, user]
   );

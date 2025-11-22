@@ -33,7 +33,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { getCollectionPath } from "@/lib/utils";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
@@ -43,7 +42,7 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   const [selectedResponder, setSelectedResponder] = useState<string>('');
 
   const incidentRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, getCollectionPath("incidents"), params.id) : null),
+    () => (firestore ? doc(firestore, "artifacts/default-app-id/public/data/incidents", params.id) : null),
     [firestore, params.id]
   );
   const { data: incident, isLoading } = useDoc<Incident>(incidentRef);

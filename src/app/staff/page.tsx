@@ -30,7 +30,7 @@ export default function StaffPage() {
   const usersCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, getCollectionPath('users')), orderBy('lastName'))
+        ? query(collection(firestore, 'artifacts/default-app-id/public/data/users'), orderBy('lastName'))
         : null,
     [firestore, user]
   );
@@ -39,7 +39,7 @@ export default function StaffPage() {
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     if (!firestore) return;
     try {
-        const userDocRef = doc(firestore, getCollectionPath('users'), userId);
+        const userDocRef = doc(firestore, 'artifacts/default-app-id/public/data/users', userId);
         await updateDoc(userDocRef, { userType: newRole });
         toast({
             title: "Role Updated",

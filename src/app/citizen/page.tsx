@@ -14,7 +14,6 @@ import {
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { getCollectionPath } from '@/lib/utils';
 
 
 export default function CitizenPortalPage() {
@@ -26,7 +25,7 @@ export default function CitizenPortalPage() {
     () =>
       firestore && user
         ? query(
-            collection(firestore, getCollectionPath('incidents')), 
+            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
             where('reporter.userId', '==', user.uid),
             orderBy('dateReported', 'desc')
           )
