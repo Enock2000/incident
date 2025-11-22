@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -9,17 +10,8 @@ import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Incident, IncidentStatus } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { InteractiveMap } from '@/components/map/map';
+import { InteractiveMap, type MapPin } from '@/components/map/map';
 import { incidentCategories } from '@/lib/incident-categories';
-
-// Define the Pin interface explicitly if not imported from the Map component
-interface MapPin {
-    id: string;
-    latitude: number;
-    longitude: number;
-    label: string;
-    status: IncidentStatus; // Useful for color-coding pins by status
-}
 
 export default function MapPage() {
     const firestore = useFirestore();
@@ -30,9 +22,6 @@ export default function MapPage() {
         status: 'all',
     });
 
-    // 1. Query Construction
-    // Note: If both filters are active, ensure you have a Composite Index 
-    // in Firebase Console for 'category' + 'status'.
     const incidentsCollection = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         
@@ -52,19 +41,20 @@ export default function MapPage() {
     const { data: incidents, isLoading: isIncidentsLoading } =
         useCollection<Incident>(incidentsCollection);
 
-    // 2. Safe Pin Generation
     const pins: MapPin[] = useMemo(() => {
         if (!incidents) return [];
 
         return incidents
             .filter(incident => 
-                // Safety check: ensure location exists and is not null
                 incident.location && 
+                typeof incident.location === 'object' &&
+                'latitude' in incident.location &&
+                'longitude' in incident.location &&
                 typeof incident.location.latitude === 'number' && 
                 typeof incident.location.longitude === 'number'
             )
             .map(incident => ({
-                id: incident.id, // Pass ID for click handling
+                id: incident.id,
                 longitude: incident.location.longitude,
                 latitude: incident.location.latitude,
                 label: incident.title,
@@ -135,9 +125,6 @@ export default function MapPage() {
                      </div>
                    )}
                    
-                   {/* Note: Ensure InteractiveMap handles empty pins gracefully 
-                     or passing an onPinClick handler here 
-                   */}
                    <InteractiveMap pins={pins} />
                 </CardContent>
             </Card>

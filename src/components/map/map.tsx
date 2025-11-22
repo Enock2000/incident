@@ -4,22 +4,45 @@
 import * as React from 'react';
 import Map, {Marker, Popup, NavigationControl, FullscreenControl, ScaleControl, GeolocateControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import type { IncidentStatus } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZW5vY2syMDAwIiwiYSI6ImNtaWEyZmFkZTBvbDMya3NlbnNoN3o0ZmcifQ.F7pia859U0ApvbVDoKp4AA';
 
 export interface MapPin {
+  id: string;
   longitude: number;
   latitude: number;
   label: string;
+  status: IncidentStatus;
 }
 
 export interface InteractiveMapProps {
   pins: MapPin[];
 }
 
+const statusColors: Record<IncidentStatus, string> = {
+    Reported: "bg-gray-500",
+    Verified: "bg-blue-500",
+    "Team Dispatched": "bg-yellow-500",
+    "In Progress": "bg-orange-500",
+    Resolved: "bg-green-500",
+    Rejected: "bg-red-500",
+};
+
+
+function Pin({ pin }: { pin: MapPin }) {
+    const color = statusColors[pin.status] || "bg-gray-500";
+    return (
+        <div className={cn("w-3 h-3 rounded-full border-2 border-white shadow-md", color)}></div>
+    );
+}
+
 export function InteractiveMap({pins}: InteractiveMapProps) {
   const [popupInfo, setPopupInfo] = React.useState<MapPin | null>(null);
   const [mapStyle, setMapStyle] = React.useState('mapbox://styles/mapbox/streets-v12');
+  const router = useRouter();
 
   return (
     <>
@@ -47,14 +70,15 @@ export function InteractiveMap({pins}: InteractiveMapProps) {
         }}
         mapStyle={mapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
+        style={{width: '100%', height: '100%'}}
       >
         <GeolocateControl position="top-right" />
         <FullscreenControl position="top-right" />
         <NavigationControl position="top-right" />
         <ScaleControl />
-        {pins.map((pin, index) => (
+        {pins.map((pin) => (
             <Marker
-                key={`marker-${index}`}
+                key={`marker-${pin.id}`}
                 longitude={pin.longitude}
                 latitude={pin.latitude}
                 anchor="bottom"
@@ -63,7 +87,7 @@ export function InteractiveMap({pins}: InteractiveMapProps) {
                     setPopupInfo(pin);
                 }}
             >
-                <div style={{color: 'red', cursor: 'pointer', fontSize: '24px'}}>📍</div>
+               <Pin pin={pin} />
             </Marker>
         ))}
 
@@ -73,9 +97,16 @@ export function InteractiveMap({pins}: InteractiveMapProps) {
             longitude={Number(popupInfo.longitude)}
             latitude={Number(popupInfo.latitude)}
             onClose={() => setPopupInfo(null)}
+            closeOnClick={false}
           >
-            <div>
-              {popupInfo.label}
+            <div className='p-1 max-w-xs'>
+              <h3 className="font-semibold text-base mb-1">{popupInfo.label}</h3>
+              <button 
+                onClick={() => router.push(`/incidents/${popupInfo.id}`)}
+                className="text-sm text-primary hover:underline"
+              >
+                View Details
+              </button>
             </div>
           </Popup>
         )}
