@@ -6,7 +6,6 @@ export const zambiaProvinces = [
       'Chibombo',
       'Chisamba',
       'Chitambo',
-      'Itezhi-Tezhi',
       'Kabwe',
       'Kapiri Mposhi',
       'Luano',
@@ -48,7 +47,8 @@ export const zambiaProvinces = [
         'Nyimba',
         'Petauke',
         'Sinda',
-        'Vubwi'
+        'Vubwi',
+        'Chama'
     ]
   },
   {
@@ -84,8 +84,10 @@ export const zambiaProvinces = [
     districts: [
         'Chinsali',
         'Isoka',
+        'Kanchibiya',
+        'Lavushimanda',
         'Mafinga',
-        'MpiKa',
+        'Mpika',
         'Nakonde',
         'Shiwang\'andu'
     ]
@@ -117,7 +119,7 @@ export const zambiaProvinces = [
         'Kasempa',
         'Manyinga',
         'Mufumbwe',
-        'Mushindamo',
+        'Mushindano',
         'Mwinilunga',
         'Solwezi',
         'Zambezi'
@@ -130,6 +132,7 @@ export const zambiaProvinces = [
         'Chirundu',
         'Choma',
         'Gwembe',
+        'Itezhi-Tezhi',
         'Kalomo',
         'Kazungula',
         'Livingstone',
