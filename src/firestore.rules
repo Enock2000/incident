@@ -90,21 +90,24 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
     }
-
+    
     /**
-     * @description Stores reported incidents.
-     * @path /incidents/{incidentId}
+     * @description Rules for the incidents collection.
      */
     match /incidents/{incidentId} {
-        // Rules for collection-level access (queries and creation)
-        allow list, create: if isSignedIn();
-        
-        // Rules for document-level access (get, update, delete)
+        // Document-level access
         allow get: if isSignedIn();
+        allow create: if isSignedIn(); // Any signed-in user can report
         allow update: if isAdmin() || isCommunityLeader() || isResponder(); // Admins, Leaders, and Responders can update
         allow delete: if isAdmin();
     }
     
+    // Explicitly allow list on the collection itself
+    match /incidents {
+        allow list: if isSignedIn();
+    }
+
+
     /**
       * @description Special rule for public artifact collections used by Canvas.
       * @path /artifacts/{appId}/public/data/{collection}/{docId}
