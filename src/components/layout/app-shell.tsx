@@ -25,6 +25,8 @@ import {
   BarChart2,
   Map,
   Building,
+  Users,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -62,6 +64,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/map", label: "Map View", icon: Map, requiresAuth: true },
     { href: "/analytics", label: "Analytics", icon: BarChart2, requiresAuth: true },
     { href: "/departments", label: "Departments", icon: Building, requiresAuth: true },
+    { href: "/staff", label: "Staff", icon: Users, requiresAuth: true },
+    { href: "/assets", label: "Assets", icon: Package, requiresAuth: true },
     { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
     { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },
   ];
@@ -89,7 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem key={item.href}>
                   <Link href={item.href} legacyBehavior passHref>
                     <SidebarMenuButton
-                      isActive={pathname === item.href}
+                      isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                       tooltip={item.label}
                     >
                       <item.icon />

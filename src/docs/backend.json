@@ -12,7 +12,7 @@
         },
         "userType": {
           "type": "string",
-          "description": "The type of user account. Can be 'citizen', 'admin', 'regionalAuthority', 'responseUnit', or 'dataAnalyst'."
+          "description": "The type of user account. Can be 'citizen', 'admin', 'subAdmin', 'responder', 'analyst', or 'fieldOfficer'."
         },
         "firstName": {
           "type": "string",
@@ -123,7 +123,7 @@
         },
         "name": {
           "type": "string",
-          "description": "The name of the role (e.g., Admin, Regional Authority)."
+          "description": "The name of the role (e.g., Admin, Sub-admin)."
         },
         "description": {
           "type": "string",
@@ -255,6 +255,40 @@
         }
       },
       "required": ["title", "description", "location", "category", "status", "dateReported", "reporter"]
+    },
+    "Asset": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Asset",
+      "type": "object",
+      "description": "Represents a physical or digital asset belonging to a department.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the asset."
+        },
+        "departmentId": {
+          "type": "string",
+          "description": "The ID of the department this asset belongs to."
+        },
+        "assetType": {
+          "type": "string",
+          "enum": ["Vehicle", "Equipment", "Station/Post", "Response Team"],
+          "description": "The type of the asset."
+        },
+        "name": {
+          "type": "string",
+          "description": "A descriptive name for the asset (e.g., 'Patrol Car 12', 'Fire Extinguisher #5')."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the asset (e.g., 'Active', 'Under Maintenance', 'Decommissioned')."
+        },
+        "details": {
+          "type": "object",
+          "description": "Additional details specific to the asset type."
+        }
+      },
+      "required": ["id", "departmentId", "assetType", "name", "status"]
     }
   },
   "auth": {
@@ -298,6 +332,26 @@
         }
       },
       {
+        "path": "/departments/{departmentId}/assets/{assetId}",
+        "definition": {
+          "entityName": "Asset",
+          "schema": {
+            "$ref": "#/backend/entities/Asset"
+          },
+          "description": "Stores assets for a specific department. Department staff can manage their own assets.",
+          "params": [
+            {
+              "name": "departmentId",
+              "description": "The unique identifier of the department."
+            },
+            {
+               "name": "assetId",
+               "description": "The unique identifier of the asset."
+            }
+          ]
+        }
+      },
+      {
         "path": "/roles_admin/{userId}",
         "definition": {
           "entityName": "Role",
@@ -314,49 +368,65 @@
         }
       },
       {
-        "path": "/roles_regionalAuthority/{userId}",
+        "path": "/roles_subAdmin/{userId}",
         "definition": {
           "entityName": "Role",
           "schema": {
             "$ref": "#/backend/entities/Role"
           },
-          "description": "Collection to store regional authority user IDs. Existence of a document with the user's ID in this collection grants regional authority privileges. Authorization relies on document existence.",
+          "description": "Collection to store sub-admin user IDs. Grants elevated privileges, managed by admins.",
           "params": [
             {
               "name": "userId",
-              "description": "The Firebase Auth UID of the regional authority user."
+              "description": "The Firebase Auth UID of the sub-admin user."
             }
           ]
         }
       },
       {
-        "path": "/roles_responseUnit/{userId}",
+        "path": "/roles_responder/{userId}",
         "definition": {
           "entityName": "Role",
           "schema": {
             "$ref": "#/backend/entities/Role"
           },
-          "description": "Collection to store response unit user IDs. Existence of a document with the user's ID in this collection grants response unit privileges. Authorization relies on document existence.",
+          "description": "Collection to store responder user IDs (previously responseUnit). Existence grants responder privileges.",
           "params": [
             {
               "name": "userId",
-              "description": "The Firebase Auth UID of the response unit user."
+              "description": "The Firebase Auth UID of the responder user."
             }
           ]
         }
       },
       {
-        "path": "/roles_dataAnalyst/{userId}",
+        "path": "/roles_analyst/{userId}",
         "definition": {
           "entityName": "Role",
           "schema": {
             "$ref": "#/backend/entities/Role"
           },
-          "description": "Collection to store data analyst user IDs. Existence of a document with the user's ID in this collection grants data analyst privileges. Authorization relies on document existence.",
+          "description": "Collection to store data analyst user IDs. Existence grants data analyst privileges.",
           "params": [
             {
               "name": "userId",
               "description": "The Firebase Auth UID of the data analyst user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_fieldOfficer/{userId}",
+        "definition": {
+          "entityName": "Role",
+          "schema": {
+            "$ref": "#/backend/entities/Role"
+          },
+          "description": "Collection to store field officer user IDs. Grants field officer privileges.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the field officer user."
             }
           ]
         }
@@ -381,3 +451,4 @@
     "reasoning": "This Firestore data structure is designed to support user management (citizen and government agency/official accounts) with role-based access for the Zambia Tracking Incident System. It prioritizes authorization independence and QAPs (Rules are not Filters) using denormalization and structural segregation. User roles are managed via dedicated collections to avoid custom claims (DBAC). \n\nThe core strategy is to maintain clarity around access control and ownership, using path-based ownership where applicable and membership maps for collaborative data. The design leverages structural segregation by isolating data with differing security requirements into distinct collections. This approach allows for simpler and more robust security rules.\n\nSpecifically:\n\n*   **Authorization Independence:** No `get()` calls are needed in security rules because relevant authorization data (like user type and departmentId) is directly available within the document or can be evaluated from the path.\n*   **QAPs (Rules are not Filters):** Each collection has a homogeneous security posture, allowing secure `list` operations. For example, only admins can list all departments, while regional authorities can only access departments they are associated with via a separate query that filters by departmentId.\n*   **DBAC (No Custom Claims):** User roles are determined by their presence in dedicated role collections (e.g., `/roles_admin/{uid}`).\n*   **User Management:** Citizen and official user accounts are stored in the `/users/{userId}` collection. Department details are stored in the `/departments/{departmentId}` collection. The `departmentId` field in the `User` document links officials to their respective departments. Role-based access is managed through dedicated collections for each role type (e.g., `/roles_admin/{userId}`, `/roles_regionalAuthority/{userId}`)."
   }
 }
+    
