@@ -9,17 +9,26 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, MapPin, User, X, Loader2, Lightbulb, AlertCircle } from "lucide-react";
+import { ArrowLeft, Check, MapPin, User, X, Loader2, Lightbulb, AlertCircle, FileText } from "lucide-react";
 import Link from "next/link";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { doc } from "firebase/firestore";
-import { useFirestore, useMemoFirebase } from "@/firebase";
+import { doc, Timestamp } from "firebase/firestore";
+import { useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { Incident } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
+import { addInvestigationNote, updateIncident } from "./actions";
+import { useToast } from "@/hooks/use-toast";
+import { useRef } from "react";
+import { format } from "date-fns";
+
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
+  const { user } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const notesFormRef = useRef<HTMLFormElement>(null);
+
   const incidentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, "incidents", params.id) : null),
     [firestore, params.id]
@@ -27,6 +36,38 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
 
   const mapImage = PlaceHolderImages.find((img) => img.id === "map_placeholder");
+
+  const handleManagementAction = async (formData: FormData) => {
+    const result = await updateIncident(formData);
+    toast({
+      title: result.success ? "Success" : "Error",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+  };
+
+  const handleAddNote = async (formData: FormData) => {
+      const note = formData.get('note') as string;
+      if (!note || note.trim() === '') {
+          toast({ title: "Note cannot be empty.", variant: "destructive" });
+          return;
+      }
+      const result = await addInvestigationNote(formData);
+      toast({
+          title: result.success ? "Success" : "Error",
+          description: result.message,
+          variant: result.success ? "default" : "destructive",
+      });
+      if (result.success) {
+        notesFormRef.current?.reset();
+      }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+    return format(date, 'PPpp');
+  };
 
   if (isLoading) {
     return (
@@ -121,6 +162,30 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
               </div>
             </CardContent>
           </Card>
+           <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Investigation Notes
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  {incident.investigationNotes && incident.investigationNotes.length > 0 ? (
+                      <div className="space-y-4">
+                          {incident.investigationNotes.map((note, index) => (
+                              <div key={index} className="flex flex-col gap-1 text-sm border-b pb-2">
+                                  <p className="text-foreground">{note.note}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                      By {note.authorName} on {formatDate(note.timestamp)}
+                                  </p>
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <p className="text-muted-foreground text-sm">No investigation notes yet.</p>
+                  )}
+              </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Location</CardTitle>
@@ -140,20 +205,27 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
               <CardDescription>Verify, assign, and update incident status.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
-                  <Check className="mr-2 h-4 w-4" /> Verify
-                </Button>
-                <Button variant="destructive" className="w-full">
-                  <X className="mr-2 h-4 w-4" /> Reject
-                </Button>
-              </div>
+               <form action={handleManagementAction} className="flex gap-2">
+                   <input type="hidden" name="incidentId" value={incident.id} />
+                   <Button type="submit" name="status" value="Verified" className="w-full bg-emerald-600 hover:bg-emerald-700">
+                       <Check className="mr-2 h-4 w-4" /> Verify
+                   </Button>
+                   <Button type="submit" name="status" value="Rejected" variant="destructive" className="w-full">
+                       <X className="mr-2 h-4 w-4" /> Reject
+                   </Button>
+               </form>
 
               <Separator />
 
-              <div className="space-y-2">
+              <form action={handleManagementAction} className="space-y-2">
+                 <input type="hidden" name="incidentId" value={incident.id} />
                 <Label htmlFor="status">Status</Label>
-                <Select defaultValue={incident.status}>
+                <Select name="status" defaultValue={incident.status} onValueChange={(value) => {
+                    const formData = new FormData();
+                    formData.append('incidentId', incident.id);
+                    formData.append('status', value);
+                    handleManagementAction(formData);
+                }}>
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Set status" />
                   </SelectTrigger>
@@ -163,32 +235,46 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                     <SelectItem value="Team Dispatched">Team Dispatched</SelectItem>
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="Resolved">Resolved</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select defaultValue={incident.priority}>
-                  <SelectTrigger id="priority">
-                    <SelectValue placeholder="Set priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              </form>
+               <form action={handleManagementAction} className="space-y-2">
+                   <input type="hidden" name="incidentId" value={incident.id} />
+                   <Label htmlFor="priority">Priority</Label>
+                   <Select name="priority" defaultValue={incident.priority} onValueChange={(value) => {
+                       const formData = new FormData();
+                       formData.append('incidentId', incident.id);
+                       formData.append('priority', value);
+                       handleManagementAction(formData);
+                   }}>
+                       <SelectTrigger id="priority">
+                           <SelectValue placeholder="Set priority" />
+                       </SelectTrigger>
+                       <SelectContent>
+                           <SelectItem value="Low">Low</SelectItem>
+                           <SelectItem value="Medium">Medium</SelectItem>
+                           <SelectItem value="High">High</SelectItem>
+                       </SelectContent>
+                   </Select>
+               </form>
               
-              <Button className="w-full">Assign Responder</Button>
+              <Button className="w-full" disabled>Assign Responder</Button>
               
               <Separator />
               
-              <div className="space-y-2">
-                <Label htmlFor="notes">Investigation Notes</Label>
-                <Textarea id="notes" placeholder="Add notes for the response team..." rows={5} />
-              </div>
-              <Button className="w-full" variant="secondary">Save Notes</Button>
+              <form action={handleAddNote} ref={notesFormRef} className="space-y-2">
+                  <input type="hidden" name="incidentId" value={incident.id} />
+                  {user && (
+                      <>
+                          <input type="hidden" name="userId" value={user.uid} />
+                          <input type="hidden" name="userName" value={user.displayName || user.email || 'Admin'} />
+                      </>
+                  )}
+                  <Label htmlFor="notes">Investigation Notes</Label>
+                  <Textarea id="notes" name="note" placeholder="Add notes for the response team..." rows={5} />
+                  <Button className="w-full" type="submit" variant="secondary">Save Note</Button>
+              </form>
             </CardContent>
           </Card>
         </div>

@@ -3,9 +3,10 @@ export type IncidentStatus =
   | 'Verified'
   | 'Team Dispatched'
   | 'In Progress'
-  | 'Resolved';
+  | 'Resolved'
+  | 'Rejected'; // Added Rejected status
 
-export type Priority = 'Low' | 'Medium' | 'High';
+export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'; // Added Critical
 
 export type UserRole =
   | 'citizen'
@@ -29,6 +30,13 @@ export type UserProfile = {
   agencyId?: string;
 };
 
+export type InvestigationNote = {
+    note: string;
+    authorId: string;
+    authorName: string;
+    timestamp: any; // Firebase Timestamp
+}
+
 export type Incident = {
   id: string;
   title: string;
@@ -40,6 +48,7 @@ export type Incident = {
   reporter?: Reporter;
   media: string[];
   category: string;
+  investigationNotes?: InvestigationNote[]; // Added investigation notes
   aiMetadata?: {
     suggestedCategories?: string[];
     isDuplicate?: boolean;

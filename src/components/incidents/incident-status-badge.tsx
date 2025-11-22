@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { IncidentStatus } from "@/lib/types";
+import type { IncidentStatus, Priority } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type IncidentStatusBadgeProps = {
@@ -14,6 +14,7 @@ export function IncidentStatusBadge({ status, className }: IncidentStatusBadgePr
     "Team Dispatched": "bg-yellow-200 text-yellow-800",
     "In Progress": "bg-orange-200 text-orange-800",
     Resolved: "bg-green-200 text-green-800",
+    Rejected: "bg-red-200 text-red-800",
   };
 
   return (
@@ -23,11 +24,12 @@ export function IncidentStatusBadge({ status, className }: IncidentStatusBadgePr
   );
 }
 
-export function PriorityBadge({ priority, className }: { priority: 'Low' | 'Medium' | 'High', className?: string }) {
+export function PriorityBadge({ priority, className }: { priority: 'Low' | 'Medium' | 'High' | 'Critical', className?: string }) {
   const priorityStyles = {
     Low: "bg-green-100 text-green-800",
     Medium: "bg-yellow-100 text-yellow-800",
-    High: "bg-red-100 text-red-800",
+    High: "bg-orange-100 text-orange-800",
+    Critical: "bg-red-100 text-red-800",
   }
   return (
     <Badge className={cn("border-transparent font-normal", priorityStyles[priority], className)}>{priority}</Badge>
