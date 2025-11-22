@@ -119,6 +119,57 @@
         "userId",
         "roleId"
       ]
+    },
+    "Incident": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Incident",
+      "type": "object",
+      "description": "Represents a reported incident.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the incident."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the incident."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the incident."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the incident."
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority of the incident."
+        },
+        "dateReported": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the incident was reported."
+        },
+        "reporter": {
+          "type": "object",
+          "properties": {
+            "isAnonymous": {
+              "type": "boolean"
+            },
+            "userId": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["title", "description", "location", "status", "dateReported", "reporter"]
     }
   },
   "auth": {
@@ -221,6 +272,22 @@
             {
               "name": "userId",
               "description": "The Firebase Auth UID of the data analyst user."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/incidents/{incidentId}",
+        "definition": {
+          "entityName": "Incident",
+          "schema": {
+            "$ref": "#/backend/entities/Incident"
+          },
+          "description": "Stores all reported incidents. All signed-in users can read, but only specific roles can update or delete.",
+          "params": [
+            {
+              "name": "incidentId",
+              "description": "The unique identifier of the incident."
             }
           ]
         }

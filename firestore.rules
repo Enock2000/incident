@@ -77,6 +77,21 @@ service cloud.firestore {
     }
 
     /**
+     * @description Stores reported incidents.
+     * @path /incidents/{incidentId}
+     * @allow (get, list) Any signed-in user can view all incidents.
+     * @allow (create) Any signed-in user can create a new incident report.
+     * @allow (update, delete) Only admins can modify or delete incidents (for now).
+     */
+    match /incidents/{incidentId} {
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+    }
+
+    /**
      * @description Manages admin role assignments. Only existing admins can add or remove other admins.
      * @path /roles_admin/{userId}
      * @allow (get, list, create, delete) An existing admin manages role documents in `/roles_admin`.
