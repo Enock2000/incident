@@ -2,7 +2,6 @@
 
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { IncidentStatusBadge } from "@/components/incidents/incident-status-badge";
 import { Button } from "@/components/ui/button";
@@ -14,17 +13,21 @@ import { ArrowLeft, Check, MapPin, User, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { doc } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useMemoFirebase } from "@/firebase";
 import { Incident } from "@/lib/types";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
   const firestore = useFirestore();
-  const incidentRef = firestore ? doc(firestore, "incidents", params.id) : null;
-  const { data: incident, loading } = useDoc<Incident>(incidentRef);
+  const incidentRef = useMemoFirebase(
+    () => (firestore ? doc(firestore, "incidents", params.id) : null),
+    [firestore, params.id]
+  );
+  const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
 
   const mapImage = PlaceHolderImages.find((img) => img.id === "map_placeholder");
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -83,11 +86,10 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                 <div>
                   <h3 className="font-semibold text-lg">Photos</h3>
                   <div className="grid grid-cols-2 gap-4 mt-2">
-                    {incident.media.map(mediaId => {
-                      const photo = PlaceHolderImages.find(p => p.id === mediaId);
-                      return photo ? (
-                        <Image key={photo.id} src={photo.imageUrl} alt={photo.description} width={300} height={200} className="rounded-lg object-cover" data-ai-hint={photo.imageHint} />
-                      ) : null;
+                    {incident.media && incident.media.map((mediaUrl, index) => {
+                      return (
+                        <Image key={index} src={mediaUrl} alt={`Incident photo ${index + 1}`} width={300} height={200} className="rounded-lg object-cover" />
+                      );
                     })}
                   </div>
                 </div>

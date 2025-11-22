@@ -20,11 +20,11 @@ import {
   PlusCircle,
   User,
   LogOut,
+  LogIn,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +34,23 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const avatar = PlaceHolderImages.find((img) => img.id === "avatar1");
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  const handleSignOut = () => {
+    signOut(auth);
+  };
 
   const navItems = [
-    { href: "/", label: "Dashboard", icon: Home },
-    { href: "/report", label: "Report Incident", icon: PlusCircle },
-    { href: "/notifications", label: "Notifications", icon: Bell },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/", label: "Dashboard", icon: Home, requiresAuth: true },
+    { href: "/report", label: "Report Incident", icon: PlusCircle, requiresAuth: true },
+    { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
+    { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },
   ];
 
   return (
@@ -57,29 +64,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href} legacyBehavior passHref>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
+            {navItems.map((item) =>
+              (item.requiresAuth && user) || !item.requiresAuth ? (
+                <SidebarMenuItem key={item.href}>
+                  <Link href={item.href} legacyBehavior passHref>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      tooltip={item.label}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ) : null
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton>
-                <LogOut />
-                <span>Log Out</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {user && (
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleSignOut}>
+                  <LogOut />
+                  <span>Log Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
@@ -93,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  {avatar && <AvatarImage src={avatar.imageUrl} alt="User Avatar" />}
+                  {user?.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || "User Avatar"} />}
                   <AvatarFallback>
                     <User />
                   </AvatarFallback>
@@ -101,19 +112,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Authority User</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    user@zambia.gov.zm
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
+              {user ? (
+                <>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.isAnonymous ? "Anonymous User" : user.displayName || "User"}</p>
+                      {user.email && <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem onClick={() => {
+                  // This is a placeholder, you'd likely want a modal or redirect
+                  console.log("Redirect to login page");
+                  }}>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span>Log In</span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </header>

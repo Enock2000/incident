@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/componentsui/checkbox";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/firebase";
 
 const initialState: FormState = {
   message: "",
@@ -27,6 +27,7 @@ function SubmitButton() {
 }
 
 export function ReportIncidentForm() {
+  const { user } = useUser();
   const [state, formAction] = useFormState(createIncident, initialState);
   const { toast } = useToast();
 
@@ -48,6 +49,9 @@ export function ReportIncidentForm() {
 
   return (
     <form action={formAction} className="space-y-6">
+      {/* Hidden input to pass the user ID to the server action */}
+      {user && <input type="hidden" name="userId" value={user.uid} />}
+
       <div className="space-y-2">
         <Label htmlFor="title">Incident Title</Label>
         <Input id="title" name="title" placeholder="e.g., Power outage in Mandevu" required />

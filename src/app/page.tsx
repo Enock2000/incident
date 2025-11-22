@@ -1,37 +1,85 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { IncidentTable } from "@/components/incidents/incident-table";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
-import { Activity, AlertTriangle, CheckCircle, PlusCircle, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { Incident } from "@/lib/types";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { IncidentTable } from '@/components/incidents/incident-table';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  PlusCircle,
+  Loader2,
+  User as UserIcon,
+} from 'lucide-react';
+import Link from 'next/link';
+import type { Incident } from '@/lib/types';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/firebase';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const incidentsCollection = firestore ? collection(firestore, "incidents") : null;
-  const { data: incidents, loading } = useCollection<Incident>(incidentsCollection);
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
 
-  if (loading) {
+  const incidentsCollection = useMemoFirebase(
+    () =>
+      firestore
+        ? query(collection(firestore, 'incidents'), orderBy('dateReported', 'desc'))
+        : null,
+    [firestore]
+  );
+  const { data: incidents, isLoading: isIncidentsLoading } =
+    useCollection<Incident>(incidentsCollection);
+
+  const handleAnonymousSignIn = () => {
+    initiateAnonymousSignIn(auth);
+  };
+  
+  if (isUserLoading || isIncidentsLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  const totalIncidents = incidents.length;
-  const resolvedIncidents = incidents.filter(i => i.status === 'Resolved').length;
-  const activeIncidents = incidents.filter(i => i.status === 'In Progress' || i.status === 'Team Dispatched').length;
-  const pendingIncidents = incidents.filter(i => i.status === 'Reported' || i.status === 'Verified').length;
+  if (!user) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+        <div className="mx-auto rounded-full bg-primary/10 p-4">
+          <UserIcon className="h-10 w-10 text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold">Welcome to ZTIS</h2>
+        <p className="text-muted-foreground">
+          Sign in to report incidents and view the dashboard.
+        </p>
+        <div className="flex gap-4">
+          <Button onClick={handleAnonymousSignIn}>Sign In Anonymously</Button>
+          {/* Add buttons for Email/Social login here */}
+        </div>
+      </div>
+    );
+  }
+
+  const totalIncidents = incidents?.length ?? 0;
+  const resolvedIncidents =
+    incidents?.filter((i) => i.status === 'Resolved').length ?? 0;
+  const activeIncidents =
+    incidents?.filter(
+      (i) => i.status === 'In Progress' || i.status === 'Team Dispatched'
+    ).length ?? 0;
+  const pendingIncidents =
+    incidents?.filter(
+      (i) => i.status === 'Reported' || i.status === 'Verified'
+    ).length ?? 0;
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight font-headline">
+        <h1 className="font-headline text-3xl font-bold tracking-tight">
           Incident Dashboard
         </h1>
         <div className="flex items-center space-x-2">
@@ -60,27 +108,37 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{resolvedIncidents}</div>
-            <p className="text-xs text-muted-foreground">Completed investigations</p>
+            <p className="text-xs text-muted-foreground">
+              Completed investigations
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Responses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Responses
+            </CardTitle>
             <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeIncidents}</div>
-            <p className="text-xs text-muted-foreground">Teams currently dispatched</p>
+            <p className="text-xs text-muted-foreground">
+              Teams currently dispatched
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Verification</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Verification
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingIncidents}</div>
-            <p className="text-xs text-muted-foreground">Awaiting authority review</p>
+            <p className="text-xs text-muted-foreground">
+              Awaiting authority review
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -90,7 +148,7 @@ export default function DashboardPage() {
             <CardTitle>Recent Incidents</CardTitle>
           </CardHeader>
           <CardContent>
-            <IncidentTable incidents={incidents.slice(0, 10)} />
+            {incidents && <IncidentTable incidents={incidents.slice(0, 10)} />}
           </CardContent>
         </Card>
       </div>

@@ -16,6 +16,13 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 export function IncidentTable({ incidents }: { incidents: Incident[] }) {
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "N/A";
+    // Firestore Timestamps can be converted to JS Date objects
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return format(date, "PPP");
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -37,7 +44,7 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
             <TableCell>
                 <PriorityBadge priority={incident.priority} />
             </TableCell>
-            <TableCell>{format(new Date(incident.dateReported), "PPP")}</TableCell>
+            <TableCell>{formatDate(incident.dateReported)}</TableCell>
             <TableCell className="text-right">
               <Link href={`/incidents/${incident.id}`} passHref>
                 <Button variant="ghost" size="icon">

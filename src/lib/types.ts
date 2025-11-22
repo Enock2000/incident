@@ -15,8 +15,9 @@ export type Role =
   | 'DataAnalyst';
 
 export type Reporter = {
-  name: string;
-  contact?: string;
+  isAnonymous: boolean;
+  userId: string | null;
+  name?: string; // This can be populated later from the user profile
 };
 
 export type UserProfile = {

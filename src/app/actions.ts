@@ -6,14 +6,15 @@ import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
 import { initializeFirebase } from "@/firebase";
+import { getAuth } from "firebase/auth";
 
 const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(20, "Description must be at least 20 characters long."),
   location: z.string().min(3, "Location is required."),
   isAnonymous: z.boolean(),
+  userId: z.string().optional(), // Added to link the incident to the user
 });
 
 export type FormState = {
@@ -27,6 +28,9 @@ export async function createIncident(
   data: FormData
 ): Promise<FormState> {
   const { firestore } = initializeFirebase();
+  // Note: Getting auth on the server is complex. For this action, we'll pass UID from client.
+  // In a real app, you'd use a session or verify an ID token.
+  
   const formData = Object.fromEntries(data);
   const parsed = reportIncidentSchema.safeParse({
     ...formData,
@@ -46,7 +50,7 @@ export async function createIncident(
     };
   }
 
-  const { title, description, location, isAnonymous } = parsed.data;
+  const { title, description, location, isAnonymous, userId } = parsed.data;
 
   // --- AI INTEGRATION ---
   try {
@@ -61,7 +65,7 @@ export async function createIncident(
     const duplicateCheck = await detectDuplicateOrSuspiciousReports({
       reportContent: `${title}: ${description}`,
       location: location,
-      metadata: { timestamp: new Date().toISOString() },
+      metadata: { timestamp: new Date().toISOString(), userId: userId },
     });
     console.log("AI Duplicate Check:", duplicateCheck);
 
@@ -80,7 +84,8 @@ export async function createIncident(
       priority: "Medium", // Default priority
       dateReported: serverTimestamp(),
       reporter: {
-        name: isAnonymous ? "Anonymous" : "Authenticated User", // Replace with actual user data later
+        isAnonymous: isAnonymous,
+        userId: isAnonymous ? null : userId,
       },
       media: [], // Handle file uploads separately
     });
