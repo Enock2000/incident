@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import {
@@ -12,6 +13,7 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { ZtisLogo } from "@/components/icons";
 import {
@@ -28,6 +30,20 @@ import {
   Users,
   Package,
   Shield,
+  Vote,
+  Monitor,
+  Siren,
+  UserCheck,
+  Flag,
+  Users2,
+  Scale,
+  Archive,
+  HelpCircle,
+  Truck,
+  FileWarning,
+  Route,
+  CloudSun,
+  Swords,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -69,11 +85,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/report", label: "Report Incident", icon: PlusCircle, requiresAuth: true },
     { href: "/map", label: "Map View", icon: Map, requiresAuth: true },
     { href: "/analytics", label: "Analytics", icon: BarChart2, requiresAuth: true },
-    { href: "/departments", label: "Departments", icon: Building, requiresAuth: true },
+  ];
+
+  const managementItems = [
+     { href: "/departments", label: "Departments", icon: Building, requiresAuth: true },
     { href: "/staff", label: "Staff & Roles", icon: Users, requiresAuth: true },
     { href: "/assets", label: "Assets", icon: Package, requiresAuth: true },
     { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
     { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },
+  ];
+
+  const electionModules = [
+    { href: "/election-incident-reporting", label: "Election Incident Reporting", icon: Vote },
+    { href: "/polling-station-monitoring", label: "Polling Station Monitoring", icon: Monitor },
+    { href: "/election-security-alerts", label: "Election Security Alerts", icon: Siren },
+    { href: "/voter-safety-incident", label: "Voter Safety Incident", icon: UserCheck },
+    { href: "/violence-intimidation-monitoring", label: "Violence & Intimidation", icon: Swords },
+    { href: "/political-activity-tracking", label: "Political Activity Tracking", icon: Flag },
+    { href: "/crowd-queue-management", label: "Crowd & Queue Management", icon: Users2 },
+    { href: "/illegal-campaign-activity", label: "Illegal Campaign Activity", icon: Scale },
+    { href: "/electoral-material-damage", label: "Electoral Material Damage", icon: Archive },
+    { href: "/polling-staff-emergency-support", label: "Polling Staff Support", icon: HelpCircle },
+    { href: "/election-logistics-disruption", label: "Logistics Disruption", icon: Truck },
+    { href: "/fake-news-misinformation", label: "Fake News & Misinformation", icon: FileWarning },
+    { href: "/transportation-route-monitoring", label: "Transport Monitoring", icon: Route },
+    { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
+    { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
   ];
   
   const isAuthPage = pathname === '/login' || pathname === '/signup';
@@ -110,6 +147,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : null
             )}
           </SidebarMenu>
+          <SidebarSeparator />
+            <SidebarMenu>
+                 <SidebarMenuItem>
+                    <span className="text-xs text-muted-foreground px-2 font-semibold">Management</span>
+                 </SidebarMenuItem>
+                 {managementItems.map((item) =>
+                   (item.requiresAuth && user) || !item.requiresAuth ? (
+                     <SidebarMenuItem key={item.href}>
+                       <Link href={item.href} legacyBehavior passHref>
+                         <SidebarMenuButton
+                           isActive={pathname.startsWith(item.href)}
+                           tooltip={item.label}
+                         >
+                           <item.icon />
+                           <span>{item.label}</span>
+                         </SidebarMenuButton>
+                       </Link>
+                     </SidebarMenuItem>
+                   ) : null
+                 )}
+            </SidebarMenu>
+            <SidebarSeparator />
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <span className="text-xs text-muted-foreground px-2 font-semibold">Election Modules</span>
+                </SidebarMenuItem>
+                {electionModules.map((item) =>
+                    (user) ? (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href} legacyBehavior passHref>
+                        <SidebarMenuButton
+                            isActive={pathname.startsWith(item.href)}
+                            tooltip={item.label}
+                        >
+                            <item.icon />
+                            <span>{item.label}</span>
+                        </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                    ) : null
+                )}
+            </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
