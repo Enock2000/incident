@@ -2,98 +2,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions for reusable logic
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-    function isCommunityLeader() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_communityLeader/$(request.auth.uid));
-    }
-
-    function isResponder() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_responder/$(request.auth.uid));
-    }
-
-    function isCreatingOwnUserDoc(userId) {
-      return isOwner(userId) && request.resource.data.id == userId;
-    }
-
-    function isUpdatingOwnUserDoc() {
-      return request.resource.data.id == resource.data.id;
-    }
-
-    // USER DATA
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isCreatingOwnUserDoc(userId);
-      allow update: if (isOwner(userId) && isUpdatingOwnUserDoc()) || isAdmin();
-      allow delete: if isOwner(userId) || isAdmin();
-    }
-
-    // DEPARTMENTS
-    match /departments/{departmentId} {
-      allow read, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-
-      match /assets/{assetId} {
-        allow read, list, create, update, delete: if isAdmin();
-      }
-    }
-
-    // --- INCIDENTS ---
-    // This rule allows any authenticated user to perform queries (list) on the incidents collection.
-    // This is separate from the rule below which handles individual document access.
-    match /incidents {
-        allow list: if isSignedIn();
-    }
-    
-    // This rule handles operations on a single incident document.
-    match /incidents/{incidentId} {
-        allow get: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isAdmin() || isCommunityLeader() || isResponder();
-        allow delete: if isAdmin();
-    }
-
-    // POLLING STATIONS
-    match /pollingStations/{stationId} {
-        allow read, list: if isSignedIn();
-        allow create: if isAdmin();
-        allow update: if isAdmin() || isCommunityLeader();
-        allow delete: if isAdmin();
-    }
-
-    // ARTIFACTS (for Canvas public data)
-    match /artifacts/{appId}/public/data/{collection}/{docId} {
-        allow get, list: if isSignedIn();
-        allow write: if false; // No client-side writes
-    }
-
-    // ROLE MANAGEMENT
-    match /roles_admin/{userId} {
-      allow read, list, create, delete: if isAdmin();
-      allow update: if false;
-    }
-
-    match /roles_communityLeader/{userId} {
-      allow read, list, create, delete: if isAdmin();
-      allow update: if false;
-    }
-
-    match /roles_responder/{userId} {
-      allow read, list, create, delete: if isAdmin();
-      allow update: if false;
+    // Allow read/write access to any signed-in user for all collections.
+    // This is a temporary, permissive rule for debugging purposes.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
