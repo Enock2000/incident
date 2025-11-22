@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Lightbulb, AlertTriangle } from "lucide-react";
+import { Loader2, Lightbulb, AlertTriangle, Locate } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
@@ -34,6 +35,9 @@ export function ReportIncidentForm() {
   const [state, formAction] = useFormState(createIncident, initialState);
   const { toast } = useToast();
   const [category, setCategory] = useState<string>('');
+  const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
 
   useEffect(() => {
     if (state?.message && state.issues) {
@@ -61,11 +65,44 @@ export function ReportIncidentForm() {
     }
   };
 
+  const handleUseLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setLatitude(latitude);
+          setLongitude(longitude);
+          setLocation(`Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`);
+          toast({
+            title: "Location Fetched",
+            description: "Your current location has been set.",
+          });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          toast({
+            variant: "destructive",
+            title: "Location Error",
+            description: "Could not retrieve your location. Please enter it manually.",
+          });
+        }
+      );
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Geolocation Not Supported",
+        description: "Your browser does not support geolocation.",
+      });
+    }
+  };
+
 
   return (
     <form action={formAction} className="space-y-6">
       {/* Hidden input to pass the user ID to the server action */}
       {user && <input type="hidden" name="userId" value={user.uid} />}
+      {latitude && <input type="hidden" name="latitude" value={latitude} />}
+      {longitude && <input type="hidden" name="longitude" value={longitude} />}
 
       <div className="space-y-2">
         <Label htmlFor="title">Incident Title</Label>
@@ -80,8 +117,13 @@ export function ReportIncidentForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Input id="location" name="location" placeholder="e.g., Lusaka, Zambia" required />
-          <p className="text-sm text-muted-foreground">You can also use GPS or pin a location on the map (coming soon).</p>
+           <div className="flex gap-2">
+            <Input id="location" name="location" placeholder="e.g., Lusaka, Zambia or use GPS" required value={location} onChange={(e) => setLocation(e.target.value)} />
+            <Button type="button" variant="outline" onClick={handleUseLocation} aria-label="Use my location">
+              <Locate />
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">Enter an address or use your current location.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>

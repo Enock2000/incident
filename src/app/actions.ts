@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -12,6 +13,8 @@ const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(20, "Description must be at least 20 characters long."),
   location: z.string().min(3, "Location is required."),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
   category: z.string().min(3, "Category is required."),
   isAnonymous: z.boolean(),
   userId: z.string().optional(), // Added to link the incident to the user
@@ -56,7 +59,7 @@ export async function createIncident(
     };
   }
 
-  const { title, description, location, isAnonymous, userId, category } = parsed.data;
+  const { title, description, location, latitude, longitude, isAnonymous, userId, category } = parsed.data;
 
   let aiSuggestions: FormState['aiSuggestions'] = {};
 
@@ -93,10 +96,18 @@ export async function createIncident(
 
   try {
     const incidentsCollection = collection(firestore, "incidents");
+
+    const locationData = (latitude && longitude) ? {
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      address: location,
+    } : location;
+
+
     await addDoc(incidentsCollection, {
       title,
       description,
-      location,
+      location: locationData,
       category,
       status: "Reported",
       priority: "Medium", // Default priority
