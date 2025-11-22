@@ -27,9 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { zambiaProvinces } from '@/lib/zambia-locations';
 
 type Department = {
     id: string;
@@ -113,8 +114,17 @@ export default function DepartmentsPage() {
   }
   
   const handleSelectChange = (name: string) => (value: string) => {
-      setNewDept(prev => ({ ...prev, [name]: value }));
+      if (name === 'province') {
+          setNewDept(prev => ({ ...prev, province: value, district: '' }));
+      } else {
+          setNewDept(prev => ({ ...prev, [name]: value }));
+      }
   };
+
+  const districtsForSelectedProvince = useMemo(() => {
+    const selectedProvince = zambiaProvinces.find(p => p.name === newDept.province);
+    return selectedProvince ? selectedProvince.districts : [];
+  }, [newDept.province]);
 
 
   return (
@@ -162,11 +172,25 @@ export default function DepartmentsPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="province">Province</Label>
-                            <Input id="province" name="province" value={newDept.province} onChange={handleInputChange} />
+                             <Select name="province" value={newDept.province} onValueChange={handleSelectChange('province')}>
+                                <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
+                                <SelectContent>
+                                    {zambiaProvinces.map(province => (
+                                        <SelectItem key={province.name} value={province.name}>{province.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="district">District</Label>
-                            <Input id="district" name="district" value={newDept.district} onChange={handleInputChange} />
+                            <Select name="district" value={newDept.district} onValueChange={handleSelectChange('district')} disabled={!newDept.province}>
+                                <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
+                                <SelectContent>
+                                    {districtsForSelectedProvince.map(district => (
+                                        <SelectItem key={district} value={district}>{district}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                      <div className="space-y-2">
