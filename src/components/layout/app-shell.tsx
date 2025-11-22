@@ -23,6 +23,7 @@ import {
   LogOut,
   LogIn,
   BarChart2,
+  Map,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -57,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", label: "Dashboard", icon: Home, requiresAuth: true },
     { href: "/report", label: "Report Incident", icon: PlusCircle, requiresAuth: true },
+    { href: "/map", label: "Map View", icon: Map, requiresAuth: true },
     { href: "/analytics", label: "Analytics", icon: BarChart2, requiresAuth: true },
     { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
     { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },

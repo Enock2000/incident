@@ -4,12 +4,13 @@
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { Loader2, BarChart2, AlertCircle } from 'lucide-react';
+import { Loader2, BarChart2, AlertCircle, Map } from 'lucide-react';
 import type { Incident } from '@/lib/types';
 import { IncidentCategoryChart } from '@/components/analytics/incident-category-chart';
 import { IncidentTimelineChart } from '@/components/analytics/incident-timeline-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function AnalyticsPage() {
   const firestore = useFirestore();
@@ -137,14 +138,17 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
                  <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                    <BarChart2 className="h-10 w-10 text-primary" />
+                    <Map className="h-10 w-10 text-primary" />
                 </div>
                 <h3 className="mt-4 text-xl font-headline">
-                    Heatmap Coming Soon
+                    View Interactive Map
                 </h3>
-                <p className="text-muted-foreground">
-                    This feature requires integration with a mapping service.
+                <p className="text-muted-foreground mb-4">
+                    Go to the Map View to see an interactive visualization of all incidents.
                 </p>
+                <Link href="/map">
+                  <Button>Go to Map</Button>
+                </Link>
             </CardContent>
         </Card>
        </div>
