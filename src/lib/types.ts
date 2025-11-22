@@ -11,9 +11,8 @@ export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'; // Added Critical
 export type UserRole =
   | 'citizen'
   | 'admin'
-  | 'regionalAuthority'
-  | 'responseUnit'
-  | 'dataAnalyst';
+  | 'communityLeader'
+  | 'responder';
 
 export type Reporter = {
   isAnonymous: boolean;
@@ -27,7 +26,7 @@ export type UserProfile = {
   lastName: string;
   email: string;
   userType: UserRole;
-  agencyId?: string;
+  departmentId?: string;
 };
 
 export type InvestigationNote = {
@@ -67,3 +66,5 @@ export type Incident = {
   dateDispatched?: any;
   dateResolved?: any;
 };
+
+    

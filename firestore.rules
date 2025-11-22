@@ -28,33 +28,18 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the user is a Sub-admin.
+     * Checks if the user is a Community Leader.
      */
-    function isSubAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_subAdmin/$(request.auth.uid));
+    function isCommunityLeader() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_communityLeader/$(request.auth.uid));
     }
 
     /**
-     * Checks if the user is a Responder (replaces Response Unit and Regional Authority).
+     * Checks if the user is a Responder (Police, Fire, Ambulance).
      */
     function isResponder() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_responder/$(request.auth.uid));
     }
-
-    /**
-     * Checks if the user is a Data Analyst.
-     */
-    function isAnalyst() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_analyst/$(request.auth.uid));
-    }
-
-    /**
-     * Checks if the user is a Field Officer.
-     */
-    function isFieldOfficer() {
-        return isSignedIn() && exists(/databases/$(database)/documents/roles_fieldOfficer/$(request.auth.uid));
-    }
-
 
     /**
      * Validates that a user is creating their own user document and that the
@@ -76,39 +61,31 @@ service cloud.firestore {
     /**
      * @description Stores user account information. Each user can only access their own document.
      * @path /users/{userId}
-     * @allow (get, update) Authenticated user `xyz` requests their own document at `/users/xyz`.
-     * @allow (create) New user `xyz` creates their profile at `/users/xyz` and includes `id: 'xyz'` in the data.
-     * @deny (list) Any user attempts to list the `/users` collection.
-     * @deny (get) User `abc` attempts to read user `xyz`'s document at `/users/xyz`.
-     * @principle Restricts access to a user's own data tree and enforces relational integrity.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin() || isSubAdmin();
-      allow list: if isAdmin() || isSubAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isCreatingOwnUserDoc(userId);
-      allow update: if (isExistingOwner(userId) && isUpdatingOwnUserDoc()) || isAdmin() || isSubAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin() || isSubAdmin();
+      allow update: if (isExistingOwner(userId) && isUpdatingOwnUserDoc()) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
      * @description Stores information about government departments. Managed exclusively by admins.
      * @path /departments/{departmentId}
-     * @allow (get, list, create, update, delete) A user with admin role performs any operation on `/departments`.
-     * @deny (get, list, create, update, delete) A non-admin user attempts any operation on `/departments`.
-     * @principle Enforces role-based access control for administrative data.
      */
     match /departments/{departmentId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isAdmin();
-      allow update: if isAdmin() || isSubAdmin();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
 
       match /assets/{assetId} {
-        allow get: if isAdmin() || isSubAdmin(); // Add logic for department members
-        allow list: if isAdmin() || isSubAdmin();
-        allow create: if isAdmin() || isSubAdmin();
-        allow update: if isAdmin() || isSubAdmin();
+        allow get: if isAdmin();
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin();
         allow delete: if isAdmin();
       }
     }
@@ -116,16 +93,12 @@ service cloud.firestore {
     /**
      * @description Stores reported incidents.
      * @path /incidents/{incidentId}
-     * @allow (get, list) Any signed-in user can view all incidents.
-     * @allow (create) Any signed-in user can create a new incident report.
-     * @allow (update) Admins, Sub-admins, and Responders can update incidents.
-     * @allow (delete) Only admins can delete incidents.
      */
     match /incidents/{incidentId} {
         allow get: if isSignedIn();
         allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isAdmin() || isSubAdmin() || isResponder() || isFieldOfficer();
+        allow create: if isSignedIn(); // Any signed-in user can report
+        allow update: if isAdmin() || isCommunityLeader() || isResponder(); // Admins, Leaders, and Responders can update
         allow delete: if isAdmin();
     }
 
@@ -142,10 +115,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages sub-admin role assignments. Only admins can manage these roles.
-     * @path /roles_subAdmin/{userId}
+     * @description Manages community leader role assignments. Only admins can manage these roles.
+     * @path /roles_communityLeader/{userId}
      */
-    match /roles_subAdmin/{userId} {
+    match /roles_communityLeader/{userId} {
       allow get: if isAdmin();
       allow list: if isAdmin();
       allow create: if isAdmin();
@@ -154,45 +127,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages responder role assignments. Only admins or sub-admins can manage these roles.
+     * @description Manages responder role assignments. Only admins can manage these roles.
      * @path /roles_responder/{userId}
      */
     match /roles_responder/{userId} {
-      allow get: if isAdmin() || isSubAdmin();
-      allow list: if isAdmin() || isSubAdmin();
-      allow create: if isAdmin() || isSubAdmin();
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
       allow update: if false;
-      allow delete: if isAdmin() || isSubAdmin();
+      allow delete: if isAdmin();
     }
-
-    /**
-     * @description Manages data analyst role assignments. Only admins or sub-admins can manage these roles.
-     * @path /roles_analyst/{userId}
-     */
-    match /roles_analyst/{userId} {
-      allow get: if isAdmin() || isSubAdmin();
-      allow list: if isAdmin() || isSubAdmin();
-      allow create: if isAdmin() || isSubAdmin();
-      allow update: if false;
-      allow delete: if isAdmin() || isSubAdmin();
-    }
-
-     /**
-     * @description Manages field officer role assignments. Only admins or sub-admins can manage these roles.
-     * @path /roles_fieldOfficer/{userId}
-     */
-    match /roles_fieldOfficer/{userId} {
-      allow get: if isAdmin() || isSubAdmin();
-      allow list: if isAdmin() || isSubAdmin();
-      allow create: if isAdmin() || isSubAdmin();
-      allow update: if false;
-      allow delete: if isAdmin() || isSubAdmin();
-    }
-
-    // Deprecated role collections - deny all access
-    match /roles_regionalAuthority/{userId} { allow read, write: if false; }
-    match /roles_responseUnit/{userId} { allow read, write: if false; }
-    match /roles_dataAnalyst/{userId} { allow read, write: if false; }
   }
 }
+
     

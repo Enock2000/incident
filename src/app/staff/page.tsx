@@ -6,7 +6,7 @@ export default function StaffPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h1 className="text-3xl font-bold tracking-tight font-headline">
-        Staff & User Management
+        Staff & Role Management
       </h1>
       <Card className="flex flex-col items-center justify-center text-center p-10 min-h-[400px]">
         <CardHeader>
@@ -19,7 +19,7 @@ export default function StaffPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            The staff and user management module is currently under development.
+            The staff and role management module is currently under development.
             <br />
             This feature will allow admins to assign roles and manage users.
           </p>
