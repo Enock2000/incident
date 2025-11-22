@@ -12,37 +12,22 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks if the requesting user has administrative privileges.
-     */
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    /**
-     * Checks if the user is a Community Leader.
-     */
     function isCommunityLeader() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_communityLeader/$(request.auth.uid));
     }
 
-    /**
-     * Checks if the user is a Responder.
-     */
     function isResponder() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_responder/$(request.auth.uid));
     }
 
-    /**
-     * Validates that a user is creating their own user document.
-     */
     function isCreatingOwnUserDoc(userId) {
       return isOwner(userId) && request.resource.data.id == userId;
     }
 
-    /**
-     * Validates that the 'id' field of a user document remains unchanged during an update.
-     */
     function isUpdatingOwnUserDoc() {
       return request.resource.data.id == resource.data.id;
     }
@@ -65,17 +50,19 @@ service cloud.firestore {
         allow read, list, create, update, delete: if isAdmin();
       }
     }
+
+    // --- INCIDENTS ---
+    // Rule for querying the 'incidents' collection
+    match /incidents {
+        allow list: if isSignedIn();
+    }
     
-    // INCIDENTS (Collection and Document rules)
+    // Rules for individual incident documents
     match /incidents/{incidentId} {
         allow get: if isSignedIn();
-        allow create: if isSignedIn(); 
+        allow create: if isSignedIn();
         allow update: if isAdmin() || isCommunityLeader() || isResponder();
         allow delete: if isAdmin();
-    }
-
-    match /incidents {
-      allow list: if isSignedIn();
     }
 
     // POLLING STATIONS
