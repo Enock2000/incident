@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase'; 
 // import { toast } from "@/hooks/use-toast"; // Example for notifications
 
@@ -32,7 +33,8 @@ export function useLocationTracker() {
             try {
                 const userRef = doc(firestore, 'users', user.uid);
 
-                await updateDoc(userRef, {
+                // Use setDoc with merge:true to create or update the document.
+                await setDoc(userRef, {
                     location: {
                         latitude,
                         longitude,
@@ -44,7 +46,7 @@ export function useLocationTracker() {
                         speed,    // m/s
                         updatedAt: serverTimestamp(),
                     }
-                });
+                }, { merge: true });
 
                 // Update our ref so we know when the last successful write happened
                 lastUpdateRef.current = now;
