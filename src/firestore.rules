@@ -115,6 +115,18 @@ service cloud.firestore {
     }
 
     /**
+      * @description Stores real-time polling station data.
+      * @path /pollingStations/{stationId}
+      */
+    match /pollingStations/{stationId} {
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isAdmin();
+        allow update: if isAdmin() || isCommunityLeader(); // Admins or leaders can update status
+        allow delete: if isAdmin();
+    }
+
+    /**
      * @description Manages admin role assignments. Only existing admins can add or remove other admins.
      * @path /roles_admin/{userId}
      */
@@ -151,5 +163,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

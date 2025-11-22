@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -67,4 +69,26 @@ export type Incident = {
   dateResolved?: any;
 };
 
-    
+export type PollingStationStatus = 'Open' | 'Closed' | 'Delayed' | 'Interrupted';
+
+export type PollingStation = {
+    id: string;
+    name: string;
+    province: string;
+    district: string;
+    status: PollingStationStatus;
+    queueLength: number;
+    hasMissingMaterials: boolean;
+    staffAttendance: {
+        present: number;
+        absent: number;
+    };
+    hasPowerOutage: boolean;
+    hasTamperingReport: boolean;
+    registeredVoters: number;
+    lastCheckin: Timestamp;
+    location: {
+        latitude: number;
+        longitude: number;
+    };
+};

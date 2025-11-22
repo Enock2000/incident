@@ -374,6 +374,41 @@
         }
       },
       "required": ["id", "title", "severity", "area", "status", "timestamp"]
+    },
+    "PollingStation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PollingStation",
+      "type": "object",
+      "description": "Represents a polling station and its real-time status.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the polling station." },
+        "name": { "type": "string", "description": "The name of the polling station." },
+        "province": { "type": "string", "description": "The province where the station is located." },
+        "district": { "type": "string", "description": "The district where the station is located." },
+        "status": { "type": "string", "enum": ["Open", "Closed", "Delayed", "Interrupted"], "description": "Current operational status." },
+        "queueLength": { "type": "number", "description": "Estimated number of people in the queue." },
+        "hasMissingMaterials": { "type": "boolean", "description": "Flag for missing electoral materials." },
+        "staffAttendance": { 
+          "type": "object",
+          "properties": {
+            "present": { "type": "number" },
+            "absent": { "type": "number" }
+          },
+          "description": "Staff attendance count."
+        },
+        "hasPowerOutage": { "type": "boolean", "description": "Flag for power outage." },
+        "hasTamperingReport": { "type": "boolean", "description": "Flag for any tampering reports." },
+        "registeredVoters": { "type": "number", "description": "Total number of registered voters." },
+        "lastCheckin": { "type": "string", "format": "date-time", "description": "Timestamp of the last status update." },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        }
+      },
+      "required": ["id", "name", "province", "district", "status"]
     }
   },
   "auth": {
@@ -515,10 +550,24 @@
             }
           ]
         }
+      },
+      {
+        "path": "/pollingStations/{stationId}",
+        "definition": {
+          "entityName": "PollingStation",
+          "schema": {
+            "$ref": "#/backend/entities/PollingStation"
+          },
+          "description": "Stores real-time data for all polling stations.",
+          "params": [
+            {
+              "name": "stationId",
+              "description": "The unique identifier of the polling station."
+            }
+          ]
+        }
       }
     ],
     "reasoning": "This Firestore data structure is designed to support user management with role-based access for the Zambia Tracking Incident System. It prioritizes authorization independence and QAPs (Rules are not Filters) using denormalization and structural segregation. User roles are managed via dedicated collections to avoid custom claims (DBAC). \n\nThe core strategy is to maintain clarity around access control and ownership, using path-based ownership where applicable and membership maps for collaborative data. The design leverages structural segregation by isolating data with differing security requirements into distinct collections. This approach allows for simpler and more robust security rules.\n\nSpecifically:\n\n*   **Authorization Independence:** No `get()` calls are needed in security rules because relevant authorization data (like user type and departmentId) is directly available within the document or can be evaluated from the path.\n*   **QAPs (Rules are not Filters):** Each collection has a homogeneous security posture, allowing secure `list` operations.\n*   **DBAC (No Custom Claims):** User roles are determined by their presence in dedicated role collections (e.g., `/roles_admin/{uid}`).\n*   **User Management:** Citizen and official user accounts are stored in the `/users/{userId}` collection. Department details are stored in the `/departments/{departmentId}` collection. The `departmentId` field in the `User` document links officials to their respective departments. Role-based access is managed through dedicated collections for each role type."
   }
 }
-
-    

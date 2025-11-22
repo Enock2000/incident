@@ -4,30 +4,48 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, AlertTriangle, Monitor, PlusCircle } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, Monitor, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { collection, query, orderBy, Timestamp } from "firebase/firestore";
+import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import type { PollingStation, PollingStationStatus } from "@/lib/types";
+import { format } from "date-fns";
 
-const pollingStations = [
-    { id: 'PS001', name: 'Lusaka Central Primary', province: 'Lusaka', district: 'Lusaka', status: 'Open', voters: 1250, reportedIssues: 0, lastCheckin: '08:05 AM' },
-    { id: 'PS002', name: 'Northmead Secondary', province: 'Lusaka', district: 'Lusaka', status: 'Open', voters: 2500, reportedIssues: 1, lastCheckin: '08:15 AM' },
-    { id: 'PS003', name: 'Libala High School', province: 'Lusaka', district: 'Lusaka', status: 'Delayed', voters: 1800, reportedIssues: 0, lastCheckin: '07:55 AM' },
-    { id: 'PS004', name: 'Kitwe Main Hall', province: 'Copperbelt', district: 'Kitwe', status: 'Open', voters: 3200, reportedIssues: 0, lastCheckin: '08:10 AM' },
-    { id: 'PS005', name: 'Ndola Civic Center', province: 'Copperbelt', district: 'Ndola', status: 'Closed', voters: 2100, reportedIssues: 3, lastCheckin: '07:30 AM' },
-];
-
-const getStatusIcon = (status: string) => {
+const getStatusIcon = (status: PollingStationStatus) => {
     switch (status) {
         case 'Open': return <CheckCircle className="h-5 w-5 text-green-500" />;
         case 'Delayed': return <Clock className="h-5 w-5 text-yellow-500" />;
         case 'Closed': return <AlertTriangle className="h-5 w-5 text-red-500" />;
+        case 'Interrupted': return <AlertTriangle className="h-5 w-5 text-orange-500" />;
         default: return null;
     }
 }
 
+const formatDate = (timestamp: Timestamp | null) => {
+    if (!timestamp) return 'N/A';
+    return format(timestamp.toDate(), 'p');
+}
+
 export default function PollingStationMonitoringPage() {
-  const openStations = pollingStations.filter(p => p.status === 'Open').length;
-  const totalStations = pollingStations.length;
-  const reportingProgress = (openStations / totalStations) * 100;
+  const firestore = useFirestore();
+  const { user } = useUser();
+
+  const stationsQuery = useMemoFirebase(
+    () =>
+      firestore && user
+        ? query(collection(firestore, 'pollingStations'), orderBy('name'))
+        : null,
+    [firestore, user]
+  );
+  const { data: pollingStations, isLoading } = useCollection<PollingStation>(stationsQuery);
+
+
+  const openStations = pollingStations?.filter(p => p.status === 'Open').length || 0;
+  const totalStations = pollingStations?.length || 0;
+  const reportingProgress = totalStations > 0 ? (openStations / totalStations) * 100 : 0;
+  const stationsWithIssues = pollingStations?.filter(p => p.hasMissingMaterials || p.hasPowerOutage || p.hasTamperingReport || p.status === 'Interrupted' || p.status === 'Closed').length || 0;
+
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -68,7 +86,7 @@ export default function PollingStationMonitoringPage() {
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pollingStations.filter(p => p.reportedIssues > 0).length}</div>
+            <div className="text-2xl font-bold">{stationsWithIssues}</div>
             <p className="text-xs text-muted-foreground">Stations needing attention</p>
           </CardContent>
         </Card>
@@ -88,39 +106,50 @@ export default function PollingStationMonitoringPage() {
                 <Progress value={reportingProgress} />
             </div>
 
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Station Name</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Registered Voters</TableHead>
-                        <TableHead>Issues</TableHead>
-                        <TableHead>Last Check-in</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {pollingStations.map((station) => (
-                        <TableRow key={station.id}>
-                            <TableCell className="w-24">
-                                <Badge variant={station.status === 'Open' ? 'default' : station.status === 'Delayed' ? 'secondary' : 'destructive'}>
-                                   <div className="flex items-center gap-2">
-                                     {getStatusIcon(station.status)}
-                                     {station.status}
-                                   </div>
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{station.name}</TableCell>
-                            <TableCell>{station.province}, {station.district}</TableCell>
-                            <TableCell>{station.voters.toLocaleString()}</TableCell>
-                            <TableCell>
-                                <Badge variant={station.reportedIssues > 0 ? 'destructive' : 'secondary'}>{station.reportedIssues}</Badge>
-                            </TableCell>
-                            <TableCell>{station.lastCheckin}</TableCell>
+            {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+            ) : (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Station Name</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Queue</TableHead>
+                            <TableHead>Issues</TableHead>
+                            <TableHead>Last Check-in</TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {pollingStations && pollingStations.map((station) => (
+                            <TableRow key={station.id}>
+                                <TableCell className="w-28">
+                                    <Badge variant={station.status === 'Open' ? 'default' : station.status === 'Delayed' ? 'secondary' : 'destructive'}>
+                                    <div className="flex items-center gap-2">
+                                        {getStatusIcon(station.status)}
+                                        {station.status}
+                                    </div>
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">{station.name}</TableCell>
+                                <TableCell>{station.province}, {station.district}</TableCell>
+                                <TableCell>{station.queueLength}</TableCell>
+                                <TableCell>
+                                    <div className="flex gap-1">
+                                        {station.hasMissingMaterials && <Badge variant="destructive">Materials</Badge>}
+                                        {station.hasPowerOutage && <Badge variant="destructive">Power</Badge>}
+                                        {station.hasTamperingReport && <Badge variant="destructive">Tamper</Badge>}
+                                        {!(station.hasMissingMaterials || station.hasPowerOutage || station.hasTamperingReport) && <Badge variant="secondary">None</Badge>}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{formatDate(station.lastCheckin)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </CardContent>
       </Card>
     </div>
