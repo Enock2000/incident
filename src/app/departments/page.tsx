@@ -46,6 +46,7 @@ export default function DepartmentsPage() {
   const [newDept, setNewDept] = useState({
     name: '',
     category: '',
+    otherCategory: '',
     province: '',
     district: '',
     officeAddress: '',
@@ -71,12 +72,17 @@ export default function DepartmentsPage() {
         toast({ title: "Error", description: "Name, category, province and district are required.", variant: "destructive" });
         return;
     }
+    if (newDept.category === 'Other' && !newDept.otherCategory.trim()) {
+        toast({ title: "Error", description: "Please specify the category.", variant: "destructive" });
+        return;
+    }
     if (!firestore) return;
 
     try {
+        const categoryToSave = newDept.category === 'Other' ? newDept.otherCategory : newDept.category;
         await addDoc(collection(firestore, 'departments'), {
             name: newDept.name,
-            category: newDept.category,
+            category: categoryToSave,
             province: newDept.province,
             district: newDept.district,
             officeAddress: newDept.officeAddress,
@@ -93,6 +99,7 @@ export default function DepartmentsPage() {
         setNewDept({
             name: '',
             category: '',
+            otherCategory: '',
             province: '',
             district: '',
             officeAddress: '',
@@ -169,6 +176,12 @@ export default function DepartmentsPage() {
                             </Select>
                         </div>
                     </div>
+                     {newDept.category === 'Other' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="otherCategory">Please Specify Category</Label>
+                            <Input id="otherCategory" name="otherCategory" value={newDept.otherCategory} onChange={handleInputChange} />
+                        </div>
+                    )}
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="province">Province</Label>
@@ -276,5 +289,3 @@ export default function DepartmentsPage() {
     </div>
   );
 }
-
-    
