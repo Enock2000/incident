@@ -1,26 +1,73 @@
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Flag } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Flag, PlusCircle, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+const activities = [
+    { id: 'PA001', party: 'Patriotic Front', type: 'Rally', location: 'Kabwe', attendance: '~500', isSanctioned: true, date: '2024-08-15' },
+    { id: 'PA002', party: 'UPND', type: 'Community Meeting', location: 'Chongwe', attendance: '~100', isSanctioned: true, date: '2024-08-15' },
+    { id: 'PA003', party: 'Socialist Party', type: 'Protest', location: 'Lusaka', attendance: '~250', isSanctioned: false, date: '2024-08-14' },
+    { id: 'PA004', party: 'Patriotic Front', type: 'Roadshow', location: 'Ndola', attendance: 'N/A', isSanctioned: true, date: '2024-08-14' },
+];
 
 export default function PoliticalActivityTrackingPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <h1 className="text-3xl font-bold tracking-tight font-headline">
-        Political Activity Tracking
-      </h1>
-      <Card className="flex flex-col items-center justify-center text-center p-10 min-h-[400px]">
+       <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight font-headline">
+          Political Activity Tracking
+        </h1>
+        <Button>
+            <PlusCircle className="mr-2 h-4 w-4"/>
+            Log New Activity
+        </Button>
+      </div>
+
+      <Card>
         <CardHeader>
-          <div className="mx-auto bg-primary/10 p-4 rounded-full">
-            <Flag className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="mt-4 text-2xl font-headline">
-            Coming Soon
-          </CardTitle>
+            <CardTitle>Activity Log</CardTitle>
+            <CardDescription>A log of all reported political activities.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            The political activity tracking module is currently under development.
-          </p>
+            <div className="flex items-center gap-4 mb-4">
+                <Input placeholder="Filter by party or location..." className="max-w-sm"/>
+                <Button variant="outline">
+                    <Filter className="mr-2 h-4 w-4"/>
+                    Apply Filter
+                </Button>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Party</TableHead>
+                        <TableHead>Activity Type</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Est. Attendance</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Sanctioned</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {activities.map((activity) => (
+                        <TableRow key={activity.id}>
+                            <TableCell className="font-medium">{activity.party}</TableCell>
+                            <TableCell>{activity.type}</TableCell>
+                            <TableCell>{activity.location}</TableCell>
+                            <TableCell>{activity.attendance}</TableCell>
+                            <TableCell>{activity.date}</TableCell>
+                            <TableCell>
+                                <Badge variant={activity.isSanctioned ? 'default' : 'destructive'}>
+                                    {activity.isSanctioned ? 'Yes' : 'No'}
+                                </Badge>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </CardContent>
       </Card>
     </div>
