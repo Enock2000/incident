@@ -1,5 +1,6 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -8,23 +9,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Allow signed-in users to perform all actions on their own user document
-    match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-
-    // Allow any authenticated user to list and create incidents.
-    match /incidents/{incidentId} {
-      allow list, create: if request.auth != null;
-      // Allow user to read/update/delete their own incidents.
-      // In a real app, you'd add roles (e.g. admin) who could also modify.
-      allow get, update, delete: if request.auth != null && (resource.data.reporter.userId == request.auth.uid || get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.exists == true) ;
-    }
-    
     // Allow any authenticated user to read from any public artifact collection.
-    match /artifacts/{appId}/public/{collection}/{document=**} {
-        allow get, list: if request.auth != null;
+    // This is the main rule that will fix the "list" permission issue.
+    match /artifacts/{appId}/public/data/{collection}/{document=**} {
+        allow read, write: if request.auth != null;
     }
   }
 }
