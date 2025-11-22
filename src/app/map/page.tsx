@@ -1,16 +1,14 @@
-
 'use client';
-import Image from "next/image";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Map as MapIcon, Loader2 } from "lucide-react";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useMemo } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Incident } from '@/lib/types';
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { InteractiveMap } from '@/components/map/map';
 
 export default function MapPage() {
     const firestore = useFirestore();
@@ -26,7 +24,14 @@ export default function MapPage() {
     const { data: incidents, isLoading: isIncidentsLoading } =
         useCollection<Incident>(incidentsCollection);
 
-    const mapImage = PlaceHolderImages.find((img) => img.id === "map_placeholder");
+    const pins = useMemo(() => {
+        if (!incidents) return [];
+        return incidents.map(incident => ({
+            longitude: incident.location.longitude,
+            latitude: incident.location.latitude,
+            label: incident.description,
+        }));
+    }, [incidents]);
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -74,23 +79,7 @@ export default function MapPage() {
                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
                      </div>
                    )}
-                   {mapImage && (
-                     <Image 
-                       src={mapImage.imageUrl} 
-                       alt={mapImage.description} 
-                       layout="fill"
-                       objectFit="cover"
-                       className="rounded-lg"
-                       data-ai-hint={mapImage.imageHint} 
-                     />
-                   )}
-                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex flex-col items-center justify-center text-center text-white p-4">
-                        <MapIcon className="h-12 w-12 text-white/80 mb-4" />
-                        <h2 className="text-2xl font-bold">Interactive Map Coming Soon</h2>
-                        <p className="max-w-md text-white/80">
-                            This is a placeholder for the interactive map visualization. Full implementation requires a mapping library to plot real-time incident data with filters and color-coded severity.
-                        </p>
-                   </div>
+                   <InteractiveMap pins={pins} />
                 </CardContent>
             </Card>
         </div>
