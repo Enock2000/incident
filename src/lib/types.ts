@@ -39,11 +39,17 @@ export type InvestigationNote = {
 
 export type Responder = 'Police' | 'Fire' | 'Ambulance';
 
+export type IncidentLocation = {
+  latitude: number;
+  longitude: number;
+  address: string;
+}
+
 export type Incident = {
   id: string;
   title: string;
   description: string;
-  location: string;
+  location: IncidentLocation | any; // Use object for structured location
   status: IncidentStatus;
   priority: Priority;
   dateReported: any; // Using `any` for Firebase Timestamp

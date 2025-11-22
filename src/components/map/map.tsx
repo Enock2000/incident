@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import Map, {Marker, Popup} from 'react-map-gl';
+import Map, {Marker, Popup, NavigationControl, FullscreenControl, ScaleControl, GeolocateControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZW5vY2syMDAwIiwiYSI6ImNtaWEyZmFkZTBvbDMya3NlbnNoN3o0ZmcifQ.F7pia859U0ApvbVDoKp4AA';
@@ -18,20 +18,39 @@ export interface InteractiveMapProps {
 
 export function InteractiveMap({pins}: InteractiveMapProps) {
   const [popupInfo, setPopupInfo] = React.useState<MapPin | null>(null);
+  const [mapStyle, setMapStyle] = React.useState('mapbox://styles/mapbox/streets-v12');
 
   return (
     <>
+       <div className="absolute top-3 left-3 z-10 bg-card rounded-md shadow-md">
+            <select
+                onChange={(e) => setMapStyle(e.target.value)}
+                value={mapStyle}
+                className="p-2 rounded-md bg-card text-card-foreground border-transparent focus:border-primary focus:ring-primary"
+            >
+                <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
+                <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors</option>
+                <option value="mapbox://styles/mapbox/light-v11">Light</option>
+                <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
+                <option value="mapbox://styles/mapbox/satellite-v9">Satellite</option>
+                <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</option>
+            </select>
+        </div>
       <Map
         initialViewState={{
-          latitude: 40,
-          longitude: -100,
-          zoom: 3.5,
+          latitude: -13.1339,
+          longitude: 27.8493,
+          zoom: 5,
           bearing: 0,
           pitch: 0
         }}
-        mapStyle="mapbox://styles/mapbox/dark-v9"
+        mapStyle={mapStyle}
         mapboxAccessToken={MAPBOX_TOKEN}
       >
+        <GeolocateControl position="top-right" />
+        <FullscreenControl position="top-right" />
+        <NavigationControl position="top-right" />
+        <ScaleControl />
         {pins.map((pin, index) => (
             <Marker
                 key={`marker-${index}`}
@@ -43,7 +62,7 @@ export function InteractiveMap({pins}: InteractiveMapProps) {
                     setPopupInfo(pin);
                 }}
             >
-                <div style={{color: 'white', cursor: 'pointer'}}>📍</div>
+                <div style={{color: 'red', cursor: 'pointer', fontSize: '24px'}}>📍</div>
             </Marker>
         ))}
 

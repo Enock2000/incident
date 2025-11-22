@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { incidentCategories } from "@/lib/incident-categories";
 
 const initialState: FormState = {
   message: "",
@@ -27,18 +28,6 @@ function SubmitButton() {
     </Button>
   );
 }
-
-const incidentCategories = [
-  "Crime",
-  "Fire",
-  "Road Accident",
-  "Medical Emergency",
-  "Power Outage",
-  "Water Leakage",
-  "Hazardous Material",
-  "Public Disturbance",
-  "Other",
-];
 
 export function ReportIncidentForm() {
   const { user } = useUser();
