@@ -6,8 +6,6 @@ import { z } from 'zod';
 import { initializeFirebase } from '@/firebase';
 import type { IncidentStatus, Priority, Responder } from '@/lib/types';
 
-const { firestore } = initializeFirebase();
-
 const updateIncidentSchema = z.object({
   incidentId: z.string(),
   status: z.string().optional(),
@@ -15,6 +13,7 @@ const updateIncidentSchema = z.object({
 });
 
 export async function updateIncident(formData: FormData) {
+  const { firestore } = initializeFirebase();
   const rawData = Object.fromEntries(formData);
   const parsed = updateIncidentSchema.safeParse(rawData);
 
@@ -61,6 +60,7 @@ const addNoteSchema = z.object({
 });
 
 export async function addInvestigationNote(formData: FormData) {
+  const { firestore } = initializeFirebase();
   const rawData = Object.fromEntries(formData);
   const parsed = addNoteSchema.safeParse(rawData);
   
@@ -97,6 +97,7 @@ const assignResponderSchema = z.object({
 });
 
 export async function assignResponder(formData: FormData) {
+  const { firestore } = initializeFirebase();
   const rawData = Object.fromEntries(formData);
   const parsed = assignResponderSchema.safeParse(rawData);
 
