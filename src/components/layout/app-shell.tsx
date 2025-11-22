@@ -42,12 +42,16 @@ import {
 import { Button } from "../ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
+import { useLocationTracker } from "@/hooks/use-location-tracker";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
+
+  // Activate location tracking for logged-in users
+  useLocationTracker();
 
   const handleSignOut = async () => {
     await signOut(auth);

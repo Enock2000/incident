@@ -1,4 +1,5 @@
 'use client';
+
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -11,14 +12,27 @@ import { Label } from "@/components/ui/label";
 import { InteractiveMap } from '@/components/map/map';
 import { incidentCategories } from '@/lib/incident-categories';
 
+// Define the Pin interface explicitly if not imported from the Map component
+interface MapPin {
+    id: string;
+    latitude: number;
+    longitude: number;
+    label: string;
+    status: IncidentStatus; // Useful for color-coding pins by status
+}
+
 export default function MapPage() {
     const firestore = useFirestore();
     const { user } = useUser();
+    
     const [filters, setFilters] = useState({
         category: 'all',
         status: 'all',
     });
 
+    // 1. Query Construction
+    // Note: If both filters are active, ensure you have a Composite Index 
+    // in Firebase Console for 'category' + 'status'.
     const incidentsCollection = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         
@@ -38,17 +52,23 @@ export default function MapPage() {
     const { data: incidents, isLoading: isIncidentsLoading } =
         useCollection<Incident>(incidentsCollection);
 
-    const pins = useMemo(() => {
+    // 2. Safe Pin Generation
+    const pins: MapPin[] = useMemo(() => {
         if (!incidents) return [];
-        // This is a temporary solution to handle string locations.
-        // A proper geocoding step would be needed to convert addresses to coordinates.
-        // For now, we'll generate random-ish coordinates for demonstration.
+
         return incidents
-            .filter(incident => typeof incident.location === 'object' && incident.location.latitude && incident.location.longitude)
+            .filter(incident => 
+                // Safety check: ensure location exists and is not null
+                incident.location && 
+                typeof incident.location.latitude === 'number' && 
+                typeof incident.location.longitude === 'number'
+            )
             .map(incident => ({
+                id: incident.id, // Pass ID for click handling
                 longitude: incident.location.longitude,
                 latitude: incident.location.latitude,
                 label: incident.title,
+                status: incident.status
             }));
     }, [incidents]);
 
@@ -64,40 +84,60 @@ export default function MapPage() {
                 <h1 className="text-3xl font-bold tracking-tight font-headline">
                     Incident Map
                 </h1>
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="flex-1 space-y-1">
-                        <Label htmlFor="filter-category" className="text-xs">Category</Label>
-                        <Select name="filter-category" onValueChange={handleFilterChange('category')} defaultValue="all">
+                
+                {/* Filters Wrapper */}
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                    <div className="w-full sm:w-[180px] space-y-1">
+                        <Label htmlFor="filter-category" className="text-xs text-muted-foreground">Category</Label>
+                        <Select 
+                            name="filter-category" 
+                            onValueChange={handleFilterChange('category')} 
+                            defaultValue="all"
+                        >
                             <SelectTrigger id="filter-category" className="h-9">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Categories</SelectItem>
-                                {incidentCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                {incidentCategories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
-                     <div className="flex-1 space-y-1">
-                        <Label htmlFor="filter-status" className="text-xs">Status</Label>
-                        <Select name="filter-status" onValueChange={handleFilterChange('status')} defaultValue="all">
+
+                     <div className="w-full sm:w-[180px] space-y-1">
+                        <Label htmlFor="filter-status" className="text-xs text-muted-foreground">Status</Label>
+                        <Select 
+                            name="filter-status" 
+                            onValueChange={handleFilterChange('status')} 
+                            defaultValue="all"
+                        >
                             <SelectTrigger id="filter-status" className="h-9">
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Statuses</SelectItem>
-                                {statuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                                {statuses.map(status => (
+                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
             </div>
-            <Card>
+
+            <Card className="overflow-hidden">
                 <CardContent className="p-0 relative h-[60vh] md:h-[70vh]">
                    {isIncidentsLoading && (
-                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+                     <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
                      </div>
                    )}
+                   
+                   {/* Note: Ensure InteractiveMap handles empty pins gracefully 
+                     or passing an onPinClick handler here 
+                   */}
                    <InteractiveMap pins={pins} />
                 </CardContent>
             </Card>

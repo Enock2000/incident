@@ -38,6 +38,24 @@
         "departmentId": {
           "type": "string",
           "description": "Reference to Department. (Relationship: User 1:N Department). Nullable: Not applicable for citizen accounts."
+        },
+        "location": {
+          "type": "object",
+          "description": "The last known geographical location of the user.",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "locationMetadata": {
+            "type": "object",
+            "description": "Additional metadata about the user's location.",
+            "properties": {
+                "accuracy": { "type": "number" },
+                "heading": { "type": ["number", "null"] },
+                "speed": { "type": ["number", "null"] },
+                "updatedAt": { "type": "string", "format": "date-time" }
+            }
         }
       },
       "required": [
