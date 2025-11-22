@@ -12,17 +12,8 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDoc();
-    }
-
     /**
      * Checks if the requesting user has administrative privileges.
-     * Role is granted if a document with the user's UID exists in the /roles_admin collection.
      */
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
@@ -36,15 +27,14 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the user is a Responder (Police, Fire, Ambulance).
+     * Checks if the user is a Responder.
      */
     function isResponder() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_responder/$(request.auth.uid));
     }
 
     /**
-     * Validates that a user is creating their own user document and that the
-     * document's internal 'id' field correctly matches their auth UID.
+     * Validates that a user is creating their own user document.
      */
     function isCreatingOwnUserDoc(userId) {
       return isOwner(userId) && request.resource.data.id == userId;
@@ -52,119 +42,70 @@ service cloud.firestore {
 
     /**
      * Validates that the 'id' field of a user document remains unchanged during an update.
-     * This prevents re-assigning the document to a different user.
      */
     function isUpdatingOwnUserDoc() {
       return request.resource.data.id == resource.data.id;
     }
 
-
-    /**
-     * @description Stores user account information. Each user can only access their own document.
-     * @path /users/{userId}
-     */
+    // USER DATA
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isCreatingOwnUserDoc(userId);
-      allow update: if (isExistingOwner(userId) && isUpdatingOwnUserDoc()) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow update: if (isOwner(userId) && isUpdatingOwnUserDoc()) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
-    /**
-     * @description Stores information about government departments. Managed exclusively by admins.
-     * @path /departments/{departmentId}
-     */
+    // DEPARTMENTS
     match /departments/{departmentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
 
       match /assets/{assetId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isAdmin();
-        allow delete: if isAdmin();
+        allow read, list, create, update, delete: if isAdmin();
       }
     }
     
-    /**
-     * @description Rules for the incidents collection.
-     */
+    // INCIDENTS (Collection and Document rules)
     match /incidents/{incidentId} {
-        // Document-level access
         allow get: if isSignedIn();
-        allow create: if isSignedIn(); // Any signed-in user can report
-        allow update: if isAdmin() || isCommunityLeader() || isResponder(); // Admins, Leaders, and Responders can update
+        allow create: if isSignedIn(); 
+        allow update: if isAdmin() || isCommunityLeader() || isResponder();
         allow delete: if isAdmin();
     }
-    
-    // Explicitly allow list on the collection itself
+
     match /incidents {
-        allow list: if isSignedIn();
+      allow list: if isSignedIn();
     }
 
-
-    /**
-      * @description Special rule for public artifact collections used by Canvas.
-      * @path /artifacts/{appId}/public/data/{collection}/{docId}
-      */
-    match /artifacts/{appId}/public/data/{collection}/{docId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        // Writes are generally disabled for these public collections from the client.
-        allow create, update, delete: if false;
-    }
-
-    /**
-      * @description Stores real-time polling station data.
-      * @path /pollingStations/{stationId}
-      */
+    // POLLING STATIONS
     match /pollingStations/{stationId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
+        allow read, list: if isSignedIn();
         allow create: if isAdmin();
-        allow update: if isAdmin() || isCommunityLeader(); // Admins or leaders can update status
+        allow update: if isAdmin() || isCommunityLeader();
         allow delete: if isAdmin();
     }
 
-    /**
-     * @description Manages admin role assignments. Only existing admins can add or remove other admins.
-     * @path /roles_admin/{userId}
-     */
+    // ARTIFACTS (for Canvas public data)
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
+        allow get, list: if isSignedIn();
+        allow write: if false; // No client-side writes
+    }
+
+    // ROLE MANAGEMENT
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
+      allow read, list, create, delete: if isAdmin();
       allow update: if false;
-      allow delete: if isAdmin();
     }
 
-    /**
-     * @description Manages community leader role assignments. Only admins can manage these roles.
-     * @path /roles_communityLeader/{userId}
-     */
     match /roles_communityLeader/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
+      allow read, list, create, delete: if isAdmin();
       allow update: if false;
-      allow delete: if isAdmin();
     }
 
-    /**
-     * @description Manages responder role assignments. Only admins can manage these roles.
-     * @path /roles_responder/{userId}
-     */
     match /roles_responder/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
+      allow read, list, create, delete: if isAdmin();
       allow update: if false;
-      allow delete: if isAdmin();
     }
   }
 }
