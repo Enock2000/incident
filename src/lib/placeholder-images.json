@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "avatar1",
+      "description": "User avatar 1",
+      "imageUrl": "https://images.unsplash.com/photo-1599566147214-ce487862ea4f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2Mzc1MDk2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar2",
+      "description": "User avatar 2",
+      "imageUrl": "https://images.unsplash.com/photo-1616002411355-49593fd89721?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx3b21hbiUyMGZhY2V8ZW58MHx8fHwxNzYzNjg4NjcxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman face"
+    },
+    {
+      "id": "map_placeholder",
+      "description": "Placeholder for a map",
+      "imageUrl": "https://images.unsplash.com/photo-1568317711805-97917847953d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFwJTIwY2l0eXxlbnwwfHx8fDE3NjM3ODQzOTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "map city"
+    },
+    {
+      "id": "incident_photo_1",
+      "description": "Placeholder for incident photo 1",
+      "imageUrl": "https://images.unsplash.com/photo-1622783089891-ddf18baab338?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxmaXJlJTIwdHJ1Y2t8ZW58MHx8fHwxNzYzNzc1MTE4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fire truck"
+    },
+    {
+      "id": "incident_photo_2",
+      "description": "Placeholder for incident photo 2",
+      "imageUrl": "https://images.unsplash.com/photo-1615775742364-2feb6533f8c9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwb2xpY2UlMjBjYXJ8ZW58MHx8fHwxNzYzNzQ4NDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "police car"
+    }
+  ]
 }
