@@ -23,7 +23,7 @@ import {
   LogIn,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -39,12 +39,18 @@ import { signOut } from "firebase/auth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
 
-  const handleSignOut = () => {
-    signOut(auth);
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/login');
   };
+
+  const handleSignIn = () => {
+    router.push('/login');
+  }
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: Home, requiresAuth: true },
@@ -52,6 +58,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
     { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },
   ];
+  
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+  
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
+
 
   return (
     <SidebarProvider>
@@ -116,8 +129,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.isAnonymous ? "Anonymous User" : user.displayName || "User"}</p>
-                      {user.email && <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-sm font-medium leading-none">{user.isAnonymous ? "Anonymous User" : user.displayName || user.email}</p>
+                      {user.email && !user.displayName && <p className="text-xs leading-none text-muted-foreground">
                         {user.email}
                       </p>}
                     </div>
@@ -129,10 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </DropdownMenuItem>
                 </>
               ) : (
-                <DropdownMenuItem onClick={() => {
-                  // This is a placeholder, you'd likely want a modal or redirect
-                  console.log("Redirect to login page");
-                  }}>
+                <DropdownMenuItem onClick={handleSignIn}>
                   <LogIn className="mr-2 h-4 w-4" />
                   <span>Log In</span>
                 </DropdownMenuItem>

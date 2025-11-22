@@ -12,33 +12,29 @@ import {
   CheckCircle,
   PlusCircle,
   Loader2,
-  User as UserIcon,
+  LogIn,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import { useAuth } from '@/firebase';
+import { useRouter } from 'next/navigation';
+
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const router = useRouter();
 
   const incidentsCollection = useMemoFirebase(
     () =>
-      firestore
+      firestore && user
         ? query(collection(firestore, 'incidents'), orderBy('dateReported', 'desc'))
         : null,
-    [firestore]
+    [firestore, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(incidentsCollection);
 
-  const handleAnonymousSignIn = () => {
-    initiateAnonymousSignIn(auth);
-  };
-  
-  if (isUserLoading || isIncidentsLoading) {
+  if (isUserLoading || (user && isIncidentsLoading)) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -50,15 +46,18 @@ export default function DashboardPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
         <div className="mx-auto rounded-full bg-primary/10 p-4">
-          <UserIcon className="h-10 w-10 text-primary" />
+          <LogIn className="h-10 w-10 text-primary" />
         </div>
         <h2 className="text-2xl font-bold">Welcome to ZTIS</h2>
         <p className="text-muted-foreground">
-          Sign in to report incidents and view the dashboard.
+          Please log in to view the incident dashboard.
         </p>
         <div className="flex gap-4">
-          <Button onClick={handleAnonymousSignIn}>Sign In Anonymously</Button>
-          {/* Add buttons for Email/Social login here */}
+           <Link href="/login">
+            <Button>
+              <LogIn className="mr-2 h-4 w-4" /> Go to Login
+            </Button>
+          </Link>
         </div>
       </div>
     );

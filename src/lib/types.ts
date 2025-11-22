@@ -7,12 +7,12 @@ export type IncidentStatus =
 
 export type Priority = 'Low' | 'Medium' | 'High';
 
-export type Role =
-  | 'Citizen'
-  | 'Admin'
-  | 'RegionalAuthority'
-  | 'ResponseUnit'
-  | 'DataAnalyst';
+export type UserRole =
+  | 'citizen'
+  | 'admin'
+  | 'regionalAuthority'
+  | 'responseUnit'
+  | 'dataAnalyst';
 
 export type Reporter = {
   isAnonymous: boolean;
@@ -21,11 +21,12 @@ export type Reporter = {
 };
 
 export type UserProfile = {
-  uid: string;
-  email?: string | null;
-  displayName?: string | null;
-  photoURL?: string | null;
-  role: Role;
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  userType: UserRole;
+  agencyId?: string;
 };
 
 export type Incident = {
