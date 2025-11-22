@@ -104,15 +104,14 @@ service cloud.firestore {
     }
     
     /**
-     * @description Stores election security alerts.
-     * @path /election-security-alerts/{alertId}
-     */
-    match /election-security-alerts/{alertId} {
+      * @description Special rule for public artifact collections used by Canvas.
+      * @path /artifacts/{appId}/public/data/{collection}/{docId}
+      */
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
         allow get: if isSignedIn();
-        allow list: if isAdmin() || isResponder();
-        allow create: if isAdmin() || isResponder();
-        allow update: if isAdmin() || isResponder();
-        allow delete: if isAdmin();
+        allow list: if isSignedIn();
+        // Writes are generally disabled for these public collections from the client.
+        allow create, update, delete: if false;
     }
 
     /**
