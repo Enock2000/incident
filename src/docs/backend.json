@@ -334,6 +334,46 @@
         }
       },
       "required": ["id", "departmentId", "assetType", "name", "status"]
+    },
+    "ElectionSecurityAlert": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ElectionSecurityAlert",
+      "type": "object",
+      "description": "Represents a security alert related to an election.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the alert."
+        },
+        "title": {
+          "type": "string",
+          "description": "A brief title for the alert."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the alert."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"],
+          "description": "The severity level of the alert."
+        },
+        "area": {
+          "type": "string",
+          "description": "The geographical area affected by the alert (e.g., Province, District)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["New", "Investigating", "Actioned", "Resolved", "Closed"],
+          "description": "The current status of the alert."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the alert was created."
+        }
+      },
+      "required": ["id", "title", "severity", "area", "status", "timestamp"]
     }
   },
   "auth": {
@@ -456,6 +496,22 @@
             {
               "name": "incidentId",
               "description": "The unique identifier of the incident."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/election-security-alerts/{alertId}",
+        "definition": {
+          "entityName": "ElectionSecurityAlert",
+          "schema": {
+            "$ref": "#/backend/entities/ElectionSecurityAlert"
+          },
+          "description": "Stores all election-related security alerts. Admins and responders can manage these alerts.",
+          "params": [
+            {
+              "name": "alertId",
+              "description": "The unique identifier of the election security alert."
             }
           ]
         }
