@@ -9,6 +9,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Incident } from '@/lib/types';
 import { IncidentTable } from "@/components/incidents/incident-table";
+import { getCollectionPath } from "@/lib/utils";
 
 export default function VoterSafetyIncidentPage() {
     const firestore = useFirestore();
@@ -18,7 +19,7 @@ export default function VoterSafetyIncidentPage() {
     () =>
       firestore && user
         ? query(
-            collection(firestore, 'incidents'), 
+            collection(firestore, getCollectionPath('incidents')), 
             where('category', '==', 'Voter Safety'),
             orderBy('dateReported', 'desc')
           )

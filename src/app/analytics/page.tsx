@@ -11,6 +11,7 @@ import { IncidentTimelineChart } from '@/components/analytics/incident-timeline-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { getCollectionPath } from '@/lib/utils';
 
 export default function AnalyticsPage() {
   const firestore = useFirestore();
@@ -19,7 +20,7 @@ export default function AnalyticsPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, 'incidents'), orderBy('dateReported', 'desc'))
+        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
         : null,
     [firestore, user]
   );
@@ -68,6 +69,7 @@ export default function AnalyticsPage() {
     
     incidents.forEach(incident => {
       const date = incident.dateReported?.toDate ? incident.dateReported.toDate().toISOString() : 'N/A';
+      const location = typeof incident.location === 'object' && incident.location.address ? incident.location.address : incident.location;
       const row = [
         incident.id,
         `"${incident.title.replace(/"/g, '""')}"`,
@@ -75,7 +77,7 @@ export default function AnalyticsPage() {
         incident.status,
         incident.priority,
         date,
-        `"${incident.location.replace(/"/g, '""')}"`,
+        `"${location.replace(/"/g, '""')}"`,
       ];
       csvRows.push(row.join(','));
     });

@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { initializeFirebase } from "@/firebase";
+import { getCollectionPath } from "@/lib/utils";
 
 const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -95,7 +96,7 @@ export async function createIncident(
   }
 
   try {
-    const incidentsCollection = collection(firestore, "incidents");
+    const incidentsCollection = collection(firestore, getCollectionPath("incidents"));
 
     const locationData = (latitude && longitude) ? {
       latitude: parseFloat(latitude),

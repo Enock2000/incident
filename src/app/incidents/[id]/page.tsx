@@ -33,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { getCollectionPath } from "@/lib/utils";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
@@ -42,7 +43,7 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   const [selectedResponder, setSelectedResponder] = useState<string>('');
 
   const incidentRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, "incidents", params.id) : null),
+    () => (firestore ? doc(firestore, getCollectionPath("incidents"), params.id) : null),
     [firestore, params.id]
   );
   const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
@@ -80,8 +81,9 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
       toast({ title: "Please select a responder.", variant: "destructive" });
       return;
     }
+    if (!incident) return;
     const formData = new FormData();
-    formData.append('incidentId', incident!.id);
+    formData.append('incidentId', incident.id);
     formData.append('responder', selectedResponder);
     const result = await assignResponder(formData);
     toast({
@@ -141,7 +143,7 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                   <CardTitle className="font-headline text-2xl mb-2">{incident.title}</CardTitle>
                   <div className="flex items-center gap-4 text-muted-foreground">
                     <span className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" /> {incident.location}
+                      <MapPin className="h-4 w-4" /> {typeof incident.location === 'object' ? incident.location.address : incident.location}
                     </span>
                     <Badge variant="secondary">{incident.category}</Badge>
                   </div>

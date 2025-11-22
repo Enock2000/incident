@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
+import { getCollectionPath } from '@/lib/utils';
 
 export default function ElectionIncidentReportingPage() {
   const firestore = useFirestore();
@@ -24,7 +25,7 @@ export default function ElectionIncidentReportingPage() {
     () =>
       firestore && user
         ? query(
-            collection(firestore, 'incidents'), 
+            collection(firestore, getCollectionPath('incidents')), 
             where('category', '==', 'Election'),
             orderBy('dateReported', 'desc')
           )

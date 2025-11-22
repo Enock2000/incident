@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { getCollectionPath } from '@/lib/utils';
 
 
 export default function DashboardPage() {
@@ -27,7 +28,7 @@ export default function DashboardPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, 'incidents'), orderBy('dateReported', 'desc'))
+        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
         : null,
     [firestore, user]
   );
