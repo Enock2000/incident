@@ -1,5 +1,4 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -8,8 +7,8 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Allow any authenticated user to read from any public artifact collection.
-    // This is the main rule that will fix the "list" permission issue.
+    // Allow any authenticated user to read or write to any public artifact collection.
+    // This rule is broad for development and should be tightened for production.
     match /artifacts/{appId}/public/data/{collection}/{document=**} {
         allow read, write: if request.auth != null;
     }

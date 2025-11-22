@@ -1,32 +1,150 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users } from "lucide-react";
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { Loader2, Users, Check, Shield } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from '@/hooks/use-toast';
+import { getCollectionPath } from '@/lib/utils';
+import type { UserProfile, UserRole } from '@/lib/types';
+
 
 export default function StaffPage() {
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+
+  const usersCollection = useMemoFirebase(
+    () =>
+      firestore && user
+        ? query(collection(firestore, getCollectionPath('users')), orderBy('lastName'))
+        : null,
+    [firestore, user]
+  );
+  const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
+
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    if (!firestore) return;
+    try {
+        const userDocRef = doc(firestore, getCollectionPath('users'), userId);
+        await updateDoc(userDocRef, { userType: newRole });
+        toast({
+            title: "Role Updated",
+            description: `User role has been successfully changed to ${newRole}.`,
+        });
+    } catch (error) {
+        console.error("Error updating role: ", error);
+        toast({
+            title: "Error",
+            description: "Failed to update user role.",
+            variant: "destructive",
+        });
+    }
+  };
+  
+  const getInitials = (firstName: string, lastName: string) => {
+      return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
+  }
+  
+  const userRoles: UserRole[] = ['citizen', 'admin', 'communityLeader', 'responder'];
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <h1 className="text-3xl font-bold tracking-tight font-headline">
-        Staff & Role Management
-      </h1>
-      <Card className="flex flex-col items-center justify-center text-center p-10 min-h-[400px]">
-        <CardHeader>
-          <div className="mx-auto bg-primary/10 p-4 rounded-full">
-            <Users className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="mt-4 text-2xl font-headline">
-            Coming Soon
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            The staff and role management module is currently under development.
-            <br />
-            This feature will allow admins to assign roles and manage users.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-between space-y-2">
+        <h1 className="font-headline text-3xl font-bold tracking-tight">
+          Staff & Role Management
+        </h1>
+      </div>
+
+       {isUsersLoading ? (
+            <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        ) : !users || users.length === 0 ? (
+            <Card className="flex flex-col items-center justify-center text-center p-10 min-h-[400px]">
+                <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                    <Users className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="mt-4 text-2xl font-headline">
+                    No Users Found
+                </CardTitle>
+                </CardHeader>
+                <CardContent>
+                <p className="text-muted-foreground">
+                    There are no users in the system to manage yet.
+                </p>
+                </CardContent>
+            </Card>
+        ) : (
+             <Card>
+                <CardHeader>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>View and manage all registered users and their assigned roles.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>User</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {users.map((u) => (
+                                <TableRow key={u.id}>
+                                    <TableCell className="font-medium">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={(u as any).photoURL} />
+                                                <AvatarFallback>{getInitials(u.firstName, u.lastName)}</AvatarFallback>
+                                            </Avatar>
+                                            <span>{u.firstName} {u.lastName}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={u.userType === 'admin' ? 'destructive' : 'secondary'}>
+                                            <div className="flex items-center gap-2">
+                                                {u.userType === 'admin' && <Shield className="h-3 w-3"/>}
+                                                {u.userType}
+                                            </div>
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Select value={u.userType} onValueChange={(value) => handleRoleChange(u.id, value as UserRole)}>
+                                            <SelectTrigger className="w-[180px]">
+                                                <SelectValue placeholder="Change role..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {userRoles.map(role => (
+                                                     <SelectItem key={role} value={role}>{role}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+             </Card>
+        )}
     </div>
   );
 }
-
-    
