@@ -7,5 +7,8 @@ export const incidentCategories = [
     "Water Leakage",
     "Hazardous Material",
     "Public Disturbance",
+    "Election",
+    "Political Violence",
+    "Voter Safety",
     "Other",
 ];
