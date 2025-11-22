@@ -52,12 +52,13 @@ service cloud.firestore {
     }
 
     // --- INCIDENTS ---
-    // Rule for querying the 'incidents' collection
+    // This rule allows any authenticated user to perform queries (list) on the incidents collection.
+    // This is separate from the rule below which handles individual document access.
     match /incidents {
         allow list: if isSignedIn();
     }
     
-    // Rules for individual incident documents
+    // This rule handles operations on a single incident document.
     match /incidents/{incidentId} {
         allow get: if isSignedIn();
         allow create: if isSignedIn();
