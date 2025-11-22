@@ -10,5 +10,6 @@ export const incidentCategories = [
     "Election",
     "Political Violence",
     "Voter Safety",
+    "Logistics Disruption",
     "Other",
 ];
