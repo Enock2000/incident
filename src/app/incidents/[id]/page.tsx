@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, MapPin, User, X, Loader2, Lightbulb, AlertCircle, FileText } from "lucide-react";
+import { ArrowLeft, Check, MapPin, User, X, Loader2, Lightbulb, AlertCircle, FileText, Ambulance, Car, Shield } from "lucide-react";
 import Link from "next/link";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { doc, Timestamp } from "firebase/firestore";
@@ -17,17 +17,29 @@ import { useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { Incident } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
-import { addInvestigationNote, updateIncident } from "./actions";
+import { addInvestigationNote, updateIncident, assignResponder } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { format } from "date-fns";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const notesFormRef = useRef<HTMLFormElement>(null);
+  const [selectedResponder, setSelectedResponder] = useState<string>('');
 
   const incidentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, "incidents", params.id) : null),
@@ -63,6 +75,22 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
       }
   };
 
+  const handleAssignResponder = async () => {
+    if (!selectedResponder) {
+      toast({ title: "Please select a responder.", variant: "destructive" });
+      return;
+    }
+    const formData = new FormData();
+    formData.append('incidentId', incident!.id);
+    formData.append('responder', selectedResponder);
+    const result = await assignResponder(formData);
+    toast({
+      title: result.success ? "Success" : "Error",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+  };
+
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
@@ -80,6 +108,15 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   if (!incident) {
     notFound();
   }
+  
+  const getResponderIcon = (responder: string) => {
+    switch (responder) {
+      case 'Police': return <Shield className="h-4 w-4" />;
+      case 'Fire': return <Car className="h-4 w-4" />;
+      case 'Ambulance': return <Ambulance className="h-4 w-4" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -119,13 +156,23 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                   <h3 className="font-semibold text-lg">Description</h3>
                   <p className="text-muted-foreground">{incident.description}</p>
                 </div>
+                
+                 {incident.assignedTo && (
+                    <div>
+                        <h3 className="font-semibold text-lg">Assigned Responder</h3>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            {getResponderIcon(incident.assignedTo)}
+                            <span>{incident.assignedTo}</span>
+                        </div>
+                    </div>
+                )}
 
                 {incident.aiMetadata && (incident.aiMetadata.isDuplicate || incident.aiMetadata.isSuspicious) && (
                   <div>
                     <h3 className="font-semibold text-lg flex items-center gap-2"><AlertCircle className="h-5 w-5 text-destructive" />AI Analysis</h3>
                      <div className="text-destructive text-sm space-y-1 mt-2">
                         {incident.aiMetadata.isDuplicate && <p>This report might be a duplicate.</p>}
-                        {incident.aiMetadata.isSuspicious && <p>This report has been flagged as potentially suspicious.</p>}
+                        {incident.aiMetadata.isSuspicious && <p>This report has been flagged as a suspicious.</p>}
                      </div>
                   </div>
                 )}
@@ -255,11 +302,45 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                            <SelectItem value="Low">Low</SelectItem>
                            <SelectItem value="Medium">Medium</SelectItem>
                            <SelectItem value="High">High</SelectItem>
+                           <SelectItem value="Critical">Critical</SelectItem>
                        </SelectContent>
                    </Select>
                </form>
               
-              <Button className="w-full" disabled>Assign Responder</Button>
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button className="w-full" disabled={incident.status === 'Resolved' || incident.status === 'Rejected'}>
+                        {incident.assignedTo ? 'Re-assign Responder' : 'Assign Responder'}
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Assign Responder</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              Select a response unit to dispatch to this incident. This will update the status to "Team Dispatched".
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <RadioGroup onValueChange={setSelectedResponder} defaultValue={incident.assignedTo || ''}>
+                          <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Police" id="police" />
+                              <Label htmlFor="police" className="flex items-center gap-2"><Shield /> Police</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Fire" id="fire" />
+                              <Label htmlFor="fire" className="flex items-center gap-2"><Car /> Fire Department</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Ambulance" id="ambulance" />
+                              <Label htmlFor="ambulance" className="flex items-center gap-2"><Ambulance/> Ambulance</Label>
+                          </div>
+                      </RadioGroup>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleAssignResponder}>Assign</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+
               
               <Separator />
               

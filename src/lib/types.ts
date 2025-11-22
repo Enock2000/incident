@@ -37,6 +37,8 @@ export type InvestigationNote = {
     timestamp: any; // Firebase Timestamp
 }
 
+export type Responder = 'Police' | 'Fire' | 'Ambulance';
+
 export type Incident = {
   id: string;
   title: string;
@@ -54,4 +56,8 @@ export type Incident = {
     isDuplicate?: boolean;
     isSuspicious?: boolean;
   };
+  assignedTo?: Responder | null;
+  dateVerified?: any;
+  dateDispatched?: any;
+  dateResolved?: any;
 };

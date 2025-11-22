@@ -192,6 +192,26 @@
               "isDuplicate": { "type": "boolean" },
               "isSuspicious": { "type": "boolean" }
             }
+        },
+        "assignedTo": {
+            "type": ["string", "null"],
+            "enum": ["Police", "Fire", "Ambulance", null],
+            "description": "The responder unit assigned to the incident."
+        },
+        "dateVerified": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the incident was verified."
+        },
+        "dateDispatched": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when a team was dispatched."
+        },
+        "dateResolved": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the incident was resolved."
         }
       },
       "required": ["title", "description", "location", "category", "status", "dateReported", "reporter"]

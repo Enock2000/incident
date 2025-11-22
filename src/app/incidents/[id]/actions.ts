@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { z } from 'zod';
 import { initializeFirebase } from '@/firebase';
-import type { IncidentStatus, Priority } from '@/lib/types';
+import type { IncidentStatus, Priority, Responder } from '@/lib/types';
 
 const { firestore } = initializeFirebase();
 
@@ -27,8 +27,16 @@ export async function updateIncident(formData: FormData) {
 
   try {
     const incidentRef = doc(firestore, 'incidents', incidentId);
-    const updateData: { status?: IncidentStatus, priority?: Priority } = {};
-    if (status) updateData.status = status as IncidentStatus;
+    const updateData: { status?: IncidentStatus, priority?: Priority, dateVerified?: any, dateResolved?: any } = {};
+    if (status) {
+        updateData.status = status as IncidentStatus;
+        if (status === 'Verified') {
+            updateData.dateVerified = serverTimestamp();
+        }
+        if (status === 'Resolved') {
+            updateData.dateResolved = serverTimestamp();
+        }
+    }
     if (priority) updateData.priority = priority as Priority;
 
     await updateDoc(incidentRef, updateData);
@@ -80,5 +88,38 @@ export async function addInvestigationNote(formData: FormData) {
   } catch (error) {
     console.error('Error adding note:', error);
     return { success: false, message: 'Failed to add note.' };
+  }
+}
+
+const assignResponderSchema = z.object({
+  incidentId: z.string(),
+  responder: z.string(),
+});
+
+export async function assignResponder(formData: FormData) {
+  const rawData = Object.fromEntries(formData);
+  const parsed = assignResponderSchema.safeParse(rawData);
+
+  if (!parsed.success) {
+    console.error('Invalid data for assigning responder:', parsed.error);
+    return { success: false, message: 'Invalid data provided.' };
+  }
+  
+  const { incidentId, responder } = parsed.data;
+
+  try {
+    const incidentRef = doc(firestore, 'incidents', incidentId);
+    await updateDoc(incidentRef, {
+      assignedTo: responder as Responder,
+      status: 'Team Dispatched',
+      dateDispatched: serverTimestamp(),
+    });
+
+    revalidatePath(`/incidents/${incidentId}`);
+    revalidatePath('/');
+    return { success: true, message: `Assigned to ${responder} and status updated.`};
+  } catch (error) {
+    console.error('Error assigning responder:', error);
+    return { success: false, message: 'Failed to assign responder.' };
   }
 }

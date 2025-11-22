@@ -24,8 +24,8 @@ export function IncidentStatusBadge({ status, className }: IncidentStatusBadgePr
   );
 }
 
-export function PriorityBadge({ priority, className }: { priority: 'Low' | 'Medium' | 'High' | 'Critical', className?: string }) {
-  const priorityStyles = {
+export function PriorityBadge({ priority, className }: { priority: Priority, className?: string }) {
+  const priorityStyles: Record<Priority, string> = {
     Low: "bg-green-100 text-green-800",
     Medium: "bg-yellow-100 text-yellow-800",
     High: "bg-orange-100 text-orange-800",
