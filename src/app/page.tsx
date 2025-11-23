@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, getDocs } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import {
   Activity,
@@ -18,7 +18,6 @@ import {
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { getCollectionPath } from '@/lib/utils';
 import { useEffect } from 'react';
 
 
@@ -31,7 +30,7 @@ export default function DashboardPage() {
     () =>
       firestore && user
         ? query(
-            collection(firestore, getCollectionPath('incidents')),
+            collection(firestore, 'artifacts/default-app-id/public/data/incidents'),
             where('status', 'in', ['Reported', 'Verified', 'Team Dispatched', 'In Progress']),
             orderBy('dateReported', 'desc')
           )
@@ -43,14 +42,26 @@ export default function DashboardPage() {
     
   // SEED DATA - This will run once to add some placeholder data for assets.
   useEffect(() => {
-    if (!firestore || !user || isIncidentsLoading) return;
+    if (!firestore || !user) return;
+    
     const seedData = async () => {
-        const policeAssets = collection(firestore, getCollectionPath('departments'), 'police_dept_123', 'assets');
-        await addDoc(policeAssets, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
-        await addDoc(policeAssets, { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
+        try {
+            const policeAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'police_dept_123', 'assets');
+            const fireAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'fire_dept_456', 'assets');
+            
+            const policeSnapshot = await getDocs(policeAssetsCollection);
+            if (policeSnapshot.empty) {
+                await addDoc(policeAssetsCollection, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
+                await addDoc(policeAssetsCollection, { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
+            }
 
-        const fireAssets = collection(firestore, getCollectionPath('departments'), 'fire_dept_456', 'assets');
-        await addDoc(fireAssets, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
+            const fireSnapshot = await getDocs(fireAssetsCollection);
+            if (fireSnapshot.empty) {
+                 await addDoc(fireAssetsCollection, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
+            }
+        } catch(e) {
+            console.error("Error seeding data:", e);
+        }
     };
 
     const seeded = sessionStorage.getItem('assets_seeded');
@@ -58,7 +69,7 @@ export default function DashboardPage() {
         seedData();
         sessionStorage.setItem('assets_seeded', 'true');
     }
-  }, [firestore, user, isIncidentsLoading]);
+  }, [firestore, user]);
 
 
   if (isUserLoading || (user && isIncidentsLoading)) {
