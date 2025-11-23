@@ -86,14 +86,11 @@ export function useCollection<T = any>(
       },
       (error: FirestoreError) => {
         // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.toString()
+        const path = (memoizedTargetRefOrQuery as CollectionReference).path || (memoizedTargetRefOrQuery as any)._query?.path?.toString() || 'unknown path';
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path,
+          path: path,
         })
 
         setError(contextualError)
