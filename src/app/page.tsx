@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -20,35 +19,38 @@ import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
+  // 1. MODIFICATION: Added 'Resolved' to the query so stats calculate correctly
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
         ? query(
             collection(firestore, 'artifacts/default-app-id/public/data/incidents'),
-            where('status', 'in', ['Reported', 'Verified', 'Team Dispatched', 'In Progress']),
+            where('status', 'in', ['Reported', 'Verified', 'Team Dispatched', 'In Progress', 'Resolved']), 
             orderBy('dateReported', 'desc')
           )
         : null,
     [firestore, user]
   );
+
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(incidentsCollection);
     
-  // SEED DATA - This will run once to add some placeholder data for assets.
+  // SEED DATA - (Note: Consider moving this to an admin script for production)
   useEffect(() => {
     if (!firestore || !user) return;
     
     const seedData = async () => {
         try {
+            // Using standard departments path
             const policeAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'police_dept_123', 'assets');
             const fireAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'fire_dept_456', 'assets');
             
+            // Double check logic prevents duplicate writes
             const policeSnapshot = await getDocs(policeAssetsCollection);
             if (policeSnapshot.empty) {
                 await addDoc(policeAssetsCollection, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
@@ -104,10 +106,13 @@ export default function DashboardPage() {
   const totalIncidents = incidents?.length ?? 0;
   const resolvedIncidents =
     incidents?.filter((i) => i.status === 'Resolved').length ?? 0;
+    
+  // 2. MODIFICATION: Ensure Active includes all non-resolved/non-pending statuses
   const activeIncidents =
     incidents?.filter(
       (i) => i.status === 'In Progress' || i.status === 'Team Dispatched'
     ).length ?? 0;
+    
   const pendingIncidents =
     incidents?.filter(
       (i) => i.status === 'Reported' || i.status === 'Verified'
@@ -181,10 +186,12 @@ export default function DashboardPage() {
       </div>
       <div>
         <Card>
+          {/* 3. FIX: Changed <Header> to <CardHeader> */}
           <CardHeader>
             <CardTitle>Recent Incidents</CardTitle>
-          </Header>
+          </CardHeader>
           <CardContent>
+            {/* 4. TIP: You might want to filter out 'Resolved' here if you only want active items in the table */}
             {incidents && <IncidentTable incidents={incidents.slice(0, 10)} />}
           </CardContent>
         </Card>
