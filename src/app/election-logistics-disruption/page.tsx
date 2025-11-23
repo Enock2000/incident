@@ -8,7 +8,7 @@ import { Truck, AlertTriangle, CheckCircle, PlusCircle, Eye, Loader2 } from "luc
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collectionGroup, query, orderBy } from "firebase/firestore";
 import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import type { Incident } from "@/lib/types";
 import { format } from "date-fns";
@@ -36,12 +36,12 @@ export default function ElectionLogisticsDisruptionPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
 
+    // Using a collection group query to get all 'disruptions' across the database
     const disruptionsQuery = useMemoFirebase(
     () =>
       firestore && user
         ? query(
-            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
-            where('category', '==', 'Logistics Disruption'),
+            collectionGroup(firestore, 'disruptions'), 
             orderBy('dateReported', 'desc')
           )
         : null,
@@ -99,7 +99,7 @@ export default function ElectionLogisticsDisruptionPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{totalDisruptions}</div>
-                <p className="text-xs text-muted-foreground">All logged disruptions</p>
+                <p className="text-xs text-muted-foreground">All logged disruptions from all departments</p>
             </CardContent>
         </Card>
         <Card>
@@ -117,7 +117,7 @@ export default function ElectionLogisticsDisruptionPage() {
       <Card>
         <CardHeader>
             <CardTitle>Disruption Log</CardTitle>
-            <CardDescription>Real-time log of all reported logistical disruptions.</CardDescription>
+            <CardDescription>Real-time log of all reported logistical disruptions from a collection group query.</CardDescription>
         </CardHeader>
         <CardContent>
             {disruptions && disruptions.length > 0 ? (
