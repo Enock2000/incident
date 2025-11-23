@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, addDoc } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import {
   Activity,
@@ -18,6 +18,7 @@ import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { getCollectionPath } from '@/lib/utils';
+import { useEffect } from 'react';
 
 
 export default function DashboardPage() {
@@ -28,12 +29,32 @@ export default function DashboardPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), orderBy('dateReported', 'desc'))
+        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
         : null,
     [firestore, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(incidentsCollection);
+    
+  // SEED DATA - This will run once to add some placeholder data for assets.
+  useEffect(() => {
+    if (!firestore || !user || isIncidentsLoading) return;
+    const seedData = async () => {
+        const policeAssets = collection(firestore, getCollectionPath('departments'), 'police_dept_123', 'assets');
+        await addDoc(policeAssets, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
+        await addDoc(policeAssets, { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
+
+        const fireAssets = collection(firestore, getCollectionPath('departments'), 'fire_dept_456', 'assets');
+        await addDoc(fireAssets, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
+    }
+
+    const seeded = sessionStorage.getItem('assets_seeded');
+    if (!seeded) {
+        seedData();
+        sessionStorage.setItem('assets_seeded', 'true');
+    }
+  }, [firestore, user, isIncidentsLoading])
+
 
   if (isUserLoading || (user && isIncidentsLoading)) {
     return (
