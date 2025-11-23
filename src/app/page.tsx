@@ -1,10 +1,11 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc } from 'firebase/firestore';
 import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import {
   Activity,
@@ -29,7 +30,11 @@ export default function DashboardPage() {
   const incidentsCollection = useMemoFirebase(
     () =>
       firestore && user
-        ? query(collection(firestore, getCollectionPath('incidents')), orderBy('dateReported', 'desc'))
+        ? query(
+            collection(firestore, getCollectionPath('incidents')),
+            where('status', 'in', ['Reported', 'Verified', 'Team Dispatched', 'In Progress']),
+            orderBy('dateReported', 'desc')
+          )
         : null,
     [firestore, user]
   );
@@ -46,14 +51,14 @@ export default function DashboardPage() {
 
         const fireAssets = collection(firestore, getCollectionPath('departments'), 'fire_dept_456', 'assets');
         await addDoc(fireAssets, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
-    }
+    };
 
     const seeded = sessionStorage.getItem('assets_seeded');
     if (!seeded) {
         seedData();
         sessionStorage.setItem('assets_seeded', 'true');
     }
-  }, [firestore, user, isIncidentsLoading])
+  }, [firestore, user, isIncidentsLoading]);
 
 
   if (isUserLoading || (user && isIncidentsLoading)) {
@@ -167,7 +172,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Recent Incidents</CardTitle>
-          </CardHeader>
+          </Header>
           <CardContent>
             {incidents && <IncidentTable incidents={incidents.slice(0, 10)} />}
           </CardContent>
