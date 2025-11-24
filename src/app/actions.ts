@@ -16,8 +16,7 @@ const reportIncidentSchema = z.object({
   latitude: z.string().optional(),
   longitude: z.string().optional(),
   category: z.string().min(3, "Category is required."),
-  isAnonymous: z.boolean(),
-  userId: z.string().optional(), // Added to link the incident to the user
+  userId: z.string(), // Always require a user ID
 });
 
 export type FormState = {
@@ -38,10 +37,7 @@ export async function createIncident(
   const { database } = initializeServerFirebase();
   
   const formData = Object.fromEntries(data);
-  const parsed = reportIncidentSchema.safeParse({
-    ...formData,
-    isAnonymous: formData.isAnonymous === "on",
-  });
+  const parsed = reportIncidentSchema.safeParse(formData);
 
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) => issue.message);
@@ -57,7 +53,7 @@ export async function createIncident(
     };
   }
 
-  const { title, description, location, latitude, longitude, isAnonymous, userId, category } = parsed.data;
+  const { title, description, location, latitude, longitude, userId, category } = parsed.data;
 
   let aiSuggestions: FormState['aiSuggestions'] = {};
 
@@ -74,7 +70,7 @@ export async function createIncident(
     const duplicateCheck = await detectDuplicateOrSuspiciousReports({
       reportContent: `${title}: ${description}`,
       location: location,
-      metadata: { timestamp: new Date().toISOString(), userId: userId || 'anonymous' },
+      metadata: { timestamp: new Date().toISOString(), userId: userId },
     });
     aiSuggestions.duplicate = duplicateCheck.isDuplicate;
     aiSuggestions.suspicious = duplicateCheck.isSuspicious;
@@ -107,8 +103,7 @@ export async function createIncident(
       priority: "Medium", // Default priority
       dateReported: serverTimestamp(),
       reporter: {
-        isAnonymous: isAnonymous,
-        userId: isAnonymous ? null : userId,
+        userId: userId,
       },
       media: [], // Handle file uploads separately
       aiMetadata: {

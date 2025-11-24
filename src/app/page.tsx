@@ -12,7 +12,6 @@ import {
   CheckCircle,
   PlusCircle,
   Loader2,
-  LogIn,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
@@ -89,23 +88,13 @@ export default function DashboardPage() {
     );
   }
 
+  // Since we removed login, we might want to handle the !user case differently
+  // For now, we'll just show the loader or an empty state if there's no user.
   if (!user) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-        <div className="mx-auto rounded-full bg-primary/10 p-4">
-          <LogIn className="h-10 w-10 text-primary" />
-        </div>
-        <h2 className="text-2xl font-bold">Welcome to ZTIS</h2>
-        <p className="text-muted-foreground">
-          Please log in to view the incident dashboard.
-        </p>
-        <div className="flex gap-4">
-           <Link href="/login">
-            <Button>
-              <LogIn className="mr-2 h-4 w-4" /> Go to Login
-            </Button>
-          </Link>
-        </div>
+       <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4">Authenticating...</p>
       </div>
     );
   }
@@ -204,5 +193,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

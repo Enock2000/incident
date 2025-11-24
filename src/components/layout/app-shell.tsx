@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import {
@@ -23,7 +22,6 @@ import {
   PlusCircle,
   User,
   LogOut,
-  LogIn,
   BarChart2,
   Map,
   Building,
@@ -71,17 +69,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLocationTracker();
 
   const handleSignOut = async () => {
+    // Since login is removed, this might just refresh or do nothing.
+    // Or we might re-introduce a way to sign out and sign in as a different (anonymous) user.
     await signOut(auth);
-    router.push('/login');
+    router.push('/');
+    router.refresh();
   };
-
-  const handleSignIn = () => {
-    router.push('/login');
-  }
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: Home, requiresAuth: true },
-    { href: "/citizen", label: "Citizen Portal", icon: Shield, requiresAuth: true },
+    { href: "/citizen", label: "My Activity", icon: User, requiresAuth: true },
     { href: "/report", label: "Report Incident", icon: PlusCircle, requiresAuth: true },
     { href: "/map", label: "Map View", icon: Map, requiresAuth: true },
     { href: "/analytics", label: "Analytics", icon: BarChart2, requiresAuth: true },
@@ -113,13 +110,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
   ];
   
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
-  
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
-
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -221,7 +211,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              {user ? (
+              {user && (
                 <>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
@@ -237,11 +227,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span>Log out</span>
                   </DropdownMenuItem>
                 </>
-              ) : (
-                <DropdownMenuItem onClick={handleSignIn}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  <span>Log In</span>
-                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

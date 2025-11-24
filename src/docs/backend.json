@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user account in the system, either a citizen or an official.",
+      "description": "Represents a user account in the system.",
       "properties": {
         "id": {
           "type": "string",
@@ -12,7 +12,7 @@
         },
         "userType": {
           "type": "string",
-          "description": "The type of user account. Can be 'citizen', 'admin', 'communityLeader', or 'responder'."
+          "description": "The type of user account. Can be 'admin', 'communityLeader', or 'responder'."
         },
         "firstName": {
           "type": "string",
@@ -52,13 +52,9 @@
           "type": "string",
           "description": "The district where the user resides."
         },
-        "socialLoginId": {
-          "type": "string",
-          "description": "The unique identifier from the social login provider, if applicable."
-        },
         "departmentId": {
           "type": "string",
-          "description": "Reference to Department. (Relationship: User 1:N Department). Nullable: Not applicable for citizen accounts."
+          "description": "Reference to Department. (Relationship: User 1:N Department)."
         },
         "location": {
           "type": "object",
@@ -243,11 +239,8 @@
         "reporter": {
           "type": "object",
           "properties": {
-            "isAnonymous": {
-              "type": "boolean"
-            },
             "userId": {
-              "type": ["string", "null"]
+              "type": "string"
             }
           }
         },
@@ -413,161 +406,10 @@
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
-  "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user account information, including citizen and official accounts. 'userId' is the Firebase Auth UID. Includes 'departmentId' for official accounts. Uses path-based ownership, where each user can only read/write their own document.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/departments/{departmentId}",
-        "definition": {
-          "entityName": "Department",
-          "schema": {
-            "$ref": "#/backend/entities/Department"
-          },
-          "description": "Stores information about government departments. Only admins can create, read, update, and delete departments. The departmentId should be used to link official users to their respective departments.",
-          "params": [
-            {
-              "name": "departmentId",
-              "description": "The unique identifier of the department."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/departments/{departmentId}/assets/{assetId}",
-        "definition": {
-          "entityName": "Asset",
-          "schema": {
-            "$ref": "#/backend/entities/Asset"
-          },
-          "description": "Stores assets for a specific department. Department staff can manage their own assets.",
-          "params": [
-            {
-              "name": "departmentId",
-              "description": "The unique identifier of the department."
-            },
-            {
-               "name": "assetId",
-               "description": "The unique identifier of the asset."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "Role",
-          "schema": {
-            "$ref": "#/backend/entities/Role"
-          },
-          "description": "Collection to store admin user IDs. Existence of a document with the user's ID in this collection grants admin privileges.  Authorization relies on document existence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the admin user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_communityLeader/{userId}",
-        "definition": {
-          "entityName": "Role",
-          "schema": {
-            "$ref": "#/backend/entities/Role"
-          },
-          "description": "Collection to store community leader user IDs. Grants privileges to approve reports and send local alerts.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the community leader user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_responder/{userId}",
-        "definition": {
-          "entityName": "Role",
-          "schema": {
-            "$ref": "#/backend/entities/Role"
-          },
-          "description": "Collection to store responder user IDs (Police, Fire, Ambulance). Existence grants responder privileges.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the responder user."
-            }
-          ]
-        }
-      },
-       {
-        "path": "/incidents/{incidentId}",
-        "definition": {
-          "entityName": "Incident",
-          "schema": {
-            "$ref": "#/backend/entities/Incident"
-          },
-          "description": "Stores all reported incidents. All signed-in users can read, but only specific roles can update or delete.",
-          "params": [
-            {
-              "name": "incidentId",
-              "description": "The unique identifier of the incident."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/election-security-alerts/{alertId}",
-        "definition": {
-          "entityName": "ElectionSecurityAlert",
-          "schema": {
-            "$ref": "#/backend/entities/ElectionSecurityAlert"
-          },
-          "description": "Stores all election-related security alerts. Admins and responders can manage these alerts.",
-          "params": [
-            {
-              "name": "alertId",
-              "description": "The unique identifier of the election security alert."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/pollingStations/{stationId}",
-        "definition": {
-          "entityName": "PollingStation",
-          "schema": {
-            "$ref": "#/backend/entities/PollingStation"
-          },
-          "description": "Stores real-time data for all polling stations.",
-          "params": [
-            {
-              "name": "stationId",
-              "description": "The unique identifier of the polling station."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "This Firestore data structure is designed to support user management with role-based access for the Zambia Tracking Incident System. It prioritizes authorization independence and QAPs (Rules are not Filters) using denormalization and structural segregation. User roles are managed via dedicated collections to avoid custom claims (DBAC). \n\nThe core strategy is to maintain clarity around access control and ownership, using path-based ownership where applicable and membership maps for collaborative data. The design leverages structural segregation by isolating data with differing security requirements into distinct collections. This approach allows for simpler and more robust security rules.\n\nSpecifically:\n\n*   **Authorization Independence:** No `get()` calls are needed in security rules because relevant authorization data (like user type and departmentId) is directly available within the document or can be evaluated from the path.\n*   **QAPs (Rules are not Filters):** Each collection has a homogeneous security posture, allowing secure `list` operations.\n*   **DBAC (No Custom Claims):** User roles are determined by their presence in dedicated role collections (e.g., `/roles_admin/{uid}`).\n*   **User Management:** Citizen and official user accounts are stored in the `/users/{userId}` collection. Department details are stored in the `/departments/{departmentId}` collection. The `departmentId` field in the `User` document links officials to their respective departments. Role-based access is managed through dedicated collections for each role type."
+  "database": {
+    "rules": "{\n  \"rules\": {\n    \".read\": \"auth != null\",\n    \".write\": \"auth != null\",\n    \"users\": {\n      \"$uid\": {\n        \".write\": \"auth != null && auth.uid === $uid\"\n      }\n    }\n  }\n}"
   }
 }

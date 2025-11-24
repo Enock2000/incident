@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Lightbulb, AlertTriangle, Locate } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -175,11 +174,6 @@ export function ReportIncidentForm() {
         <p className="text-sm text-muted-foreground">
           You can upload relevant photos or videos.
         </p>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Checkbox id="isAnonymous" name="isAnonymous" />
-        <Label htmlFor="isAnonymous">Report Anonymously</Label>
       </div>
 
       <div className="pt-4">

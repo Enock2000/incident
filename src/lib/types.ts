@@ -10,14 +10,12 @@ export type IncidentStatus =
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'; // Added Critical
 
 export type UserRole =
-  | 'citizen'
   | 'admin'
   | 'communityLeader'
   | 'responder';
 
 export type Reporter = {
-  isAnonymous: boolean;
-  userId: string | null;
+  userId: string;
   name?: string; // This can be populated later from the user profile
 };
 
@@ -91,5 +89,3 @@ export type PollingStation = {
         longitude: number;
     };
 };
-
-    

@@ -194,7 +194,7 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                     <h3 className="font-semibold text-lg">Reporter</h3>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span>{incident.reporter.isAnonymous ? "Anonymous" : (incident.reporter.name || "N/A")}</span>
+                      <span>{incident.reporter.name || "N/A"}</span>
                     </div>
                   </div>
                 )}
@@ -365,5 +365,3 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
-
-    
