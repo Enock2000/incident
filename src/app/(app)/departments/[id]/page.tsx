@@ -346,3 +346,5 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
+
+    
