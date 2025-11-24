@@ -236,6 +236,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                       <Link href="/profile">
+                          <User className="mr-2 h-4 w-4" />
+                          <span>My Profile</span>
+                       </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>

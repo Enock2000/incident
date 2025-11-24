@@ -6,7 +6,7 @@ import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categorie
 import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ref, set, serverTimestamp, push } from "firebase/database";
+import { ref, set, serverTimestamp, push, update } from "firebase/database";
 import { initializeServerFirebase } from "@/firebase/server";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
@@ -213,4 +213,38 @@ export async function createIncident(
   
   revalidatePath("/");
   redirect(`/`);
+}
+
+const updateProfileSchema = z.object({
+  userId: z.string(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  occupation: z.string().min(1, "Occupation is required"),
+  province: z.string().min(1, "Province is required"),
+  district: z.string().min(1, "District is required"),
+});
+
+export async function updateProfile(prevState: any, formData: FormData) {
+  const { database } = initializeServerFirebase();
+  const data = Object.fromEntries(formData);
+  const parsed = updateProfileSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return { message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+  }
+  
+  const { userId, ...profileData } = parsed.data;
+
+  try {
+    const userRef = ref(database, `users/${userId}`);
+    await update(userRef, profileData);
+    
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return { message: "Failed to update profile." };
+  }
+
+  revalidatePath('/profile');
+  return { message: 'Profile updated successfully!', issues: [] };
 }
