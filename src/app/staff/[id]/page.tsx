@@ -14,9 +14,8 @@ import { UserProfile } from "@/lib/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 
-export default function UserProfilePage({ params }: { params: { id: string } }) {
+export default function UserProfilePage({ params: { id } }: { params: { id: string } }) {
   const database = useDatabase();
-  const { id } = params;
 
   const userRef = useMemoFirebase(
     () => (database ? ref(database, `users/${id}`) : null),

@@ -30,9 +30,8 @@ type Department = {
 }
 
 
-export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
+export default function DepartmentDetailPage({ params: { id } }: { params: { id: string } }) {
   const database = useDatabase();
-  const { id } = params;
 
   const departmentRef = useMemoFirebase(
     () => (database ? ref(database, `departments/${id}`) : null),

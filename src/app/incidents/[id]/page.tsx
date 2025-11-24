@@ -35,13 +35,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-export default function IncidentDetailPage({ params }: { params: { id: string } }) {
+export default function IncidentDetailPage({ params: { id } }: { params: { id: string } }) {
   const { user } = useUser();
   const database = useDatabase();
   const { toast } = useToast();
   const notesFormRef = useRef<HTMLFormElement>(null);
   const [selectedResponder, setSelectedResponder] = useState<string>('');
-  const { id } = params;
 
   const incidentRef = useMemoFirebase(
     () => (database ? ref(database, `incidents/${id}`) : null),
