@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { notFound } from "next/navigation";
@@ -184,3 +185,4 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   );
 }
     
+

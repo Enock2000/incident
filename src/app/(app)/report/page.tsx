@@ -1,3 +1,4 @@
+
 import { ReportIncidentForm } from "@/components/incidents/report-incident-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
