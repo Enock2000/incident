@@ -79,27 +79,15 @@ export default function DashboardPage() {
     }
   }, [database, user]);
 
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [isUserLoading, user, router]);
 
-  if (isUserLoading) {
+
+  if (isUserLoading || !user || (user && isIncidentsLoading)) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    router.push('/login');
-    return (
-      <div className="flex h-full items-center justify-center text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // If we are still loading incidents after we have the user, show loader.
-  if(isIncidentsLoading) {
-     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>

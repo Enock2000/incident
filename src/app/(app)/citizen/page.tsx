@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 
 export default function CitizenPortalPage() {
@@ -37,20 +38,17 @@ export default function CitizenPortalPage() {
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(userIncidentsQuery);
 
-  if (isUserLoading || (user && isIncidentsLoading)) {
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [isUserLoading, user, router]);
+
+  if (isUserLoading || (user && isIncidentsLoading) || !user) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    );
-  }
-  
-  if (!user) {
-    router.push('/login');
-    return (
-         <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-         </div>
     );
   }
 
