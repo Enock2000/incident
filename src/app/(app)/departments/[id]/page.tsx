@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, UserPlus, Users, MapPin, BarChart2, Building, Phone, Clock, ShieldAlert, ListChecks, ArrowUpCircle, Package, PlusCircle, Home } from "lucide-react";
 import Link from "next/link";
 import { useDoc } from "@/firebase/database/use-doc";
-import { ref, push, update } from "firebase/database";
+import { ref } from "firebase/database"; // Removed unused push/update
 import { useDatabase, useMemoFirebase } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,8 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zambiaProvinces } from "@/lib/zambia-locations";
 import { addBranchToDepartment } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Fixed TableHead import
 
 type Branch = {
     id: string;
@@ -47,9 +46,8 @@ type Department = {
     branches?: Record<string, Branch>;
 }
 
-
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
+  const { id } = params; // Fixed: No React.use needed
   const database = useDatabase();
   const { toast } = useToast();
 
@@ -67,7 +65,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   );
   const { data: department, isLoading } = useDoc<Department>(departmentRef);
 
-   const handleAddBranch = async () => {
+  const handleAddBranch = async () => {
         if (!newBranch.name || !newBranch.province || !newBranch.district) {
             toast({ title: "Error", description: "Branch name, province, and district are required.", variant: "destructive" });
             return;
@@ -80,7 +78,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
         formData.append('district', newBranch.district);
         formData.append('address', newBranch.address);
 
-        const result = await addBranchToDepartment(new FormData(), formData);
+        const result = await addBranchToDepartment({}, formData); // Fixed: Pass {} as prevState
         
         toast({
             title: result.success ? "Success" : "Error",
@@ -112,7 +110,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
         return selectedProvince ? selectedProvince.districts : [];
    }, [newBranch.province]);
 
-   const branchesList = department?.branches ? Object.entries(department.branches).map(([id, branch]) => ({ ...branch, id })) : [];
+   const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : []; // Fixed: Use branchId
 
    if (isLoading) {
     return (
@@ -213,7 +211,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="branch-province">Province</Label>
-                                            <Select name="province" value={newBranch.province} onValueChange={handleBranchSelectChange('province')}>
+                                            <Select value={newBranch.province} onValueChange={handleBranchSelectChange('province')}>
                                                 <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
                                                 <SelectContent>
                                                     {zambiaProvinces.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
@@ -222,7 +220,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="branch-district">District</Label>
-                                            <Select name="district" value={newBranch.district} onValueChange={handleBranchSelectChange('district')} disabled={!newBranch.province}>
+                                            <Select value={newBranch.district} onValueChange={handleBranchSelectChange('district')} disabled={!newBranch.province}>
                                                 <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
                                                 <SelectContent>
                                                     {districtsForSelectedProvince.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
@@ -348,4 +346,3 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
-    
