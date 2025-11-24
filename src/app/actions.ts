@@ -49,6 +49,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     const userRef = ref(database, 'users/' + user.uid);
     await set(userRef, {
+        id: user.uid, // Ensure the ID is saved within the document
         firstName,
         lastName,
         email,
