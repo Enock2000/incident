@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user, loading } = useUser();
+  const { user, isUserLoading } = useUser();
   const [mounted, setMounted] = useState(false);
 
   useLocationTracker();
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/");
+      router.push("/login");
       router.refresh();
     } catch (error) {
       console.error("Error signing out:", error);
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // Show loading state while checking authentication
-  if (loading) {
+  if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
