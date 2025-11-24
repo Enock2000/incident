@@ -5,7 +5,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection } from '@/firebase/database/use-collection';
-import { ref, query, orderByChild, push, set } from 'firebase/database';
+import { ref, query, orderByChild } from 'firebase/database';
 import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
@@ -31,13 +31,16 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useActionState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { zambiaProvinces } from '@/lib/zambia-locations';
 import { incidentCategories } from '@/lib/incident-categories';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { createDepartment } from '@/app/actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type Department = {
@@ -47,25 +50,64 @@ type Department = {
     category: string;
 }
 
+const initialState = {
+  success: false,
+  message: "",
+  issues: [],
+  id: null
+};
+
+function SubmitButton() {
+  const { pending } = (React as any).useFormStatus();
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Create Department
+    </Button>
+  );
+}
+
+
 export default function DepartmentsPage() {
   const database = useDatabase();
   const { user } = useUser();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [newDept, setNewDept] = useState({
-    name: '',
-    category: '',
-    otherCategory: '',
-    province: '',
-    district: '',
-    officeAddress: '',
-    landline: '',
-    operatingHours: '',
-    escalationRules: '',
-    priorityAssignmentRules: '',
-    incidentTypesHandled: [] as string[],
-  });
+  
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [state, formAction] = useActionState(createDepartment, initialState);
+  
+  const [province, setProvince] = useState('');
+  const [district, setDistrict] = useState('');
+  const [category, setCategory] = useState('');
+  const [incidentTypes, setIncidentTypes] = useState<string[]>([]);
+  
 
+  useEffect(() => {
+    if (state.message) {
+      if (state.success) {
+        toast({
+          title: "Success",
+          description: state.message,
+        });
+        setIsDialogOpen(false); // Close dialog on success
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: (
+            <div>
+              <p>{state.message}</p>
+              {state.issues && state.issues.length > 0 && (
+                <ul className="list-disc list-inside mt-2">
+                  {state.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                </ul>
+              )}
+            </div>
+          )
+        });
+      }
+    }
+  }, [state, toast]);
 
   const departmentsCollection = useMemoFirebase(
     () =>
@@ -77,82 +119,24 @@ export default function DepartmentsPage() {
   const { data: departments, isLoading: isDepartmentsLoading } =
     useCollection<Department>(departmentsCollection);
     
-  const handleCreateDepartment = async () => {
-    if (!newDept.name.trim() || !newDept.category.trim() || !newDept.province.trim() || !newDept.district.trim()) {
-        toast({ title: "Error", description: "Name, category, province and district are required.", variant: "destructive" });
-        return;
-    }
-    if (newDept.category === 'Other' && !newDept.otherCategory.trim()) {
-        toast({ title: "Error", description: "Please specify the category.", variant: "destructive" });
-        return;
-    }
-    if (!database) return;
+  const districtsForSelectedProvince = useMemo(() => {
+    const selectedProvince = zambiaProvinces.find(p => p.name === province);
+    return selectedProvince ? selectedProvince.districts : [];
+  }, [province]);
 
-    try {
-        const categoryToSave = newDept.category === 'Other' ? newDept.otherCategory : newDept.category;
-        const newDeptRef = push(ref(database, 'departments'));
-        await set(newDeptRef, {
-            name: newDept.name,
-            category: categoryToSave,
-            province: newDept.province,
-            district: newDept.district,
-            officeAddress: newDept.officeAddress,
-            contactNumbers: {
-                landline: newDept.landline,
-                responders: []
-            },
-            operatingHours: newDept.operatingHours,
-            escalationRules: newDept.escalationRules,
-            priorityAssignmentRules: newDept.priorityAssignmentRules,
-            incidentTypesHandled: newDept.incidentTypesHandled
-        });
-        toast({ title: "Success", description: "Department created successfully." });
-        setNewDept({
-            name: '',
-            category: '',
-            otherCategory: '',
-            province: '',
-            district: '',
-            officeAddress: '',
-            landline: '',
-            operatingHours: '',
-            escalationRules: '',
-            priorityAssignmentRules: '',
-            incidentTypesHandled: [],
-        });
-        setOpen(false);
-    } catch (error) {
-        console.error("Error creating department: ", error);
-        toast({ title: "Error", description: "Failed to create department.", variant: "destructive" });
-    }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target;
-      setNewDept(prev => ({...prev, [name]: value}));
-  }
-  
-  const handleSelectChange = (name: string) => (value: string) => {
-      if (name === 'province') {
-          setNewDept(prev => ({ ...prev, province: value, district: '' }));
-      } else {
-          setNewDept(prev => ({ ...prev, [name]: value }));
-      }
+  const handleProvinceChange = (value: string) => {
+    setProvince(value);
+    setDistrict('');
   };
 
-  const handleIncidentTypesChange = (category: string) => {
-    setNewDept(prev => {
-        const newTypes = prev.incidentTypesHandled.includes(category)
-            ? prev.incidentTypesHandled.filter(c => c !== category)
-            : [...prev.incidentTypesHandled, category];
-        return {...prev, incidentTypesHandled: newTypes };
+  const handleIncidentTypesChange = (selectedCategory: string) => {
+    setIncidentTypes(prev => {
+        const newTypes = prev.includes(selectedCategory)
+            ? prev.filter(c => c !== selectedCategory)
+            : [...prev, selectedCategory];
+        return newTypes;
     });
-  }
-
-  const districtsForSelectedProvince = useMemo(() => {
-    const selectedProvince = zambiaProvinces.find(p => p.name === newDept.province);
-    return selectedProvince ? selectedProvince.districts : [];
-  }, [newDept.province]);
+  };
 
 
   return (
@@ -161,29 +145,30 @@ export default function DepartmentsPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Department Management
         </h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" /> Create Department
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
+              <form action={formAction}>
                 <DialogHeader>
-                <DialogTitle>Create New Department</DialogTitle>
-                <DialogDescription>
-                    Add a new department to the system. You can assign roles and staff later.
-                </DialogDescription>
+                  <DialogTitle>Create New Department</DialogTitle>
+                  <DialogDescription>
+                      Add a new department to the system. You can assign roles and staff later.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
                     <h3 className="font-semibold text-lg">Core Information</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
-                            <Input id="name" name="name" value={newDept.name} onChange={handleInputChange} />
+                            <Input id="name" name="name" />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="category">Category</Label>
-                            <Select name="category" value={newDept.category} onValueChange={handleSelectChange('category')}>
+                            <Select name="category" value={category} onValueChange={setCategory}>
                                 <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Police">Police</SelectItem>
@@ -197,31 +182,31 @@ export default function DepartmentsPage() {
                             </Select>
                         </div>
                     </div>
-                     {newDept.category === 'Other' && (
+                     {category === 'Other' && (
                         <div className="space-y-2">
                             <Label htmlFor="otherCategory">Please Specify Category</Label>
-                            <Input id="otherCategory" name="otherCategory" value={newDept.otherCategory} onChange={handleInputChange} />
+                            <Input id="otherCategory" name="otherCategory" />
                         </div>
                     )}
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="province">Province</Label>
-                             <Select name="province" value={newDept.province} onValueChange={handleSelectChange('province')}>
+                             <Select name="province" value={province} onValueChange={handleProvinceChange}>
                                 <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
                                 <SelectContent>
-                                    {zambiaProvinces.map(province => (
-                                        <SelectItem key={province.name} value={province.name}>{province.name}</SelectItem>
+                                    {zambiaProvinces.map(p => (
+                                        <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="district">District</Label>
-                            <Select name="district" value={newDept.district} onValueChange={handleSelectChange('district')} disabled={!newDept.province}>
+                            <Select name="district" value={district} onValueChange={setDistrict} disabled={!province}>
                                 <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
                                 <SelectContent>
-                                    {districtsForSelectedProvince.map(district => (
-                                        <SelectItem key={district} value={district}>{district}</SelectItem>
+                                    {districtsForSelectedProvince.map(d => (
+                                        <SelectItem key={d} value={d}>{d}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -229,11 +214,11 @@ export default function DepartmentsPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="officeAddress">Office Address</Label>
-                        <Input id="officeAddress" name="officeAddress" value={newDept.officeAddress} onChange={handleInputChange} />
+                        <Input id="officeAddress" name="officeAddress" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="landline">Contact Number (Landline)</Label>
-                        <Input id="landline" name="landline" value={newDept.landline} onChange={handleInputChange} />
+                        <Input id="landline" name="landline" />
                     </div>
 
                     <h3 className="font-semibold text-lg mt-4 pt-4 border-t">Operational Settings</h3>
@@ -247,7 +232,7 @@ export default function DepartmentsPage() {
                                 className="w-full justify-between"
                                 >
                                 <span className="truncate">
-                                    {newDept.incidentTypesHandled.length > 0 ? `${newDept.incidentTypesHandled.length} selected` : 'Select incident types...'}
+                                    {incidentTypes.length > 0 ? `${incidentTypes.length} selected` : 'Select incident types...'}
                                 </span>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -258,18 +243,18 @@ export default function DepartmentsPage() {
                                 <CommandEmpty>No category found.</CommandEmpty>
                                 <CommandGroup>
                                     <CommandList>
-                                        {incidentCategories.map((category) => (
+                                        {incidentCategories.map((cat) => (
                                             <CommandItem
-                                            key={category}
-                                            onSelect={() => handleIncidentTypesChange(category)}
+                                            key={cat}
+                                            onSelect={() => handleIncidentTypesChange(cat)}
                                             >
                                             <Check
                                                 className={cn(
                                                 "mr-2 h-4 w-4",
-                                                newDept.incidentTypesHandled.includes(category) ? "opacity-100" : "opacity-0"
+                                                incidentTypes.includes(cat) ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {category}
+                                            {cat}
                                             </CommandItem>
                                         ))}
                                     </CommandList>
@@ -278,27 +263,47 @@ export default function DepartmentsPage() {
                             </PopoverContent>
                         </Popover>
                          <div className="flex flex-wrap gap-2 mt-2">
-                            {newDept.incidentTypesHandled.map(type => (
+                            {incidentTypes.map(type => (
                                 <Badge key={type} variant="secondary">{type}</Badge>
                             ))}
                         </div>
+                        {/* Hidden inputs for form submission */}
+                        {incidentTypes.map(type => (
+                          <input key={type} type="hidden" name="incidentTypesHandled" value={type} />
+                        ))}
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="operatingHours">Operating Hours</Label>
-                        <Input id="operatingHours" name="operatingHours" value={newDept.operatingHours} onChange={handleInputChange} placeholder="e.g., 24/7 or 9am-5pm"/>
+                        <Input id="operatingHours" name="operatingHours" placeholder="e.g., 24/7 or 9am-5pm"/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="escalationRules">Escalation Rules</Label>
-                        <Textarea id="escalationRules" name="escalationRules" value={newDept.escalationRules} onChange={handleInputChange} placeholder="Describe rules for escalation..."/>
+                        <Textarea id="escalationRules" name="escalationRules" placeholder="Describe rules for escalation..."/>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="priorityAssignmentRules">Priority Assignment Rules</Label>
-                        <Textarea id="priorityAssignmentRules" name="priorityAssignmentRules" value={newDept.priorityAssignmentRules} onChange={handleInputChange} placeholder="Describe rules for priority assignment..."/>
+                        <Textarea id="priorityAssignmentRules" name="priorityAssignmentRules" placeholder="Describe rules for priority assignment..."/>
                     </div>
+
+                    {state.message && !state.success && (
+                       <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>
+                                {state.message}
+                                {state.issues && state.issues.length > 0 && (
+                                    <ul className="list-disc list-inside mt-2">
+                                    {state.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}
+                                    </ul>
+                                )}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                 </div>
                 <DialogFooter>
-                    <Button type="button" onClick={handleCreateDepartment}>Create Department</Button>
+                    <SubmitButton />
                 </DialogFooter>
+              </form>
             </DialogContent>
         </Dialog>
       </div>

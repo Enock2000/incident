@@ -403,3 +403,59 @@ export async function addBranchToDepartment(prevState: any, formData: FormData) 
         return { success: false, message: 'Failed to add branch.' };
     }
 }
+
+const createDepartmentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  category: z.string().min(1, "Category is required"),
+  province: z.string().min(1, "Province is required"),
+  district: z.string().min(1, "District is required"),
+  officeAddress: z.string().optional(),
+  landline: z.string().optional(),
+  operatingHours: z.string().optional(),
+  escalationRules: z.string().optional(),
+  priorityAssignmentRules: z.string().optional(),
+  incidentTypesHandled: z.array(z.string()).optional(),
+  otherCategory: z.string().optional(),
+});
+
+export async function createDepartment(prevState: any, formData: FormData) {
+  const { database } = initializeServerFirebase();
+  const data = Object.fromEntries(formData);
+  
+  // Handle array from FormData
+  const incidentTypes = formData.getAll('incidentTypesHandled');
+  const finalData = { ...data, incidentTypesHandled: incidentTypes };
+
+  const parsed = createDepartmentSchema.safeParse(finalData);
+
+  if (!parsed.success) {
+    return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+  }
+  
+  const { otherCategory, ...deptData } = parsed.data;
+
+  try {
+    const departmentsRef = ref(database, 'departments');
+    const newDeptRef = push(departmentsRef);
+    
+    const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
+
+    await set(newDeptRef, {
+      name: deptData.name,
+      category: categoryToSave,
+      province: deptData.province,
+      district: deptData.district,
+      officeAddress: deptData.officeAddress,
+      contactNumbers: { landline: deptData.landline || '', responders: [] },
+      operatingHours: deptData.operatingHours || '',
+      escalationRules: deptData.escalationRules || '',
+      priorityAssignmentRules: deptData.priorityAssignmentRules || '',
+      incidentTypesHandled: deptData.incidentTypesHandled || [],
+    });
+    revalidatePath('/departments');
+    return { success: true, message: 'Department created!', id: newDeptRef.key };
+  } catch (error) {
+    console.error("Create department error:", error);
+    return { success: false, message: "Failed to create department." };
+  }
+}
