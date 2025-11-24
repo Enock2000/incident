@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
 
   // Activate location tracking for logged-in users
   useLocationTracker();
@@ -208,7 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        {user && (
+        {!isUserLoading && user && (
           <header className="flex items-center justify-between h-14 px-4 border-b bg-card">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden" />
