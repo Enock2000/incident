@@ -320,14 +320,13 @@ export async function addInvestigationNote(formData: FormData) {
 
     try {
         const notesRef = ref(database, `incidents/${incidentId}/investigationNotes`);
-        // In RTDB, you push to a list.
-        const newNoteRef = await import('firebase/database').then(db => db.push(notesRef));
-        await import('firebase/database').then(db => db.set(newNoteRef, {
+        const newNoteRef = push(notesRef);
+        await set(newNoteRef, {
             note: note,
             authorId: userId,
             authorName: userName,
             timestamp: rtdbServerTimestamp(),
-        }));
+        });
 
         revalidatePath(`/incidents/${incidentId}`);
         return { success: true, message: 'Note added successfully.' };

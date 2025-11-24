@@ -36,7 +36,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
+  const { id } = params;
   const { user } = useUser();
   const database = useDatabase();
   const { toast } = useToast();
@@ -366,4 +366,3 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
-
