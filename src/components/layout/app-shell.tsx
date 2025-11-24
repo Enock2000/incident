@@ -1,4 +1,4 @@
-
+// Fixed AppShell component with proper authentication state handling
 "use client";
 
 import {
@@ -42,7 +42,6 @@ import {
   Route,
   CloudSun,
   Swords,
-  LogIn,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -59,36 +58,47 @@ import { Button } from "../ui/button";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useLocationTracker } from "@/hooks/use-location-tracker";
+import React, { useEffect, useState } from "react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // Activate location tracking for logged-in users
   useLocationTracker();
+
+  // Wait for authentication state to be determined
+  useEffect(() => {
+    if (auth) {
+      const unsubscribe = auth.onAuthStateChanged(() => {
+        setIsAuthReady(true);
+      });
+      return () => unsubscribe();
+    }
+  }, [auth]);
 
   const handleSignOut = async () => {
     await signOut(auth);
-    router.push('/');
+    router.push("/");
     router.refresh();
   };
 
   const navItems = [
-    { href: "/", label: "Dashboard", icon: Home, requiresAuth: true },
-    { href: "/citizen", label: "My Activity", icon: User, requiresAuth: true },
-    { href: "/report", label: "Report Incident", icon: PlusCircle, requiresAuth: true },
-    { href: "/map", label: "Map View", icon: Map, requiresAuth: true },
-    { href: "/analytics", label: "Analytics", icon: BarChart2, requiresAuth: true },
+    { href: "/", label: "Dashboard", icon: Home },
+    { href: "/citizen", label: "My Activity", icon: User },
+    { href: "/report", label: "Report Incident", icon: PlusCircle },
+    { href: "/map", label: "Map View", icon: Map },
+    { href: "/analytics", label: "Analytics", icon: BarChart2 },
   ];
 
   const managementItems = [
-     { href: "/departments", label: "Departments", icon: Building, requiresAuth: true },
-    { href: "/staff", label: "Staff & Roles", icon: Users, requiresAuth: true },
-    { href: "/assets", label: "Assets", icon: Package, requiresAuth: true },
-    { href: "/notifications", label: "Notifications", icon: Bell, requiresAuth: true },
-    { href: "/settings", label: "Settings", icon: Settings, requiresAuth: true },
+    { href: "/departments", label: "Departments", icon: Building },
+    { href: "/staff", label: "Staff & Roles", icon: Users },
+    { href: "/assets", label: "Assets", icon: Package },
+    { href: "/notifications", label: "Notifications", icon: Bell },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   const electionModules = [
@@ -108,7 +118,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
     { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
   ];
-  
+
+  // Show loading state while determining auth status
+  if (!isAuthReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // If no user is logged in, render without sidebar
+  if (!user) {
+    return <main className="flex-1 bg-background min-h-screen">{children}</main>;
+  }
+
+  // User is logged in, render with sidebar
   return (
     <SidebarProvider>
       <Sidebar>
@@ -118,142 +143,129 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="text-xl font-semibold font-headline">ZTIS</span>
           </div>
         </SidebarHeader>
+
         <SidebarContent>
           <SidebarMenu>
-            {navItems.map((item) =>
-              (item.requiresAuth && user) || !item.requiresAuth ? (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} >
-                    <SidebarMenuButton
-                      isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
-                      tooltip={item.label}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ) : null
-            )}
-          </SidebarMenu>
-          
-          {user && (
-            <>
-              <SidebarSeparator />
-              <SidebarMenu>
-                  <SidebarMenuItem>
-                      <span className="text-xs text-muted-foreground px-2 font-semibold">Management</span>
-                  </SidebarMenuItem>
-                  {managementItems.map((item) =>
-                  (item.requiresAuth && user) || !item.requiresAuth ? (
-                      <SidebarMenuItem key={item.href}>
-                      <Link href={item.href} >
-                          <SidebarMenuButton
-                          isActive={pathname.startsWith(item.href)}
-                          tooltip={item.label}
-                          >
-                          <item.icon />
-                          <span>{item.label}</span>
-                          </SidebarMenuButton>
-                      </Link>
-                      </SidebarMenuItem>
-                  ) : null
-                  )}
-              </SidebarMenu>
-              <SidebarSeparator />
-              <SidebarMenu>
-                  <SidebarMenuItem>
-                      <span className="text-xs text-muted-foreground px-2 font-semibold">Election Modules</span>
-                  </SidebarMenuItem>
-                  {electionModules.map((item) =>
-                      (user) ? (
-                      <SidebarMenuItem key={item.href}>
-                          <Link href={item.href} >
-                          <SidebarMenuButton
-                              isActive={pathname.startsWith(item.href)}
-                              tooltip={item.label}
-                          >
-                              <item.icon />
-                              <span>{item.label}</span>
-                          </SidebarMenuButton>
-                          </Link>
-                      </SidebarMenuItem>
-                      ) : null
-                  )}
-              </SidebarMenu>
-            </>
-          )}
-
-        </SidebarContent>
-        <SidebarFooter>
-          <SidebarMenu>
-            {user ? (
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleSignOut}>
-                  <LogOut />
-                  <span>Log Out</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ) : (
-               <SidebarMenuItem>
-                <Link href="/login">
-                  <SidebarMenuButton>
-                    <LogIn />
-                    <span>Log In</span>
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton
+                    isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
-            )}
+            ))}
+          </SidebarMenu>
+
+          <SidebarSeparator />
+
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <span className="text-xs text-muted-foreground px-2 font-semibold">
+                Management
+              </span>
+            </SidebarMenuItem>
+            {managementItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+
+          <SidebarSeparator />
+
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <span className="text-xs text-muted-foreground px-2 font-semibold">
+                Election Modules
+              </span>
+            </SidebarMenuItem>
+            {electionModules.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleSignOut}>
+                <LogOut />
+                <span>Log Out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
+
       <SidebarInset>
-        {!isUserLoading && user && (
-          <header className="flex items-center justify-between h-14 px-4 border-b bg-card">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="md:hidden" />
-              <p className="font-semibold text-lg hidden sm:block">Zambia Tracking Incident System</p>
-            </div>
-            {user && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      {user?.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || "User Avatar"} />}
-                      <AvatarFallback>
-                        {user.displayName ? user.displayName.charAt(0) : <User />}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
-                          {user.email && !user.displayName && <p className="text-xs leading-none text-muted-foreground">
-                            {user.email}
-                          </p>}
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                         <Link href="/profile">
-                            <User className="mr-2 h-4 w-4" />
-                            <span>My Profile</span>
-                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleSignOut}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                      </DropdownMenuItem>
-                    </>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </header>
-        )}
+        <header className="flex items-center justify-between h-14 px-4 border-b bg-card">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden" />
+            <p className="font-semibold text-lg hidden sm:block">
+              Zambia Tracking Incident System
+            </p>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  {user.photoURL && (
+                    <AvatarImage src={user.photoURL} alt="User Avatar" />
+                  )}
+                  <AvatarFallback>
+                    {user.displayName ? user.displayName.charAt(0) : <User />}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {user.displayName || user.email}
+                  </p>
+                  {user.email && user.displayName && (
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  )}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>My Profile</span>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
         <main className="flex-1 bg-background">{children}</main>
       </SidebarInset>
     </SidebarProvider>

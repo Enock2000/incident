@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -170,7 +171,33 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
  * This provides the User object, loading status, and any auth errors.
  * @returns {UserHookResult} Object with user, isUserLoading, userError.
  */
-export const useUser = (): UserHookResult => { 
-  const { user, isUserLoading, userError } = useFirebase(); 
-  return { user, isUserLoading, userError };
+export const useUser = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [isUserLoading, setLoading] = useState(true);
+    const [userError, setError] = useState<Error | null>(null);
+    const auth = useAuth();
+
+    useEffect(() => {
+        if (!auth) {
+            setLoading(false);
+            setError(new Error("Auth service not available."));
+            return;
+        }
+
+        const unsubscribe = onAuthStateChanged(auth,
+            (user) => {
+                setUser(user);
+                setLoading(false);
+            },
+            (error) => {
+                console.error("useUser onAuthStateChanged error:", error);
+                setError(error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [auth]);
+
+    return { user, isUserLoading, userError };
 };
