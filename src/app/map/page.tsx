@@ -4,9 +4,9 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, QueryConstraint } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, equalTo, QueryConstraint } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import type { Incident, IncidentStatus } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import { InteractiveMap, type MapPin } from '@/components/map/map';
 import { incidentCategories } from '@/lib/incident-categories';
 
 export default function MapPage() {
-    const firestore = useFirestore();
+    const database = useDatabase();
     const { user } = useUser();
     
     const [filters, setFilters] = useState({
@@ -23,20 +23,25 @@ export default function MapPage() {
     });
 
     const incidentsCollection = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
+        if (!database || !user) return null;
         
-        const constraints: QueryConstraint[] = [];
-
-        if (filters.category !== 'all') {
-            constraints.push(where('category', '==', filters.category));
+        let queryRef: Query;
+        if(filters.category !== 'all' && filters.status !== 'all') {
+            // RTDB does not support multiple orderByChild calls.
+            // This would require client-side filtering or a denormalized data structure.
+            // For now, we will filter by status if both are selected.
+            queryRef = query(ref(database, 'incidents'), orderByChild('status'), equalTo(filters.status));
+        } else if (filters.category !== 'all') {
+             queryRef = query(ref(database, 'incidents'), orderByChild('category'), equalTo(filters.category));
+        } else if (filters.status !== 'all') {
+             queryRef = query(ref(database, 'incidents'), orderByChild('status'), equalTo(filters.status));
+        } else {
+             queryRef = ref(database, 'incidents');
         }
-        if (filters.status !== 'all') {
-            constraints.push(where('status', '==', filters.status));
-        }
 
-        return query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), ...constraints);
+        return queryRef;
 
-    }, [firestore, user, filters]);
+    }, [database, user, filters]);
     
     const { data: incidents, isLoading: isIncidentsLoading } =
         useCollection<Incident>(incidentsCollection);
@@ -44,7 +49,13 @@ export default function MapPage() {
     const pins: MapPin[] = useMemo(() => {
         if (!incidents) return [];
 
-        return incidents
+        let filteredIncidents = incidents;
+        // If we couldn't filter by both in the query, do the second filter on the client
+         if (filters.category !== 'all' && filters.status !== 'all') {
+            filteredIncidents = incidents.filter(i => i.category === filters.category);
+        }
+
+        return filteredIncidents
             .filter(incident => 
                 incident.location && 
                 typeof incident.location === 'object' &&
@@ -60,7 +71,7 @@ export default function MapPage() {
                 label: incident.title,
                 status: incident.status
             }));
-    }, [incidents]);
+    }, [incidents, filters]);
 
     const handleFilterChange = (filterName: 'category' | 'status') => (value: string) => {
         setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -131,3 +142,5 @@ export default function MapPage() {
         </div>
     );
 }
+
+    

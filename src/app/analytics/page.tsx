@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import { Loader2, BarChart2, AlertCircle, Map } from 'lucide-react';
 import type { Incident } from '@/lib/types';
 import { IncidentCategoryChart } from '@/components/analytics/incident-category-chart';
@@ -13,18 +13,21 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export default function AnalyticsPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
 
   const incidentsCollection = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/incidents'), orderBy('dateReported', 'desc'))
+      database && user
+        ? query(ref(database, 'incidents'), orderByChild('dateReported'))
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(incidentsCollection);
+    
+  const sortedIncidents = incidents ? [...incidents].reverse() : [];
+
 
   if (isIncidentsLoading) {
     return (
@@ -34,7 +37,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!incidents || incidents.length === 0) {
+  if (!sortedIncidents || sortedIncidents.length === 0) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <h1 className="text-3xl font-bold tracking-tight font-headline">
@@ -66,8 +69,8 @@ export default function AnalyticsPage() {
     const headers = ['ID', 'Title', 'Category', 'Status', 'Priority', 'Date Reported', 'Location'];
     const csvRows = [headers.join(',')];
     
-    incidents.forEach(incident => {
-      const date = incident.dateReported?.toDate ? incident.dateReported.toDate().toISOString() : 'N/A';
+    sortedIncidents.forEach(incident => {
+      const date = incident.dateReported ? new Date(incident.dateReported).toISOString() : 'N/A';
       const location = typeof incident.location === 'object' && incident.location.address ? incident.location.address : incident.location;
       const row = [
         incident.id,
@@ -111,7 +114,7 @@ export default function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <IncidentTimelineChart incidents={incidents} />
+            <IncidentTimelineChart incidents={sortedIncidents} />
           </CardContent>
         </Card>
         <Card>
@@ -125,7 +128,7 @@ export default function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <IncidentCategoryChart incidents={incidents} />
+            <IncidentCategoryChart incidents={sortedIncidents} />
           </CardContent>
         </Card>
       </div>
@@ -156,3 +159,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    

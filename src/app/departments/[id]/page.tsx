@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, UserPlus, Users, MapPin, BarChart2, Building, Phone, Clock, ShieldAlert, ListChecks, ArrowUpCircle, Package, PlusCircle } from "lucide-react";
 import Link from "next/link";
-import { useDoc } from "@/firebase/firestore/use-doc";
-import { doc } from "firebase/firestore";
-import { useFirestore, useMemoFirebase } from "@/firebase";
+import { useDoc } from "@/firebase/database/use-doc";
+import { ref } from "firebase/database";
+import { useDatabase, useMemoFirebase } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -31,11 +31,11 @@ type Department = {
 
 
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const firestore = useFirestore();
+  const database = useDatabase();
 
   const departmentRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, "artifacts/default-app-id/public/data/departments", params.id) : null),
-    [firestore, params.id]
+    () => (database ? ref(database, `departments/${params.id}`) : null),
+    [database, params.id]
   );
   const { data: department, isLoading } = useDoc<Department>(departmentRef);
 
@@ -181,4 +181,6 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
+    
+
     

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { notFound } from "next/navigation";
@@ -11,9 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Check, MapPin, User, X, Loader2, Lightbulb, AlertCircle, FileText, Ambulance, Car, Shield } from "lucide-react";
 import Link from "next/link";
-import { useDoc } from "@/firebase/firestore/use-doc";
-import { doc, Timestamp } from "firebase/firestore";
-import { useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useDoc } from "@/firebase/database/use-doc";
+import { ref } from "firebase/database";
+import { useDatabase, useMemoFirebase, useUser } from "@/firebase";
 import { Incident } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
@@ -36,14 +37,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
   const { user } = useUser();
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { toast } = useToast();
   const notesFormRef = useRef<HTMLFormElement>(null);
   const [selectedResponder, setSelectedResponder] = useState<string>('');
 
   const incidentRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, "artifacts/default-app-id/public/data/incidents", params.id) : null),
-    [firestore, params.id]
+    () => (database ? ref(database, `incidents/${params.id}`) : null),
+    [database, params.id]
   );
   const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
 
@@ -94,7 +95,7 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp);
     return format(date, 'PPpp');
   };
 
@@ -218,9 +219,9 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
                   </CardTitle>
               </CardHeader>
               <CardContent>
-                  {incident.investigationNotes && incident.investigationNotes.length > 0 ? (
+                  {incident.investigationNotes && Object.values(incident.investigationNotes).length > 0 ? (
                       <div className="space-y-4">
-                          {incident.investigationNotes.map((note, index) => (
+                          {Object.values(incident.investigationNotes).map((note, index) => (
                               <div key={index} className="flex flex-col gap-1 text-sm border-b pb-2">
                                   <p className="text-foreground">{note.note}</p>
                                   <p className="text-xs text-muted-foreground">
@@ -364,3 +365,5 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
+
+    

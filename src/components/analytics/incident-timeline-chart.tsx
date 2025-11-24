@@ -32,7 +32,7 @@ export function IncidentTimelineChart({ incidents }: { incidents: Incident[] }) 
     }
 
     incidents.forEach((incident) => {
-      const incidentDate = incident.dateReported?.toDate ? incident.dateReported.toDate() : new Date();
+      const incidentDate = new Date(incident.dateReported);
       if (incidentDate >= thirtyDaysAgo) {
         const formattedDate = format(incidentDate, 'MMM d');
         if (dailyCounts.hasOwnProperty(formattedDate)) {
@@ -66,3 +66,5 @@ export function IncidentTimelineChart({ incidents }: { incidents: Incident[] }) 
     </ChartContainer>
   );
 }
+
+    

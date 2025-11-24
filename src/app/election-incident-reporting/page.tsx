@@ -1,11 +1,12 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, equalTo } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
   Loader2,
@@ -16,20 +17,20 @@ import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 
 export default function ElectionIncidentReportingPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user, isUserLoading } = useUser();
 
   // Query for incidents with the "Election" category
   const electionIncidentsQuery = useMemoFirebase(
     () =>
-      firestore && user
+      database && user
         ? query(
-            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
-            where('category', '==', 'Election'),
-            orderBy('dateReported', 'desc')
+            ref(database, 'incidents'), 
+            orderByChild('category'),
+            equalTo('Election')
           )
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(electionIncidentsQuery);
@@ -85,3 +86,5 @@ export default function ElectionIncidentReportingPage() {
     </div>
   );
 }
+
+    

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
 import { useCollection, useDatabase, useUser, useMemoFirebase } from '@/firebase';
-import { ref, query, orderByChild, equalTo, get, set, push } from 'firebase/database';
+import { ref, query, orderByChild, get, set, push } from 'firebase/database';
 import {
   Activity,
   AlertTriangle,
@@ -40,20 +40,33 @@ export default function DashboardPage() {
     
     const seedData = async () => {
         try {
-            const departmentsRef = ref(database, 'departments');
-            
             const policeDeptRef = ref(database, 'departments/police_dept_123');
-            const fireDeptRef = ref(database, 'departments/fire_dept_456');
+            await set(policeDeptRef, {
+                name: "Zambia Police Service",
+                category: "Police",
+                province: "Lusaka",
+                district: "Lusaka"
+            });
 
-            const policeSnapshot = await get(ref(policeDeptRef, 'assets'));
+            const fireDeptRef = ref(database, 'departments/fire_dept_456');
+             await set(fireDeptRef, {
+                name: "Lusaka Fire Brigade",
+                category: "Fire",
+                province: "Lusaka",
+                district: "Lusaka"
+            });
+
+            const policeAssetsRef = ref(database, 'departments/police_dept_123/assets');
+            const policeSnapshot = await get(policeAssetsRef);
             if (!policeSnapshot.exists()) {
-                await push(ref(policeDeptRef, 'assets'), { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
-                await push(ref(policeDeptRef, 'assets'), { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
+                await push(policeAssetsRef, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
+                await push(policeAssetsRef, { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
             }
 
-            const fireSnapshot = await get(ref(fireDeptRef, 'assets'));
+            const fireAssetsRef = ref(database, 'departments/fire_dept_456/assets');
+            const fireSnapshot = await get(fireAssetsRef);
             if (!fireSnapshot.exists()) {
-                 await push(ref(fireDeptRef, 'assets'), { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
+                 await push(fireAssetsRef, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
             }
         } catch(e) {
             console.error("Error seeding data:", e);
@@ -191,3 +204,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

@@ -1,4 +1,3 @@
-import { Timestamp } from "firebase/firestore";
 
 export type IncidentStatus =
   | 'Reported'
@@ -57,7 +56,7 @@ export type Incident = {
   reporter?: Reporter;
   media: string[];
   category: string;
-  investigationNotes?: InvestigationNote[]; // Added investigation notes
+  investigationNotes?: Record<string, InvestigationNote>; // RTDB uses objects for lists
   aiMetadata?: {
     suggestedCategories?: string[];
     isDuplicate?: boolean;
@@ -86,9 +85,11 @@ export type PollingStation = {
     hasPowerOutage: boolean;
     hasTamperingReport: boolean;
     registeredVoters: number;
-    lastCheckin: Timestamp;
+    lastCheckin: number;
     location: {
         latitude: number;
         longitude: number;
     };
 };
+
+    

@@ -3,9 +3,9 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, update } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import { Loader2, Users, Check, Shield } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,29 +18,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { getCollectionPath } from '@/lib/utils';
 import type { UserProfile, UserRole } from '@/lib/types';
 
 
 export default function StaffPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
   const { toast } = useToast();
 
   const usersCollection = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/users'), orderBy('lastName'))
+      database && user
+        ? query(ref(database, 'users'), orderByChild('lastName'))
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    if (!firestore) return;
+    if (!database) return;
     try {
-        const userDocRef = doc(firestore, 'artifacts/default-app-id/public/data/users', userId);
-        await updateDoc(userDocRef, { userType: newRole });
+        const userDocRef = ref(database, `users/${userId}`);
+        await update(userDocRef, { userType: newRole });
         toast({
             title: "Role Updated",
             description: `User role has been successfully changed to ${newRole}.`,
@@ -148,3 +147,5 @@ export default function StaffPage() {
     </div>
   );
 }
+
+    

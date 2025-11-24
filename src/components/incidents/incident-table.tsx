@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -18,8 +19,7 @@ import { format } from "date-fns";
 export function IncidentTable({ incidents }: { incidents: Incident[] }) {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "N/A";
-    // Firestore Timestamps can be converted to JS Date objects
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp);
     return format(date, "PPP");
   };
 
@@ -60,3 +60,5 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
     </Table>
   );
 }
+
+    

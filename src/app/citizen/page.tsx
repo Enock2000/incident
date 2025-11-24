@@ -1,11 +1,12 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, equalTo } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
   Loader2,
@@ -17,20 +18,20 @@ import { useRouter } from 'next/navigation';
 
 
 export default function CitizenPortalPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   const userIncidentsQuery = useMemoFirebase(
     () =>
-      firestore && user
+      database && user
         ? query(
-            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
-            where('reporter.userId', '==', user.uid),
-            orderBy('dateReported', 'desc')
+            ref(database, 'incidents'), 
+            orderByChild('reporter/userId'),
+            equalTo(user.uid)
           )
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } =
     useCollection<Incident>(userIncidentsQuery);
@@ -95,3 +96,5 @@ export default function CitizenPortalPage() {
     </div>
   );
 }
+
+    

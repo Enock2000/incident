@@ -3,9 +3,9 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, push, set } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
   Loader2,
@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,7 +38,7 @@ type Department = {
 }
 
 export default function DepartmentsPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -59,10 +58,10 @@ export default function DepartmentsPage() {
 
   const departmentsCollection = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/departments'), orderBy('name'))
+      database && user
+        ? query(ref(database, 'departments'), orderByChild('name'))
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: departments, isLoading: isDepartmentsLoading } =
     useCollection<Department>(departmentsCollection);
@@ -76,11 +75,12 @@ export default function DepartmentsPage() {
         toast({ title: "Error", description: "Please specify the category.", variant: "destructive" });
         return;
     }
-    if (!firestore) return;
+    if (!database) return;
 
     try {
         const categoryToSave = newDept.category === 'Other' ? newDept.otherCategory : newDept.category;
-        await addDoc(collection(firestore, 'artifacts/default-app-id/public/data/departments'), {
+        const newDeptRef = push(ref(database, 'departments'));
+        await set(newDeptRef, {
             name: newDept.name,
             category: categoryToSave,
             province: newDept.province,
@@ -289,3 +289,5 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+
+    

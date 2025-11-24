@@ -19,9 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, orderBy, Timestamp } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/database/use-collection";
+import { ref, query, orderByChild } from "firebase/database";
+import { useDatabase, useUser, useMemoFirebase } from "@/firebase";
 import { format } from 'date-fns';
 
 type ElectionSecurityAlert = {
@@ -31,7 +31,7 @@ type ElectionSecurityAlert = {
     severity: 'Low' | 'Medium' | 'High' | 'Critical';
     area: string;
     status: 'New' | 'Investigating' | 'Actioned' | 'Resolved' | 'Closed';
-    timestamp: Timestamp;
+    timestamp: number;
 }
 
 const getSeverityBadge = (severity: string) => {
@@ -56,21 +56,24 @@ const getStatusIcon = (status: string) => {
 
 
 export default function ElectionSecurityAlertsPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
 
   const alertsCollection = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/election-security-alerts'), orderBy('timestamp', 'desc'))
+      database && user
+        ? query(ref(database, 'election-security-alerts'), orderByChild('timestamp'))
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: alerts, isLoading } = useCollection<ElectionSecurityAlert>(alertsCollection);
+  
+  const sortedAlerts = alerts ? [...alerts].reverse() : [];
+
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp);
     return format(date, 'PPpp');
   };
 
@@ -146,7 +149,7 @@ export default function ElectionSecurityAlertsPage() {
                 <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-            ) : !alerts || alerts.length === 0 ? (
+            ) : !sortedAlerts || sortedAlerts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
                     <div className="mx-auto bg-primary/10 p-4 rounded-full">
                         <AlertCircleIcon className="h-10 w-10 text-primary" />
@@ -166,7 +169,7 @@ export default function ElectionSecurityAlertsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {alerts.map((alert) => (
+                        {sortedAlerts.map((alert) => (
                             <TableRow key={alert.id}>
                                 <TableCell>
                                     <Badge variant={getSeverityBadge(alert.severity)}>{alert.severity}</Badge>
@@ -190,3 +193,5 @@ export default function ElectionSecurityAlertsPage() {
     </div>
   );
 }
+
+    

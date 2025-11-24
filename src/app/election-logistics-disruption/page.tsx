@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Truck, AlertTriangle, CheckCircle, PlusCircle, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collectionGroup, query, orderBy } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/database/use-collection";
+import { ref, query, orderByChild, equalTo } from "firebase/database";
+import { useDatabase, useUser, useMemoFirebase } from "@/firebase";
 import type { Incident } from "@/lib/types";
 import { format } from "date-fns";
 
@@ -33,19 +33,20 @@ const getStatusIcon = (status: string) => {
 }
 
 export default function ElectionLogisticsDisruptionPage() {
-    const firestore = useFirestore();
+    const database = useDatabase();
     const { user, isUserLoading } = useUser();
 
-    // Using a collection group query to get all 'disruptions' across the database
+    // Query for logistics disruptions
     const disruptionsQuery = useMemoFirebase(
     () =>
-      firestore && user
+      database && user
         ? query(
-            collectionGroup(firestore, 'disruptions'), 
-            orderBy('dateReported', 'desc')
+            ref(database, 'incidents'), 
+            orderByChild('category'),
+            equalTo('Logistics Disruption')
           )
         : null,
-    [firestore, user]
+    [database, user]
     );
     const { data: disruptions, isLoading: isDisruptionsLoading } = useCollection<Incident>(disruptionsQuery);
 
@@ -63,7 +64,7 @@ export default function ElectionLogisticsDisruptionPage() {
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return "N/A";
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const date = new Date(timestamp);
         return format(date, "p");
     };
 
@@ -99,7 +100,7 @@ export default function ElectionLogisticsDisruptionPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{totalDisruptions}</div>
-                <p className="text-xs text-muted-foreground">All logged disruptions from all departments</p>
+                <p className="text-xs text-muted-foreground">All logged disruptions</p>
             </CardContent>
         </Card>
         <Card>
@@ -117,7 +118,7 @@ export default function ElectionLogisticsDisruptionPage() {
       <Card>
         <CardHeader>
             <CardTitle>Disruption Log</CardTitle>
-            <CardDescription>Real-time log of all reported logistical disruptions from a collection group query.</CardDescription>
+            <CardDescription>Real-time log of all reported logistical disruptions.</CardDescription>
         </CardHeader>
         <CardContent>
             {disruptions && disruptions.length > 0 ? (
@@ -176,3 +177,5 @@ export default function ElectionLogisticsDisruptionPage() {
     </div>
   );
 }
+
+    

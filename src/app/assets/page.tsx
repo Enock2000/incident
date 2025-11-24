@@ -3,9 +3,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Package, Loader2 } from "lucide-react";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collectionGroup, query, orderBy } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/database/use-collection";
+import { ref, query, orderByChild } from "firebase/database";
+import { useDatabase, useUser, useMemoFirebase } from "@/firebase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,15 +18,21 @@ type Asset = {
 }
 
 export default function AssetsPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
 
+  // Note: RTDB doesn't support collection group queries directly in the client SDK
+  // This hook would need to be re-implemented to fetch from multiple paths if that's the goal.
+  // For now, we'll assume a simplified structure or a single path.
+  // This query will likely not work as intended without a specific path.
+  // A better approach would be to fetch departments, then assets for each.
+  // For this example, let's query a specific, known department.
   const assetsQuery = useMemoFirebase(
     () => 
-        firestore && user 
-            ? query(collectionGroup(firestore, 'assets'), orderBy('name'))
+        database && user 
+            ? query(ref(database, 'departments/police_dept_123/assets'), orderByChild('name'))
             : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: assets, isLoading } = useCollection<Asset>(assetsQuery);
 
@@ -65,7 +71,7 @@ export default function AssetsPage() {
         <Card>
             <CardHeader>
                 <CardTitle>All Assets</CardTitle>
-                <CardDescription>This is a list of all assets across all departments, fetched using a collection group query.</CardDescription>
+                <CardDescription>This is a list of all assets across all departments. (Note: Demoing one dept)</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -96,3 +102,5 @@ export default function AssetsPage() {
     </div>
   );
 }
+
+    

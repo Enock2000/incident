@@ -1,29 +1,30 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PlusCircle, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/database/use-collection';
+import { ref, query, orderByChild, equalTo } from 'firebase/database';
+import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import type { Incident } from '@/lib/types';
 import { IncidentTable } from "@/components/incidents/incident-table";
 
 export default function VoterSafetyIncidentPage() {
-    const firestore = useFirestore();
+    const database = useDatabase();
     const { user, isUserLoading } = useUser();
 
     const safetyIncidentsQuery = useMemoFirebase(
     () =>
-      firestore && user
+      database && user
         ? query(
-            collection(firestore, 'artifacts/default-app-id/public/data/incidents'), 
-            where('category', '==', 'Voter Safety'),
-            orderBy('dateReported', 'desc')
+            ref(database, 'incidents'), 
+            orderByChild('category'),
+            equalTo('Voter Safety')
           )
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(safetyIncidentsQuery);
     
@@ -113,3 +114,5 @@ export default function VoterSafetyIncidentPage() {
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,9 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle, Clock, AlertTriangle, Monitor, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, orderBy, Timestamp } from "firebase/firestore";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/database/use-collection";
+import { ref, query, orderByChild } from "firebase/database";
+import { useDatabase, useUser, useMemoFirebase } from "@/firebase";
 import type { PollingStation, PollingStationStatus } from "@/lib/types";
 import { format } from "date-fns";
 
@@ -22,21 +23,21 @@ const getStatusIcon = (status: PollingStationStatus) => {
     }
 }
 
-const formatDate = (timestamp: Timestamp | null) => {
+const formatDate = (timestamp: number | null) => {
     if (!timestamp) return 'N/A';
-    return format(timestamp.toDate(), 'p');
+    return format(new Date(timestamp), 'p');
 }
 
 export default function PollingStationMonitoringPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user } = useUser();
 
   const stationsQuery = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(collection(firestore, 'artifacts/default-app-id/public/data/pollingStations'), orderBy('name'))
+      database && user
+        ? query(ref(database, 'pollingStations'), orderByChild('name'))
         : null,
-    [firestore, user]
+    [database, user]
   );
   const { data: pollingStations, isLoading } = useCollection<PollingStation>(stationsQuery);
 
@@ -155,3 +156,5 @@ export default function PollingStationMonitoringPage() {
     </div>
   );
 }
+
+    
