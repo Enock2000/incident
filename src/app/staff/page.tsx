@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useCollection } from '@/firebase/database/use-collection';
 import { ref, query, orderByChild, update } from 'firebase/database';
 import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
-import { Loader2, Users, Check, Shield, Search } from 'lucide-react';
+import { Loader2, Users, Check, Shield, Search, Eye } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ import type { UserProfile, UserRole } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { zambiaProvinces } from '@/lib/zambia-locations';
+import Link from 'next/link';
 
 
 export default function StaffPage() {
@@ -224,7 +225,7 @@ export default function StaffPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>{u.province ? `${u.district}, ${u.province}` : 'N/A'}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right flex items-center justify-end gap-2">
                                         <Select value={u.userType} onValueChange={(value) => handleRoleChange(u.id, value as UserRole)}>
                                             <SelectTrigger className="w-[180px]">
                                                 <SelectValue placeholder="Change role..." />
@@ -235,6 +236,11 @@ export default function StaffPage() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <Link href={`/staff/${u.id}`} passHref>
+                                          <Button variant="outline" size="icon">
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                        </Link>
                                     </TableCell>
                                 </TableRow>
                             ))}

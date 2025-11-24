@@ -33,6 +33,10 @@ export type UserProfile = {
   nrc?: string;
   province?: string;
   district?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  occupation?: string;
+  photoURL?: string;
 };
 
 export type InvestigationNote = {
