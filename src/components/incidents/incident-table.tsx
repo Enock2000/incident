@@ -12,9 +12,10 @@ import {
 import type { Incident } from "@/lib/types";
 import { IncidentStatusBadge, PriorityBadge } from "./incident-status-badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, FileImage, Search } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { IncidentImagesDialog } from "./incident-images-dialog";
 
 export function IncidentTable({ incidents }: { incidents: Incident[] }) {
   const formatDate = (timestamp: any) => {
@@ -47,10 +48,17 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
                 <PriorityBadge priority={incident.priority} />
             </TableCell>
             <TableCell>{formatDate(incident.dateReported)}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right space-x-2">
+              <IncidentImagesDialog incident={incident}>
+                <Button variant="ghost" size="icon" disabled={!incident.media || incident.media.length === 0}>
+                  <FileImage className="h-4 w-4" />
+                   <span className="sr-only">View Images</span>
+                </Button>
+              </IncidentImagesDialog>
               <Link href={`/incidents/${incident.id}`} passHref>
-                <Button variant="ghost" size="icon">
-                  <Eye className="h-4 w-4" />
+                <Button variant="outline" size="sm">
+                  <Search className="h-4 w-4 mr-2" />
+                  View Details
                 </Button>
               </Link>
             </TableCell>
@@ -60,5 +68,3 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
     </Table>
   );
 }
-
-    
