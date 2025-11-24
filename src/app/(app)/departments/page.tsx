@@ -26,20 +26,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo, useEffect } from 'react';
-import { useActionState } from 'react';
+import { useState, useMemo, useEffect, useActionState as useFormState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { zambiaProvinces } from '@/lib/zambia-locations';
 import { incidentCategories } from '@/lib/incident-categories';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { createDepartment } from '@/app/actions';
+import { createDepartment, updateDepartment, deleteDepartment } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
@@ -48,6 +58,14 @@ type Department = {
     name: string;
     description: string;
     category: string;
+    province: string;
+    district: string;
+    officeAddress?: string;
+    contactNumbers?: { landline?: string };
+    operatingHours?: string;
+    escalationRules?: string;
+    priorityAssignmentRules?: string;
+    incidentTypesHandled?: string[];
 }
 
 const initialState = {
@@ -57,12 +75,12 @@ const initialState = {
   id: null
 };
 
-function SubmitButton() {
-  const { pending } = (React as any).useFormStatus();
+function SubmitButton({ children }: { children: React.ReactNode }) {
+  const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Create Department
+      {children}
     </Button>
   );
 }
@@ -73,41 +91,76 @@ export default function DepartmentsPage() {
   const { user } = useUser();
   const { toast } = useToast();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [state, formAction] = useActionState(createDepartment, initialState);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   
-  const [province, setProvince] = useState('');
-  const [district, setDistrict] = useState('');
-  const [category, setCategory] = useState('');
-  const [incidentTypes, setIncidentTypes] = useState<string[]>([]);
-  
+  const [createState, createFormAction] = useFormState(createDepartment, initialState);
+  const [updateState, updateFormAction] = useFormState(updateDepartment, initialState);
 
   useEffect(() => {
-    if (state.message) {
-      if (state.success) {
-        toast({
-          title: "Success",
-          description: state.message,
-        });
-        setIsDialogOpen(false); // Close dialog on success
+    if (createState.message) {
+      if (createState.success) {
+        toast({ title: "Success", description: createState.message });
+        setIsCreateDialogOpen(false);
       } else {
         toast({
           variant: "destructive",
           title: "Error",
           description: (
             <div>
-              <p>{state.message}</p>
-              {state.issues && state.issues.length > 0 && (
-                <ul className="list-disc list-inside mt-2">
-                  {state.issues.map((issue, i) => <li key={i}>{issue}</li>)}
-                </ul>
+              <p>{createState.message}</p>
+              {createState.issues && createState.issues.length > 0 && (
+                <ul className="list-disc list-inside mt-2">{createState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
               )}
             </div>
           )
         });
       }
     }
-  }, [state, toast]);
+  }, [createState, toast]);
+
+  useEffect(() => {
+    if (updateState.message) {
+      if (updateState.success) {
+        toast({ title: "Success", description: updateState.message });
+        setIsEditDialogOpen(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: (
+            <div>
+              <p>{updateState.message}</p>
+              {updateState.issues && updateState.issues.length > 0 && (
+                <ul className="list-disc list-inside mt-2">{updateState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
+              )}
+            </div>
+          )
+        });
+      }
+    }
+  }, [updateState, toast]);
+  
+  const handleEditClick = (dept: Department) => {
+    setEditingDepartment(dept);
+    setIsEditDialogOpen(true);
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const formData = new FormData();
+    formData.append('id', deleteId);
+    const result = await deleteDepartment(formData);
+     if (result.success) {
+        toast({ title: "Success", description: result.message });
+        setDeleteId(null);
+      } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
+      }
+  }
+
 
   const departmentsCollection = useMemoFirebase(
     () =>
@@ -119,25 +172,6 @@ export default function DepartmentsPage() {
   const { data: departments, isLoading: isDepartmentsLoading } =
     useCollection<Department>(departmentsCollection);
     
-  const districtsForSelectedProvince = useMemo(() => {
-    const selectedProvince = zambiaProvinces.find(p => p.name === province);
-    return selectedProvince ? selectedProvince.districts : [];
-  }, [province]);
-
-  const handleProvinceChange = (value: string) => {
-    setProvince(value);
-    setDistrict('');
-  };
-
-  const handleIncidentTypesChange = (selectedCategory: string) => {
-    setIncidentTypes(prev => {
-        const newTypes = prev.includes(selectedCategory)
-            ? prev.filter(c => c !== selectedCategory)
-            : [...prev, selectedCategory];
-        return newTypes;
-    });
-  };
-
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -145,165 +179,16 @@ export default function DepartmentsPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Department Management
         </h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" /> Create Department
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
-              <form action={formAction}>
-                <DialogHeader>
-                  <DialogTitle>Create New Department</DialogTitle>
-                  <DialogDescription>
-                      Add a new department to the system. You can assign roles and staff later.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-                    <h3 className="font-semibold text-lg">Core Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input id="name" name="name" />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="category">Category</Label>
-                            <Select name="category" value={category} onValueChange={setCategory}>
-                                <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Police">Police</SelectItem>
-                                    <SelectItem value="Fire">Fire</SelectItem>
-                                    <SelectItem value="Ambulance">Ambulance</SelectItem>
-                                    <SelectItem value="Council">Council</SelectItem>
-                                    <SelectItem value="Health">Health</SelectItem>
-                                    <SelectItem value="Disaster">Disaster</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                     {category === 'Other' && (
-                        <div className="space-y-2">
-                            <Label htmlFor="otherCategory">Please Specify Category</Label>
-                            <Input id="otherCategory" name="otherCategory" />
-                        </div>
-                    )}
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="province">Province</Label>
-                             <Select name="province" value={province} onValueChange={handleProvinceChange}>
-                                <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
-                                <SelectContent>
-                                    {zambiaProvinces.map(p => (
-                                        <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="district">District</Label>
-                            <Select name="district" value={district} onValueChange={setDistrict} disabled={!province}>
-                                <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
-                                <SelectContent>
-                                    {districtsForSelectedProvince.map(d => (
-                                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="officeAddress">Office Address</Label>
-                        <Input id="officeAddress" name="officeAddress" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="landline">Contact Number (Landline)</Label>
-                        <Input id="landline" name="landline" />
-                    </div>
-
-                    <h3 className="font-semibold text-lg mt-4 pt-4 border-t">Operational Settings</h3>
-                    <div className="space-y-2">
-                        <Label>Incident Types Handled</Label>
-                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                                >
-                                <span className="truncate">
-                                    {incidentTypes.length > 0 ? `${incidentTypes.length} selected` : 'Select incident types...'}
-                                </span>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                <CommandInput placeholder="Search categories..." />
-                                <CommandEmpty>No category found.</CommandEmpty>
-                                <CommandGroup>
-                                    <CommandList>
-                                        {incidentCategories.map((cat) => (
-                                            <CommandItem
-                                            key={cat}
-                                            onSelect={() => handleIncidentTypesChange(cat)}
-                                            >
-                                            <Check
-                                                className={cn(
-                                                "mr-2 h-4 w-4",
-                                                incidentTypes.includes(cat) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {cat}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandList>
-                                </CommandGroup>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                         <div className="flex flex-wrap gap-2 mt-2">
-                            {incidentTypes.map(type => (
-                                <Badge key={type} variant="secondary">{type}</Badge>
-                            ))}
-                        </div>
-                        {/* Hidden inputs for form submission */}
-                        {incidentTypes.map(type => (
-                          <input key={type} type="hidden" name="incidentTypesHandled" value={type} />
-                        ))}
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="operatingHours">Operating Hours</Label>
-                        <Input id="operatingHours" name="operatingHours" placeholder="e.g., 24/7 or 9am-5pm"/>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="escalationRules">Escalation Rules</Label>
-                        <Textarea id="escalationRules" name="escalationRules" placeholder="Describe rules for escalation..."/>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="priorityAssignmentRules">Priority Assignment Rules</Label>
-                        <Textarea id="priorityAssignmentRules" name="priorityAssignmentRules" placeholder="Describe rules for priority assignment..."/>
-                    </div>
-
-                    {state.message && !state.success && (
-                       <Alert variant="destructive">
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>
-                                {state.message}
-                                {state.issues && state.issues.length > 0 && (
-                                    <ul className="list-disc list-inside mt-2">
-                                    {state.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}
-                                    </ul>
-                                )}
-                            </AlertDescription>
-                        </Alert>
-                    )}
-
-                </div>
-                <DialogFooter>
-                    <SubmitButton />
-                </DialogFooter>
-              </form>
+              <DepartmentForm formAction={createFormAction} initialState={initialState}>
+                <SubmitButton>Create Department</SubmitButton>
+              </DepartmentForm>
             </DialogContent>
         </Dialog>
       </div>
@@ -338,10 +223,10 @@ export default function DepartmentsPage() {
                                 <CardDescription>{dept.category}</CardDescription>
                             </div>
                              <div className="flex gap-2">
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(dept)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(dept.id)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -358,6 +243,220 @@ export default function DepartmentsPage() {
                 ))}
              </div>
         )}
+        
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+             <DialogContent className="sm:max-w-[600px]">
+                <DepartmentForm
+                    key={editingDepartment?.id}
+                    formAction={updateFormAction}
+                    initialState={updateState}
+                    department={editingDepartment}
+                >
+                    <SubmitButton>Save Changes</SubmitButton>
+                </DepartmentForm>
+             </DialogContent>
+        </Dialog>
+
+        {/* Delete Alert Dialog */}
+         <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the department.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+         </AlertDialog>
     </div>
   );
+}
+
+
+// Reusable Department Form Component
+function DepartmentForm({ formAction, initialState, department, children }: { formAction: any, initialState: any, department?: Department | null, children: React.ReactNode }) {
+  const [province, setProvince] = useState(department?.province || '');
+  const [district, setDistrict] = useState(department?.district || '');
+  const [category, setCategory] = useState(department?.category || '');
+  const [incidentTypes, setIncidentTypes] = useState<string[]>(department?.incidentTypesHandled || []);
+  
+  const districtsForSelectedProvince = useMemo(() => {
+    const selectedProvince = zambiaProvinces.find(p => p.name === province);
+    return selectedProvince ? selectedProvince.districts : [];
+  }, [province]);
+
+  const handleProvinceChange = (value: string) => {
+    setProvince(value);
+    setDistrict('');
+  };
+
+  const handleIncidentTypesChange = (selectedCategory: string) => {
+    setIncidentTypes(prev => {
+        const newTypes = prev.includes(selectedCategory)
+            ? prev.filter(c => c !== selectedCategory)
+            : [...prev, selectedCategory];
+        return newTypes;
+    });
+  };
+  
+  return (
+      <form action={formAction}>
+        <DialogHeader>
+          <DialogTitle>{department ? 'Edit Department' : 'Create New Department'}</DialogTitle>
+          <DialogDescription>
+              {department ? 'Update the details for this department.' : 'Add a new department to the system. You can assign roles and staff later.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
+            {department && <input type="hidden" name="id" value={department.id} />}
+            <h3 className="font-semibold text-lg">Core Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input id="name" name="name" defaultValue={department?.name}/>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select name="category" value={category} onValueChange={setCategory} defaultValue={department?.category}>
+                        <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Police">Police</SelectItem>
+                            <SelectItem value="Fire">Fire</SelectItem>
+                            <SelectItem value="Ambulance">Ambulance</SelectItem>
+                            <SelectItem value="Council">Council</SelectItem>
+                            <SelectItem value="Health">Health</SelectItem>
+                            <SelectItem value="Disaster">Disaster</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+             {category === 'Other' && (
+                <div className="space-y-2">
+                    <Label htmlFor="otherCategory">Please Specify Category</Label>
+                    <Input id="otherCategory" name="otherCategory" defaultValue={department?.category !== 'Other' ? '' : department?.category} />
+                </div>
+            )}
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="province">Province</Label>
+                     <Select name="province" value={province} onValueChange={handleProvinceChange} defaultValue={department?.province}>
+                        <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
+                        <SelectContent>
+                            {zambiaProvinces.map(p => (
+                                <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="district">District</Label>
+                    <Select name="district" value={district} onValueChange={setDistrict} disabled={!province} defaultValue={department?.district}>
+                        <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
+                        <SelectContent>
+                            {districtsForSelectedProvince.map(d => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="officeAddress">Office Address</Label>
+                <Input id="officeAddress" name="officeAddress" defaultValue={department?.officeAddress} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="landline">Contact Number (Landline)</Label>
+                <Input id="landline" name="landline" defaultValue={department?.contactNumbers?.landline}/>
+            </div>
+
+            <h3 className="font-semibold text-lg mt-4 pt-4 border-t">Operational Settings</h3>
+            <div className="space-y-2">
+                <Label>Incident Types Handled</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                        >
+                        <span className="truncate">
+                            {incidentTypes.length > 0 ? `${incidentTypes.length} selected` : 'Select incident types...'}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                        <CommandInput placeholder="Search categories..." />
+                        <CommandEmpty>No category found.</CommandEmpty>
+                        <CommandGroup>
+                            <CommandList>
+                                {incidentCategories.map((cat) => (
+                                    <CommandItem
+                                    key={cat}
+                                    onSelect={() => handleIncidentTypesChange(cat)}
+                                    >
+                                    <Check
+                                        className={cn(
+                                        "mr-2 h-4 w-4",
+                                        incidentTypes.includes(cat) ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {cat}
+                                    </CommandItem>
+                                ))}
+                            </CommandList>
+                        </CommandGroup>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+                 <div className="flex flex-wrap gap-2 mt-2">
+                    {incidentTypes.map(type => (
+                        <Badge key={type} variant="secondary">{type}</Badge>
+                    ))}
+                </div>
+                {/* Hidden inputs for form submission */}
+                {incidentTypes.map(type => (
+                  <input key={type} type="hidden" name="incidentTypesHandled" value={type} />
+                ))}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="operatingHours">Operating Hours</Label>
+                <Input id="operatingHours" name="operatingHours" placeholder="e.g., 24/7 or 9am-5pm" defaultValue={department?.operatingHours}/>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="escalationRules">Escalation Rules</Label>
+                <Textarea id="escalationRules" name="escalationRules" placeholder="Describe rules for escalation..." defaultValue={department?.escalationRules}/>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="priorityAssignmentRules">Priority Assignment Rules</Label>
+                <Textarea id="priorityAssignmentRules" name="priorityAssignmentRules" placeholder="Describe rules for priority assignment..." defaultValue={department?.priorityAssignmentRules}/>
+            </div>
+
+            {initialState.message && !initialState.success && (
+               <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>
+                        {initialState.message}
+                        {initialState.issues && initialState.issues.length > 0 && (
+                            <ul className="list-disc list-inside mt-2">
+                            {initialState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}
+                            </ul>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
+
+        </div>
+        <DialogFooter>
+            {children}
+        </DialogFooter>
+      </form>
+  )
 }

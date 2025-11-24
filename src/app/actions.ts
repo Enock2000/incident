@@ -7,7 +7,7 @@ import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categorie
 import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ref, set, serverTimestamp, push, update, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
+import { ref, set, serverTimestamp, push, update, serverTimestamp as rtdbServerTimestamp, remove } from "firebase/database";
 import { initializeServerFirebase } from "@/firebase/server";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import type { IncidentStatus, Priority, Responder } from '@/lib/types';
@@ -110,6 +110,7 @@ const reportIncidentSchema = z.object({
 });
 
 export type FormState = {
+  success: boolean;
   message: string;
   fields?: Record<string, string>;
   issues?: string[];
@@ -132,6 +133,7 @@ export async function createIncident(
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) => issue.message);
     return {
+      success: false,
       message: "Invalid form data.",
       issues,
       fields: {
@@ -211,6 +213,7 @@ export async function createIncident(
   } catch (e) {
     console.error(e);
     return {
+      success: false,
       message: "Failed to create incident in Realtime Database."
     }
   }
@@ -404,7 +407,7 @@ export async function addBranchToDepartment(prevState: any, formData: FormData) 
     }
 }
 
-const createDepartmentSchema = z.object({
+const departmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string().min(1, "Category is required"),
   province: z.string().min(1, "Province is required"),
@@ -418,6 +421,7 @@ const createDepartmentSchema = z.object({
   otherCategory: z.string().optional(),
 });
 
+
 export async function createDepartment(prevState: any, formData: FormData) {
   const { database } = initializeServerFirebase();
   const data = Object.fromEntries(formData);
@@ -426,7 +430,7 @@ export async function createDepartment(prevState: any, formData: FormData) {
   const incidentTypes = formData.getAll('incidentTypesHandled');
   const finalData = { ...data, incidentTypesHandled: incidentTypes };
 
-  const parsed = createDepartmentSchema.safeParse(finalData);
+  const parsed = departmentSchema.safeParse(finalData);
 
   if (!parsed.success) {
     return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
@@ -457,5 +461,69 @@ export async function createDepartment(prevState: any, formData: FormData) {
   } catch (error) {
     console.error("Create department error:", error);
     return { success: false, message: "Failed to create department." };
+  }
+}
+
+export async function updateDepartment(prevState: any, formData: FormData) {
+  const { database } = initializeServerFirebase();
+  const data = Object.fromEntries(formData);
+  
+  const incidentTypes = formData.getAll('incidentTypesHandled');
+  const finalData = { ...data, incidentTypesHandled: incidentTypes };
+
+  const updateSchema = departmentSchema.extend({
+    id: z.string().min(1, "Department ID is missing"),
+  });
+
+  const parsed = updateSchema.safeParse(finalData);
+
+  if (!parsed.success) {
+    return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+  }
+
+  const { id, otherCategory, ...deptData } = parsed.data;
+
+  try {
+    const departmentRef = ref(database, `departments/${id}`);
+    const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
+    
+    await update(departmentRef, {
+      name: deptData.name,
+      category: categoryToSave,
+      province: deptData.province,
+      district: deptData.district,
+      officeAddress: deptData.officeAddress,
+      'contactNumbers/landline': deptData.landline || '',
+      operatingHours: deptData.operatingHours || '',
+      escalationRules: deptData.escalationRules || '',
+      priorityAssignmentRules: deptData.priorityAssignmentRules || '',
+      incidentTypesHandled: deptData.incidentTypesHandled || [],
+    });
+    revalidatePath('/departments');
+    revalidatePath(`/departments/${id}`);
+    return { success: true, message: 'Department updated successfully!' };
+  } catch (error) {
+    console.error("Update department error:", error);
+    return { success: false, message: "Failed to update department." };
+  }
+}
+
+export async function deleteDepartment(formData: FormData) {
+  const { database } = initializeServerFirebase();
+  const id = formData.get('id') as string;
+
+  if (!id) {
+    return { success: false, message: "Department ID is missing." };
+  }
+
+  try {
+    const departmentRef = ref(database, `departments/${id}`);
+    await remove(departmentRef);
+
+    revalidatePath('/departments');
+    return { success: true, message: 'Department deleted successfully!' };
+  } catch (error) {
+    console.error("Delete department error:", error);
+    return { success: false, message: "Failed to delete department." };
   }
 }
