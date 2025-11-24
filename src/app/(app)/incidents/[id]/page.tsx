@@ -367,4 +367,3 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   );
 }
 
-    

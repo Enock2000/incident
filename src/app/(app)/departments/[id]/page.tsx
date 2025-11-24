@@ -51,7 +51,7 @@ type Department = {
 
 
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
+  const { id } = params;
   const database = useDatabase();
   const { toast } = useToast();
 
@@ -351,4 +351,3 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   );
 }
     
-
