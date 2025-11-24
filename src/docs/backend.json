@@ -223,6 +223,10 @@
           "type": "string",
           "description": "Category of the incident (e.g., Crime, Fire)."
         },
+        "departmentId": {
+          "type": ["string", "null"],
+          "description": "The ID of the department this incident is assigned to."
+        },
         "status": {
           "type": "string",
           "description": "Current status of the incident."

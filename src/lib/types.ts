@@ -65,6 +65,7 @@ export type Incident = {
   reporter?: Reporter;
   media: string[];
   category: string;
+  departmentId?: string | null;
   investigationNotes?: Record<string, InvestigationNote>; // RTDB uses objects for lists
   aiMetadata?: {
     suggestedCategories?: string[];
@@ -100,3 +101,12 @@ export type PollingStation = {
         longitude: number;
     };
 };
+
+export type Department = {
+    id: string;
+    name: string;
+    category: string;
+    province: string;
+    district: string;
+    incidentTypesHandled?: string[];
+}

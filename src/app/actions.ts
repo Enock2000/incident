@@ -103,6 +103,7 @@ const reportIncidentSchema = z.object({
   latitude: z.string().optional(),
   longitude: z.string().optional(),
   category: z.string().min(3, "Category is required."),
+  departmentId: z.string().optional(),
   isAnonymous: z.string().optional(),
   userId: z.string().optional(),
 });
@@ -141,7 +142,7 @@ export async function createIncident(
     };
   }
 
-  const { title, description, location, latitude, longitude, userId, category, isAnonymous } = parsed.data;
+  const { title, description, location, latitude, longitude, userId, category, isAnonymous, departmentId } = parsed.data;
 
   const reporter: { isAnonymous: boolean, userId: string | null } = {
       isAnonymous: isAnonymous === 'on',
@@ -193,6 +194,7 @@ export async function createIncident(
       description,
       location: locationData,
       category,
+      departmentId: departmentId ?? null,
       status: "Reported",
       priority: "Medium", // Default priority
       dateReported: serverTimestamp(),
@@ -368,5 +370,3 @@ export async function assignResponder(formData: FormData) {
     return { success: false, message: 'Failed to assign responder.' };
   }
 }
-
-    

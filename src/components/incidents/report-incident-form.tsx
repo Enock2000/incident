@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useActionState } from "react";
@@ -11,11 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Lightbulb, AlertTriangle, Locate } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/firebase";
+import { useDatabase, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { incidentCategories } from "@/lib/incident-categories";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ref, query } from "firebase/database";
+import type { Department } from "@/lib/types";
 
 const initialState: FormState = {
   message: "",
@@ -33,6 +36,7 @@ function SubmitButton() {
 
 export function ReportIncidentForm() {
   const { user } = useUser();
+  const database = useDatabase();
   const [state, formAction] = useActionState(createIncident, initialState);
   const { toast } = useToast();
   const [category, setCategory] = useState<string>('');
@@ -40,7 +44,12 @@ export function ReportIncidentForm() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [departmentId, setDepartmentId] = useState('');
 
+  const departmentsRef = useMemoFirebase(() => database ? query(ref(database, 'departments')) : null, [database]);
+  const { data: departments } = useCollection<Department>(departmentsRef);
+
+  const relevantDepartments = departments?.filter(d => d.incidentTypesHandled?.includes(category)) || [];
 
   useEffect(() => {
     if (state?.message && state.issues) {
@@ -144,6 +153,26 @@ export function ReportIncidentForm() {
           </Select>
         </div>
       </div>
+
+      {category && (
+         <div className="space-y-2">
+          <Label htmlFor="departmentId">Assign to Department</Label>
+           <Select name="departmentId" value={departmentId} onValueChange={setDepartmentId} disabled={relevantDepartments.length === 0}>
+            <SelectTrigger id="departmentId">
+              <SelectValue placeholder={relevantDepartments.length > 0 ? "Select a department" : "No departments for this category"} />
+            </SelectTrigger>
+            <SelectContent>
+              {relevantDepartments.map((dept) => (
+                <SelectItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+
        {state?.aiSuggestions?.category && state.aiSuggestions.category.length > 0 && (
          <Alert>
           <Lightbulb className="h-4 w-4" />

@@ -13,6 +13,8 @@ import {
   Building,
   Edit,
   Trash2,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -24,6 +26,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
@@ -31,11 +35,16 @@ import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { zambiaProvinces } from '@/lib/zambia-locations';
+import { incidentCategories } from '@/lib/incident-categories';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+
 
 type Department = {
     id: string;
     name: string;
     description: string;
+    category: string;
 }
 
 export default function DepartmentsPage() {
@@ -54,6 +63,7 @@ export default function DepartmentsPage() {
     operatingHours: '',
     escalationRules: '',
     priorityAssignmentRules: '',
+    incidentTypesHandled: [] as string[],
   });
 
 
@@ -94,7 +104,7 @@ export default function DepartmentsPage() {
             operatingHours: newDept.operatingHours,
             escalationRules: newDept.escalationRules,
             priorityAssignmentRules: newDept.priorityAssignmentRules,
-            incidentTypesHandled: []
+            incidentTypesHandled: newDept.incidentTypesHandled
         });
         toast({ title: "Success", description: "Department created successfully." });
         setNewDept({
@@ -108,6 +118,7 @@ export default function DepartmentsPage() {
             operatingHours: '',
             escalationRules: '',
             priorityAssignmentRules: '',
+            incidentTypesHandled: [],
         });
         setOpen(false);
     } catch (error) {
@@ -128,6 +139,15 @@ export default function DepartmentsPage() {
           setNewDept(prev => ({ ...prev, [name]: value }));
       }
   };
+
+  const handleIncidentTypesChange = (category: string) => {
+    setNewDept(prev => {
+        const newTypes = prev.incidentTypesHandled.includes(category)
+            ? prev.incidentTypesHandled.filter(c => c !== category)
+            : [...prev.incidentTypesHandled, category];
+        return {...prev, incidentTypesHandled: newTypes };
+    });
+  }
 
   const districtsForSelectedProvince = useMemo(() => {
     const selectedProvince = zambiaProvinces.find(p => p.name === newDept.province);
@@ -217,6 +237,52 @@ export default function DepartmentsPage() {
                     </div>
 
                     <h3 className="font-semibold text-lg mt-4 pt-4 border-t">Operational Settings</h3>
+                    <div className="space-y-2">
+                        <Label>Incident Types Handled</Label>
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                                >
+                                <span className="truncate">
+                                    {newDept.incidentTypesHandled.length > 0 ? `${newDept.incidentTypesHandled.length} selected` : 'Select incident types...'}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                <CommandInput placeholder="Search categories..." />
+                                <CommandEmpty>No category found.</CommandEmpty>
+                                <CommandGroup>
+                                    <CommandList>
+                                        {incidentCategories.map((category) => (
+                                            <CommandItem
+                                            key={category}
+                                            onSelect={() => handleIncidentTypesChange(category)}
+                                            >
+                                            <Check
+                                                className={cn(
+                                                "mr-2 h-4 w-4",
+                                                newDept.incidentTypesHandled.includes(category) ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {category}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandList>
+                                </CommandGroup>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                         <div className="flex flex-wrap gap-2 mt-2">
+                            {newDept.incidentTypesHandled.map(type => (
+                                <Badge key={type} variant="secondary">{type}</Badge>
+                            ))}
+                        </div>
+                    </div>
                      <div className="space-y-2">
                         <Label htmlFor="operatingHours">Operating Hours</Label>
                         <Input id="operatingHours" name="operatingHours" value={newDept.operatingHours} onChange={handleInputChange} placeholder="e.g., 24/7 or 9am-5pm"/>
@@ -264,7 +330,7 @@ export default function DepartmentsPage() {
                         <CardHeader className="flex flex-row items-start justify-between">
                             <div>
                                 <CardTitle className="font-headline">{dept.name}</CardTitle>
-                                <CardDescription>{(dept as any).category}</CardDescription>
+                                <CardDescription>{dept.category}</CardDescription>
                             </div>
                              <div className="flex gap-2">
                                 <Button variant="ghost" size="icon">
