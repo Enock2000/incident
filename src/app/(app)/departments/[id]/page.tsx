@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zambiaProvinces } from "@/lib/zambia-locations";
 import { addBranchToDepartment } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Fixed TableHead import
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Branch = {
     id: string;
@@ -47,7 +47,7 @@ type Department = {
 }
 
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params; // Fixed: No React.use needed
+  const { id } = React.use(params);
   const database = useDatabase();
   const { toast } = useToast();
 
@@ -78,7 +78,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
         formData.append('district', newBranch.district);
         formData.append('address', newBranch.address);
 
-        const result = await addBranchToDepartment({}, formData); // Fixed: Pass {} as prevState
+        const result = await addBranchToDepartment({}, formData);
         
         toast({
             title: result.success ? "Success" : "Error",
@@ -110,7 +110,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
         return selectedProvince ? selectedProvince.districts : [];
    }, [newBranch.province]);
 
-   const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : []; // Fixed: Use branchId
+   const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : [];
 
    if (isLoading) {
     return (
@@ -346,5 +346,3 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
-
-    
