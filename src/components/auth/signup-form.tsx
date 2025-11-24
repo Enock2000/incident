@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useFormStatus } from "react";
 import { signup } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ function SubmitButton() {
 }
 
 export function SignupForm() {
-  const [state, formAction] = useFormState(signup, initialState);
+  const [state, formAction] = useActionState(signup, initialState);
   const [province, setProvince] = React.useState('');
   const [district, setDistrict] = React.useState('');
   const [date, setDate] = React.useState<Date>();
