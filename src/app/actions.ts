@@ -6,7 +6,7 @@ import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categorie
 import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, push, serverTimestamp } from "firebase/database";
 import { initializeFirebase } from "@/firebase";
 
 const reportIncidentSchema = z.object({
@@ -35,9 +35,7 @@ export async function createIncident(
   prevState: FormState,
   data: FormData
 ): Promise<FormState> {
-  const { firestore } = initializeFirebase();
-  // Note: Getting auth on the server is complex. For this action, we'll pass UID from client.
-  // In a real app, you'd use a session or verify an ID token.
+  const { database } = initializeFirebase();
   
   const formData = Object.fromEntries(data);
   const parsed = reportIncidentSchema.safeParse({
@@ -63,7 +61,6 @@ export async function createIncident(
 
   let aiSuggestions: FormState['aiSuggestions'] = {};
 
-  // --- AI INTEGRATION ---
   try {
     console.log("AI: Suggesting categories...");
     const categorySuggestions = await suggestIncidentCategories({
@@ -85,17 +82,14 @@ export async function createIncident(
 
   } catch (error) {
     console.error("AI processing failed:", error);
-    // Continue without AI data if it fails
   }
 
-  // If AI flags as suspicious or duplicate, we can return early for user confirmation
-  // For now, let's just log it and proceed with saving. In a real app, you might want a confirmation step.
   if (aiSuggestions.duplicate || aiSuggestions.suspicious) {
      console.warn("AI flagged this report as potentially duplicate or suspicious.", aiSuggestions);
   }
 
   try {
-    const incidentsCollection = collection(firestore, 'artifacts/default-app-id/public/data/incidents');
+    const incidentsRef = ref(database, 'incidents');
 
     const locationData = (latitude && longitude) ? {
       latitude: parseFloat(latitude),
@@ -104,7 +98,7 @@ export async function createIncident(
     } : location;
 
 
-    await addDoc(incidentsCollection, {
+    await push(incidentsRef, {
       title,
       description,
       location: locationData,
@@ -127,7 +121,7 @@ export async function createIncident(
   } catch (e) {
     console.error(e);
     return {
-      message: "Failed to create incident in Firestore."
+      message: "Failed to create incident in Realtime Database."
     }
   }
   

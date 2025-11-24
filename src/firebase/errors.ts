@@ -74,7 +74,7 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
  * @param context The context of the failed Firestore operation.
  * @returns A structured request object.
  */
-function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
+function buildRequestObject(context: SecurityRuleContext, databaseType: 'firestore' | 'database'): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
   try {
     // Safely attempt to get the current user.
@@ -87,11 +87,13 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
     // This will catch errors if the Firebase app is not yet initialized.
     // In this case, we'll proceed without auth information.
   }
+  
+  const path = databaseType === 'firestore' ? `/databases/(default)/documents/${context.path}` : context.path;
 
   return {
     auth: authObject,
     method: context.operation,
-    path: `/databases/(default)/documents/${context.path}`,
+    path,
     resource: context.requestResourceData ? { data: context.requestResourceData } : undefined,
   };
 }
@@ -99,11 +101,12 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
 /**
  * Builds the final, formatted error message for the LLM.
  * @param requestObject The simulated request object.
+ * @param databaseType The type of database ('firestore' or 'database').
  * @returns A string containing the error message and the JSON payload.
  */
-function buildErrorMessage(requestObject: SecurityRuleRequest): string {
-  return `Missing or insufficient permissions: The following request was denied by Firestore Security Rules:
-${JSON.stringify(requestObject, null, 2)}`;
+function buildErrorMessage(requestObject: SecurityRuleRequest, databaseType: 'firestore' | 'database'): string {
+  const dbName = databaseType === 'firestore' ? 'Firestore' : 'Realtime Database';
+  return `Missing or insufficient permissions: The following request was denied by ${dbName} Security Rules:\n${JSON.stringify(requestObject, null, 2)}`;
 }
 
 /**
@@ -115,9 +118,25 @@ export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
 
   constructor(context: SecurityRuleContext) {
-    const requestObject = buildRequestObject(context);
-    super(buildErrorMessage(requestObject));
+    const requestObject = buildRequestObject(context, 'firestore');
+    super(buildErrorMessage(requestObject, 'firestore'));
     this.name = 'FirebaseError';
     this.request = requestObject;
   }
 }
+
+/**
+ * A custom error class designed to be consumed by an LLM for debugging.
+ * It structures the error information to mimic the request object
+ * available in Realtime Database Security Rules.
+ */
+export class DatabasePermissionError extends Error {
+    public readonly request: SecurityRuleRequest;
+  
+    constructor(context: SecurityRuleContext) {
+      const requestObject = buildRequestObject(context, 'database');
+      super(buildErrorMessage(requestObject, 'database'));
+      this.name = 'FirebaseError';
+      this.request = requestObject;
+    }
+  }

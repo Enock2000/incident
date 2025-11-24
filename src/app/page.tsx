@@ -1,11 +1,11 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncidentTable } from '@/components/incidents/incident-table';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, addDoc, getDocs } from 'firebase/firestore';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useDatabase, useUser, useMemoFirebase } from '@/firebase';
+import { ref, query, orderByChild, equalTo, get, set, push } from 'firebase/database';
 import {
   Activity,
   AlertTriangle,
@@ -20,58 +20,52 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardPage() {
-  const firestore = useFirestore();
+  const database = useDatabase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
-  // 1. MODIFICATION: Added 'Resolved' to the query so stats calculate correctly
-  const incidentsCollection = useMemoFirebase(
+  const incidentsRef = useMemoFirebase(
     () =>
-      firestore && user
-        ? query(
-            collection(firestore, 'artifacts/default-app-id/public/data/incidents'),
-            where('status', 'in', ['Reported', 'Verified', 'Team Dispatched', 'In Progress', 'Resolved']), 
-            orderBy('dateReported', 'desc')
-          )
+      database && user
+        ? query(ref(database, 'incidents'), orderByChild('status'))
         : null,
-    [firestore, user]
+    [database, user]
   );
+  
+  const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsRef);
 
-  const { data: incidents, isLoading: isIncidentsLoading } =
-    useCollection<Incident>(incidentsCollection);
-    
-  // SEED DATA - (Note: Consider moving this to an admin script for production)
+  // SEED DATA - This part is now more complex with RTDB rules and structure
   useEffect(() => {
-    if (!firestore || !user) return;
+    if (!database || !user) return;
     
     const seedData = async () => {
         try {
-            // Using standard departments path
-            const policeAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'police_dept_123', 'assets');
-            const fireAssetsCollection = collection(firestore, 'artifacts/default-app-id/public/data/departments', 'fire_dept_456', 'assets');
+            const departmentsRef = ref(database, 'departments');
             
-            // Double check logic prevents duplicate writes
-            const policeSnapshot = await getDocs(policeAssetsCollection);
-            if (policeSnapshot.empty) {
-                await addDoc(policeAssetsCollection, { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
-                await addDoc(policeAssetsCollection, { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
+            const policeDeptRef = ref(database, 'departments/police_dept_123');
+            const fireDeptRef = ref(database, 'departments/fire_dept_456');
+
+            const policeSnapshot = await get(ref(policeDeptRef, 'assets'));
+            if (!policeSnapshot.exists()) {
+                await push(ref(policeDeptRef, 'assets'), { name: 'Patrol Car 1', assetType: 'Vehicle', status: 'Active', departmentId: 'police_dept_123' });
+                await push(ref(policeDeptRef, 'assets'), { name: 'Body Armor Set 5', assetType: 'Equipment', status: 'Active', departmentId: 'police_dept_123' });
             }
 
-            const fireSnapshot = await getDocs(fireAssetsCollection);
-            if (fireSnapshot.empty) {
-                 await addDoc(fireAssetsCollection, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
+            const fireSnapshot = await get(ref(fireDeptRef, 'assets'));
+            if (!fireSnapshot.exists()) {
+                 await push(ref(fireDeptRef, 'assets'), { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
             }
         } catch(e) {
             console.error("Error seeding data:", e);
         }
     };
 
-    const seeded = sessionStorage.getItem('assets_seeded');
+    const seeded = sessionStorage.getItem('assets_seeded_rtdb');
     if (!seeded) {
         seedData();
-        sessionStorage.setItem('assets_seeded', 'true');
+        sessionStorage.setItem('assets_seeded_rtdb', 'true');
     }
-  }, [firestore, user]);
+  }, [database, user]);
 
 
   if (isUserLoading || (user && isIncidentsLoading)) {
@@ -102,19 +96,19 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const totalIncidents = incidents?.length ?? 0;
+  
+  const relevantIncidents = incidents?.filter(i => i.status !== 'Rejected') ?? [];
+  const totalIncidents = relevantIncidents.length;
   const resolvedIncidents =
-    incidents?.filter((i) => i.status === 'Resolved').length ?? 0;
+    relevantIncidents?.filter((i) => i.status === 'Resolved').length ?? 0;
     
-  // 2. MODIFICATION: Ensure Active includes all non-resolved/non-pending statuses
   const activeIncidents =
-    incidents?.filter(
+    relevantIncidents?.filter(
       (i) => i.status === 'In Progress' || i.status === 'Team Dispatched'
     ).length ?? 0;
     
   const pendingIncidents =
-    incidents?.filter(
+    relevantIncidents?.filter(
       (i) => i.status === 'Reported' || i.status === 'Verified'
     ).length ?? 0;
 
@@ -140,7 +134,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalIncidents}</div>
-            <p className="text-xs text-muted-foreground">All incidents reported</p>
+            <p className="text-xs text-muted-foreground">All non-rejected incidents</p>
           </CardContent>
         </Card>
         <Card>
@@ -186,12 +180,10 @@ export default function DashboardPage() {
       </div>
       <div>
         <Card>
-          {/* 3. FIX: Changed <Header> to <CardHeader> */}
           <CardHeader>
             <CardTitle>Recent Incidents</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* 4. TIP: You might want to filter out 'Resolved' here if you only want active items in the table */}
             {incidents && <IncidentTable incidents={incidents.slice(0, 10)} />}
           </CardContent>
         </Card>
