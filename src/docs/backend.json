@@ -37,7 +37,7 @@
         },
         "dateOfBirth": {
           "type": "string",
-          "format": "date-time",
+          "format": "date",
           "description": "The date of birth of the user."
         },
         "occupation": {

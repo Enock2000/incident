@@ -6,7 +6,7 @@ import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categorie
 import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ref, push, serverTimestamp } from "firebase/database";
+import { ref, set, serverTimestamp, push } from "firebase/database";
 import { initializeServerFirebase } from "@/firebase/server";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
@@ -16,6 +16,12 @@ const signupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long."),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  nrc: z.string().min(1, "NRC number is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  occupation: z.string().min(1, "Occupation is required"),
+  province: z.string().min(1, "Province is required"),
+  district: z.string().min(1, "District is required"),
 });
 
 
@@ -35,18 +41,23 @@ export async function signup(prevState: any, formData: FormData) {
     return { message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
   }
 
-  const { email, password, firstName, lastName } = parsed.data;
+  const { email, password, firstName, lastName, phoneNumber, nrc, dateOfBirth, occupation, province, district } = parsed.data;
 
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Now save the user profile to Realtime Database
     const userRef = ref(database, 'users/' + user.uid);
-    await push(userRef, {
+    await set(userRef, {
         firstName,
         lastName,
         email,
+        phoneNumber,
+        nrc,
+        dateOfBirth,
+        occupation,
+        province,
+        district,
         userType: 'citizen', // Default role
     });
     
@@ -174,8 +185,8 @@ export async function createIncident(
       address: location,
     } : location;
 
-
-    await push(incidentsRef, {
+    const newIncidentRef = push(incidentsRef);
+    await set(newIncidentRef, {
       title,
       description,
       location: locationData,
