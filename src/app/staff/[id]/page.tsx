@@ -16,10 +16,11 @@ import { format } from "date-fns";
 
 export default function UserProfilePage({ params }: { params: { id: string } }) {
   const database = useDatabase();
+  const { id } = params;
 
   const userRef = useMemoFirebase(
-    () => (database ? ref(database, `users/${params.id}`) : null),
-    [database, params.id]
+    () => (database ? ref(database, `users/${id}`) : null),
+    [database, id]
   );
   const { data: user, isLoading } = useDoc<UserProfile>(userRef);
   

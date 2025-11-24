@@ -32,10 +32,11 @@ type Department = {
 
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
   const database = useDatabase();
+  const { id } = params;
 
   const departmentRef = useMemoFirebase(
-    () => (database ? ref(database, `departments/${params.id}`) : null),
-    [database, params.id]
+    () => (database ? ref(database, `departments/${id}`) : null),
+    [database, id]
   );
   const { data: department, isLoading } = useDoc<Department>(departmentRef);
 
@@ -181,6 +182,4 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
-    
-
     

@@ -41,10 +41,11 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
   const { toast } = useToast();
   const notesFormRef = useRef<HTMLFormElement>(null);
   const [selectedResponder, setSelectedResponder] = useState<string>('');
+  const { id } = params;
 
   const incidentRef = useMemoFirebase(
-    () => (database ? ref(database, `incidents/${params.id}`) : null),
-    [database, params.id]
+    () => (database ? ref(database, `incidents/${id}`) : null),
+    [database, id]
   );
   const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
 
