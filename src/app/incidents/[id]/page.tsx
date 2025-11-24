@@ -20,7 +20,7 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
 import { addInvestigationNote, updateIncident, assignResponder } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-export default function IncidentDetailPage({ params: { id } }: { params: { id: string } }) {
+export default function IncidentDetailPage({ params }: { params: { id: string } }) {
+  const { id } = React.use(params);
   const { user } = useUser();
   const database = useDatabase();
   const { toast } = useToast();

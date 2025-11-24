@@ -13,8 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { UserProfile } from "@/lib/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
+import React from "react";
 
-export default function UserProfilePage({ params: { id } }: { params: { id: string } }) {
+export default function UserProfilePage({ params }: { params: { id: string } }) {
+  const { id } = React.use(params);
   const database = useDatabase();
 
   const userRef = useMemoFirebase(

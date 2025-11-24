@@ -11,6 +11,7 @@ import { ref } from "firebase/database";
 import { useDatabase, useMemoFirebase } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React from "react";
 
 type Department = {
     id: string;
@@ -30,7 +31,8 @@ type Department = {
 }
 
 
-export default function DepartmentDetailPage({ params: { id } }: { params: { id: string } }) {
+export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
+  const { id } = React.use(params);
   const database = useDatabase();
 
   const departmentRef = useMemoFirebase(
