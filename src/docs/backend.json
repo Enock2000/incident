@@ -88,6 +88,20 @@
         "district"
       ]
     },
+    "Branch": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Branch",
+        "type": "object",
+        "description": "Represents a physical branch of a department.",
+        "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "province": { "type": "string" },
+            "district": { "type": "string" },
+            "address": { "type": "string" }
+        },
+        "required": ["id", "name", "province", "district"]
+    },
     "Department": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Department",
@@ -142,6 +156,10 @@
         "priorityAssignmentRules": {
           "type": "string",
           "description": "Description of rules for assigning priority to incidents."
+        },
+        "branches": {
+            "type": "array",
+            "items": { "$ref": "#/entities/Branch" }
         }
       },
       "required": [

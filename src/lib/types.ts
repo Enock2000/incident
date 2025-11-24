@@ -1,5 +1,6 @@
 
 
+
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -102,6 +103,14 @@ export type PollingStation = {
     };
 };
 
+export type Branch = {
+    id: string;
+    name: string;
+    province: string;
+    district: string;
+    address: string;
+}
+
 export type Department = {
     id: string;
     name: string;
@@ -109,4 +118,5 @@ export type Department = {
     province: string;
     district: string;
     incidentTypesHandled?: string[];
+    branches?: Record<string, Branch>;
 }

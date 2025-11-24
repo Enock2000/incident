@@ -1,4 +1,5 @@
 
+
 "use server";
 
 import { z } from "zod";
@@ -369,4 +370,37 @@ export async function assignResponder(formData: FormData) {
     console.error('Error assigning responder:', error);
     return { success: false, message: 'Failed to assign responder.' };
   }
+}
+
+const addBranchSchema = z.object({
+    departmentId: z.string(),
+    name: z.string().min(1, "Branch name is required"),
+    province: z.string().min(1, "Province is required"),
+    district: z.string().min(1, "District is required"),
+    address: z.string().optional(),
+});
+
+export async function addBranchToDepartment(prevState: any, formData: FormData) {
+    const { database } = initializeServerFirebase();
+    const data = Object.fromEntries(formData);
+    const parsed = addBranchSchema.safeParse(data);
+
+    if (!parsed.success) {
+        return { success: false, message: "Invalid branch data.", issues: parsed.error.issues.map(i => i.message) };
+    }
+
+    const { departmentId, ...branchData } = parsed.data;
+
+    try {
+        const branchesRef = ref(database, `departments/${departmentId}/branches`);
+        const newBranchRef = push(branchesRef);
+        await set(newBranchRef, branchData);
+
+        revalidatePath(`/departments/${departmentId}`);
+        return { success: true, message: 'Branch added successfully!' };
+
+    } catch (error) {
+        console.error("Error adding branch:", error);
+        return { success: false, message: 'Failed to add branch.' };
+    }
 }
