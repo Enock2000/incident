@@ -7,7 +7,7 @@ import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ref, push, serverTimestamp } from "firebase/database";
-import { initializeFirebase } from "@/firebase";
+import { initializeServerFirebase } from "@/firebase/server";
 
 const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -35,7 +35,7 @@ export async function createIncident(
   prevState: FormState,
   data: FormData
 ): Promise<FormState> {
-  const { database } = initializeFirebase();
+  const { database } = initializeServerFirebase();
   
   const formData = Object.fromEntries(data);
   const parsed = reportIncidentSchema.safeParse({

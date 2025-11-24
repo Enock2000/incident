@@ -1,9 +1,10 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { ref, update, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { z } from 'zod';
-import { initializeFirebase } from '@/firebase';
+import { initializeServerFirebase } from '@/firebase/server';
 import type { IncidentStatus, Priority, Responder } from '@/lib/types';
 
 const updateIncidentSchema = z.object({
@@ -13,7 +14,7 @@ const updateIncidentSchema = z.object({
 });
 
 export async function updateIncident(formData: FormData) {
-  const { database } = initializeFirebase();
+  const { database } = initializeServerFirebase();
   const rawData = Object.fromEntries(formData);
   const parsed = updateIncidentSchema.safeParse(rawData);
 
@@ -59,7 +60,7 @@ const addNoteSchema = z.object({
 });
 
 export async function addInvestigationNote(formData: FormData) {
-    const { database } = initializeFirebase();
+    const { database } = initializeServerFirebase();
     const rawData = Object.fromEntries(formData);
     const parsed = addNoteSchema.safeParse(rawData);
 
@@ -96,7 +97,7 @@ const assignResponderSchema = z.object({
 });
 
 export async function assignResponder(formData: FormData) {
-  const { database } = initializeFirebase();
+  const { database } = initializeServerFirebase();
   const rawData = Object.fromEntries(formData);
   const parsed = assignResponderSchema.safeParse(rawData);
 
