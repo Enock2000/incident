@@ -33,7 +33,7 @@ export default function DashboardPage() {
   
   const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsRef);
 
-  // SEED DATA - This part is now more complex with RTDB rules and structure
+  // SEED DATA
   useEffect(() => {
     if (!database || !user) return;
     
@@ -88,13 +88,21 @@ export default function DashboardPage() {
     );
   }
 
-  // Since we removed login, we might want to handle the !user case differently
-  // For now, we'll just show the loader or an empty state if there's no user.
   if (!user) {
     return (
-       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4">Authenticating...</p>
+      <div className="flex h-full items-center justify-center text-center">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Welcome to the Zambia Tracking Incident System</h2>
+          <p className="text-muted-foreground mb-6">Please log in to manage incidents or create an account to get started.</p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/login">
+              <Button>Login</Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="outline">Sign Up</Button>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

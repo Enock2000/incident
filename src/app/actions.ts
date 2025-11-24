@@ -8,6 +8,80 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ref, push, serverTimestamp } from "firebase/database";
 import { initializeServerFirebase } from "@/firebase/server";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+
+// Schema for signing up a new user
+const signupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6, "Password must be at least 6 characters long."),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+});
+
+
+// Schema for logging in an existing user
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+
+export async function signup(prevState: any, formData: FormData) {
+  const { auth, database } = initializeServerFirebase();
+  const data = Object.fromEntries(formData);
+  const parsed = signupSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return { message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+  }
+
+  const { email, password, firstName, lastName } = parsed.data;
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Now save the user profile to Realtime Database
+    const userRef = ref(database, 'users/' + user.uid);
+    await push(userRef, {
+        firstName,
+        lastName,
+        email,
+        userType: 'citizen', // Default role
+    });
+    
+  } catch (error: any) {
+    if (error.code === 'auth/email-already-in-use') {
+      return { message: "An account with this email already exists." };
+    }
+    console.error("Signup error:", error);
+    return { message: "Failed to create user." };
+  }
+
+  redirect("/");
+}
+
+
+export async function login(prevState: any, formData: FormData) {
+  const { auth } = initializeServerFirebase();
+  const data = Object.fromEntries(formData);
+  const parsed = loginSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return { message: "Invalid form data." };
+  }
+  
+  const { email, password } = parsed.data;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e: any) {
+    return { message: "Failed to log in" };
+  }
+
+  redirect("/");
+}
+
 
 const reportIncidentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long."),
@@ -16,7 +90,8 @@ const reportIncidentSchema = z.object({
   latitude: z.string().optional(),
   longitude: z.string().optional(),
   category: z.string().min(3, "Category is required."),
-  userId: z.string(), // Always require a user ID
+  isAnonymous: z.string().optional(),
+  userId: z.string().optional(),
 });
 
 export type FormState = {
@@ -53,7 +128,13 @@ export async function createIncident(
     };
   }
 
-  const { title, description, location, latitude, longitude, userId, category } = parsed.data;
+  const { title, description, location, latitude, longitude, userId, category, isAnonymous } = parsed.data;
+
+  const reporter: { isAnonymous: boolean, userId: string | null } = {
+      isAnonymous: isAnonymous === 'on',
+      userId: isAnonymous === 'on' ? null : (userId ?? null)
+  };
+
 
   let aiSuggestions: FormState['aiSuggestions'] = {};
 
@@ -102,9 +183,7 @@ export async function createIncident(
       status: "Reported",
       priority: "Medium", // Default priority
       dateReported: serverTimestamp(),
-      reporter: {
-        userId: userId,
-      },
+      reporter: reporter,
       media: [], // Handle file uploads separately
       aiMetadata: {
         suggestedCategories: aiSuggestions.category ?? [],

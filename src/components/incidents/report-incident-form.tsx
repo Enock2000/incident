@@ -15,6 +15,7 @@ import { useUser } from "@/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { incidentCategories } from "@/lib/incident-categories";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const initialState: FormState = {
   message: "",
@@ -38,6 +39,8 @@ export function ReportIncidentForm() {
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
 
   useEffect(() => {
     if (state?.message && state.issues) {
@@ -174,6 +177,16 @@ export function ReportIncidentForm() {
         <p className="text-sm text-muted-foreground">
           You can upload relevant photos or videos.
         </p>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox id="isAnonymous" name="isAnonymous" checked={isAnonymous} onCheckedChange={(checked) => setIsAnonymous(checked as boolean)} />
+        <label
+            htmlFor="isAnonymous"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+            Report Anonymously
+        </label>
       </div>
 
       <div className="pt-4">

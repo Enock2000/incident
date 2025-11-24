@@ -1,4 +1,5 @@
 
+
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -10,12 +11,15 @@ export type IncidentStatus =
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'; // Added Critical
 
 export type UserRole =
+  | 'citizen'
   | 'admin'
-  | 'communityLeader'
-  | 'responder';
+  | 'regionalAuthority'
+  | 'responseUnit'
+  | 'dataAnalyst';
 
 export type Reporter = {
-  userId: string;
+  isAnonymous: boolean;
+  userId: string | null;
   name?: string; // This can be populated later from the user profile
 };
 

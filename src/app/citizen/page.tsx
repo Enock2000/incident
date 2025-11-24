@@ -45,8 +45,7 @@ export default function CitizenPortalPage() {
   }
   
   if (!user) {
-    // If no user, show loading or redirect. Since login is removed, this should ideally not be hit
-    // after initial auth check.
+    router.push('/login');
     return (
          <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

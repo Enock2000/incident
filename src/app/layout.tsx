@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -12,8 +13,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  auth,
 }: Readonly<{
   children: React.ReactNode;
+  auth: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -37,6 +40,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AppShell>{children}</AppShell>
         </FirebaseClientProvider>
+        {auth}
         <Toaster />
       </body>
     </html>
