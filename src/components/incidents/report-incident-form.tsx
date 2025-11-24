@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { createIncident, type FormState } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ function SubmitButton() {
 
 export function ReportIncidentForm() {
   const { user } = useUser();
-  const [state, formAction] = useFormState(createIncident, initialState);
+  const [state, formAction] = useActionState(createIncident, initialState);
   const { toast } = useToast();
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState('');
