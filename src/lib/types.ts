@@ -30,6 +30,9 @@ export type UserProfile = {
   email: string;
   userType: UserRole;
   departmentId?: string;
+  nrc?: string;
+  province?: string;
+  district?: string;
 };
 
 export type InvestigationNote = {

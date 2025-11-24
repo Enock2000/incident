@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useCollection } from '@/firebase/database/use-collection';
 import { ref, query, orderByChild, update } from 'firebase/database';
 import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
-import { Loader2, Users, Check, Shield } from 'lucide-react';
+import { Loader2, Users, Check, Shield, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -19,12 +19,23 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, UserRole } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { zambiaProvinces } from '@/lib/zambia-locations';
 
 
 export default function StaffPage() {
   const database = useDatabase();
   const { user } = useUser();
   const { toast } = useToast();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+      province: 'all',
+      district: 'all',
+      role: 'all',
+      department: 'all',
+  });
 
   const usersCollection = useMemoFirebase(
     () =>
@@ -34,6 +45,16 @@ export default function StaffPage() {
     [database, user]
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
+  
+  const departmentsCollection = useMemoFirebase(
+    () =>
+      database && user
+        ? query(ref(database, 'departments'), orderByChild('name'))
+        : null,
+    [database, user]
+  );
+  const { data: departments } = useCollection<{id: string, name: string}>(departmentsCollection);
+
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     if (!database) return;
@@ -58,7 +79,43 @@ export default function StaffPage() {
       return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
   }
   
-  const userRoles: UserRole[] = ['citizen', 'admin', 'communityLeader', 'responder'];
+  const userRoles: UserRole[] = ['citizen', 'admin', 'regionalAuthority', 'responseUnit', 'dataAnalyst'];
+
+  const handleFilterChange = (filterName: string) => (value: string) => {
+      setFilters(prev => {
+          const newFilters = {...prev, [filterName]: value};
+          if (filterName === 'province') {
+              newFilters.district = 'all'; // Reset district when province changes
+          }
+          return newFilters;
+      });
+  };
+
+  const districtsForSelectedProvince = useMemo(() => {
+    const selectedProvince = zambiaProvinces.find(p => p.name === filters.province);
+    return selectedProvince ? selectedProvince.districts : [];
+  }, [filters.province]);
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    
+    return users.filter(u => {
+        const searchTermLower = searchTerm.toLowerCase();
+        const matchesSearch = searchTerm === '' ||
+            u.firstName?.toLowerCase().includes(searchTermLower) ||
+            u.lastName?.toLowerCase().includes(searchTermLower) ||
+            u.email?.toLowerCase().includes(searchTermLower) ||
+            u.nrc?.toLowerCase().includes(searchTermLower);
+
+        const matchesProvince = filters.province === 'all' || u.province === filters.province;
+        const matchesDistrict = filters.district === 'all' || u.district === filters.district;
+        const matchesRole = filters.role === 'all' || u.userType === filters.role;
+        const matchesDepartment = filters.department === 'all' || u.departmentId === filters.department;
+
+        return matchesSearch && matchesProvince && matchesDistrict && matchesRole && matchesDepartment;
+    });
+  }, [users, searchTerm, filters]);
+
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -95,17 +152,58 @@ export default function StaffPage() {
                     <CardDescription>View and manage all registered users and their assigned roles.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="mb-6 flex flex-wrap gap-4">
+                        <div className="relative flex-grow min-w-[200px]">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                            <Input 
+                                placeholder="Search by name, email, or NRC..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Select value={filters.role} onValueChange={handleFilterChange('role')}>
+                           <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filter by role..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Roles</SelectItem>
+                                {userRoles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filters.province} onValueChange={handleFilterChange('province')}>
+                           <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filter by province..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Provinces</SelectItem>
+                                {zambiaProvinces.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filters.district} onValueChange={handleFilterChange('district')} disabled={filters.province === 'all'}>
+                           <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filter by district..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Districts</SelectItem>
+                                {districtsForSelectedProvince.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                         <Select value={filters.department} onValueChange={handleFilterChange('department')}>
+                           <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filter by department..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Departments</SelectItem>
+                                {departments?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>User</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Role</TableHead>
+                                <TableHead>Location</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.map((u) => (
+                            {filteredUsers.map((u) => (
                                 <TableRow key={u.id}>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-3">
@@ -125,6 +223,7 @@ export default function StaffPage() {
                                             </div>
                                         </Badge>
                                     </TableCell>
+                                    <TableCell>{u.province ? `${u.district}, ${u.province}` : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                         <Select value={u.userType} onValueChange={(value) => handleRoleChange(u.id, value as UserRole)}>
                                             <SelectTrigger className="w-[180px]">
@@ -147,5 +246,3 @@ export default function StaffPage() {
     </div>
   );
 }
-
-    
