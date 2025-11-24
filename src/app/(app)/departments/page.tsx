@@ -343,7 +343,7 @@ export default function DepartmentsPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground mb-4">Manage roles, staff, and resources for this department.</p>
-                             <Link href={`/departments/${dept.id}`}>
+                             <Link href={`/departments/${dept.id}`} passHref>
                                 <Button variant="outline" className="w-full">
                                     Manage Department
                                 </Button>
