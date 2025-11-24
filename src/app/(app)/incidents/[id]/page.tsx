@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { notFound } from "next/navigation";
@@ -19,7 +18,7 @@ import { useDatabase, useMemoFirebase, useUser } from "@/firebase";
 import { Incident } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Badge } from "@/components/ui/badge";
-import { addInvestigationNote, updateIncident, assignResponder } from "./actions";
+import { addInvestigationNote, updateIncident, assignResponder } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import React, { useRef, useState } from "react";
 import { format } from "date-fns";
@@ -367,3 +366,5 @@ export default function IncidentDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
+
+    

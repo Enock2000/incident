@@ -64,25 +64,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useUser();
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const { user, loading } = useUser();
+  const [mounted, setMounted] = useState(false);
 
   useLocationTracker();
 
-  // Wait for authentication state to be determined
+  // Ensure component is mounted on client
   useEffect(() => {
-    if (auth) {
-      const unsubscribe = auth.onAuthStateChanged(() => {
-        setIsAuthReady(true);
-      });
-      return () => unsubscribe();
-    }
-  }, [auth]);
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    router.push("/");
-    router.refresh();
+    try {
+      await signOut(auth);
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   const navItems = [
@@ -119,10 +118,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
   ];
 
-  // Show loading state while determining auth status
-  if (!isAuthReady) {
+  // Don't render anything until mounted (prevents SSR issues)
+  if (!mounted) {
+    return null;
+  }
+
+  // Show loading state while checking authentication
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
@@ -130,7 +134,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // If no user is logged in, render without sidebar
   if (!user) {
-    return <main className="flex-1 bg-background min-h-screen">{children}</main>;
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="flex-1">{children}</main>
+      </div>
+    );
   }
 
   // User is logged in, render with sidebar
