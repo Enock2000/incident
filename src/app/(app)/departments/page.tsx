@@ -5,7 +5,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection } from '@/firebase/database/use-collection';
-import { ref, query, orderByChild } from 'firebase/database';
+import { ref, query, orderByChild, update } from 'firebase/database';
 import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
