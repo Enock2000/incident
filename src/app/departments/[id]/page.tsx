@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon, Label } from "lucide-react";
+import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { addBranchToDepartment, assignStaffToDepartment } from "@/app/actions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zambiaProvinces } from "@/lib/zambia-locations";
 import React, { useState, useMemo, useEffect, useActionState, use } from "react";
@@ -28,7 +29,7 @@ interface DepartmentDetailsProps {
 }
 
 export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps) {
-  const { id } = params;
+  const { id } = use(Promise.resolve(params));
   const [department, setDepartment] = useState< (Department & { id: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const database = useDatabase();
