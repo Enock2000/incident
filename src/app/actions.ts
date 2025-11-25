@@ -531,6 +531,21 @@ export async function deleteDepartment(formData: FormData) {
     return handleDelete('departments', formData, '/departments');
 }
 
+// New function to get a single department by ID
+export async function getDepartmentById(id: string) {
+  try {
+    const snapshot = await db.ref(`departments/${id}`).once('value');
+    const department = snapshot.val();
+    if (department) {
+      return { ...department, id };
+    }
+    return null;
+  } catch (e: any) {
+    console.error("Error fetching department:", e);
+    return null;
+  }
+}
+
 const BranchSchema = z.object({
     name: z.string().min(2, "Name is required"),
     province: z.string().min(1, "Province is required"),
