@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -32,27 +33,32 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   revalidateUrl: string,
   idOverride?: string
 ) {
-  const db = getDatabase(initializeAdminApp());
-  const validatedFields = schema.safeParse(rawData);
-
-  if (!validatedFields.success) {
-    return errorState(
-      "Invalid form data.",
-      Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]
-    );
-  }
-
-  const { id, ...data } = validatedFields.data;
-  // Use existing ID from form, or generate a new one
-  const recordId = idOverride || id || db.ref(collectionPath).push().key;
-
   try {
-    // Ensure the ID is saved within the document as well
-    await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
-    revalidatePath(revalidateUrl);
-    return successState(id ? "Record updated." : "Record created.");
+    const db = getDatabase(initializeAdminApp());
+    const validatedFields = schema.safeParse(rawData);
+
+    if (!validatedFields.success) {
+      return errorState(
+        "Invalid form data.",
+        Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]
+      );
+    }
+
+    const { id, ...data } = validatedFields.data;
+    // Use existing ID from form, or generate a new one
+    const recordId = idOverride || id || db.ref(collectionPath).push().key;
+
+    try {
+      // Ensure the ID is saved within the document as well
+      await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
+      revalidatePath(revalidateUrl);
+      return successState(id ? "Record updated." : "Record created.");
+    } catch (e: any) {
+      return errorState(e.message);
+    }
   } catch (e: any) {
-    return errorState(e.message);
+    console.error(`Error in handleCreateOrUpdate for ${collectionPath}:`, e);
+    return errorState(e.message || "A server error occurred during the update.");
   }
 }
 
@@ -61,16 +67,17 @@ async function handleDelete(
   formData: FormData,
   revalidateUrl: string
 ) {
-  const db = getDatabase(initializeAdminApp());
-  const id = formData.get('id') as string;
-  if (!id) return errorState("Missing ID for deletion.");
-  
   try {
+    const db = getDatabase(initializeAdminApp());
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID for deletion.");
+    
     await db.ref(`${collectionPath}/${id}`).remove();
     revalidatePath(revalidateUrl);
     return successState("Record deleted.");
   } catch (e: any) {
-    return errorState(e.message);
+    console.error(`Error in handleDelete for ${collectionPath}:`, e);
+    return errorState(e.message || "A server error occurred during deletion.");
   }
 }
 
@@ -272,11 +279,11 @@ export async function deleteRole(formData: FormData) {
 
 // 12. Integration Settings (Single Document)
 export async function updateIntegrationSettings(prevState: any, formData: FormData) {
-  const db = getDatabase(initializeAdminApp());
-  const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
-  if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-
   try {
+    const db = getDatabase(initializeAdminApp());
+    const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
+
     await db.ref('integrationSettings').set(validatedFields.data);
     revalidatePath('/admin/configuration/integrations');
     return successState("Integration settings updated.");
@@ -287,14 +294,14 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
 
 // 13. Election Mode (Single Document)
 export async function updateElectionMode(prevState: any, formData: FormData) {
-  const db = getDatabase(initializeAdminApp());
-  const raw = Object.fromEntries(formData);
-  if (!raw.enabled) raw.enabled = 'false'; // Handle unchecked box
-
-  const validatedFields = ElectionModeSchema.safeParse(raw);
-  if (!validatedFields.success) return errorState("Invalid data");
-
   try {
+    const db = getDatabase(initializeAdminApp());
+    const raw = Object.fromEntries(formData);
+    if (!raw.enabled) raw.enabled = 'false'; // Handle unchecked box
+
+    const validatedFields = ElectionModeSchema.safeParse(raw);
+    if (!validatedFields.success) return errorState("Invalid data");
+
     await db.ref('electionMode').set(validatedFields.data);
     revalidatePath('/admin/configuration/election-mode');
     return successState("Election mode settings updated.");
@@ -305,16 +312,16 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
 
 // 14. Assets (FIXED LOGIC)
 export async function addAssetToDepartment(prevState: any, formData: FormData) {
-  const db = getDatabase(initializeAdminApp());
-  const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
-
-  if (!validatedFields.success) {
-    return errorState("Invalid form data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-  }
-
-  const { departmentId, ...assetData } = validatedFields.data;
-
   try {
+    const db = getDatabase(initializeAdminApp());
+    const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
+
+    if (!validatedFields.success) {
+      return errorState("Invalid form data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
+    }
+
+    const { departmentId, ...assetData } = validatedFields.data;
+
     const newRef = db.ref(`departments/${departmentId}/assets`).push();
     await newRef.set(assetData);
 
@@ -350,40 +357,40 @@ export type FormState = {
 };
 
 export async function createIncident(prevState: FormState, formData: FormData): Promise<FormState> {
-  const db = getDatabase(initializeAdminApp());
-  const rawData = Object.fromEntries(formData);
-  const validatedFields = IncidentSchema.safeParse(rawData);
-
-  if (!validatedFields.success) {
-    return {
-      success: false,
-      message: "Validation failed.",
-      issues: validatedFields.error.flatten().fieldErrors.title,
-    };
-  }
-
-  const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = validatedFields.data;
-  
-  const newIncidentRef = db.ref('incidents').push();
-  
-  const incidentData = {
-    id: newIncidentRef.key,
-    title,
-    description,
-    location: (latitude && longitude) ? { address: location, latitude, longitude } : location,
-    category,
-    status: 'Reported' as const,
-    priority: 'Medium' as const,
-    dateReported: new Date().toISOString(),
-    reporter: {
-      isAnonymous,
-      userId: isAnonymous ? null : userId
-    },
-    media: [],
-    departmentId: departmentId || null,
-  };
-
   try {
+    const db = getDatabase(initializeAdminApp());
+    const rawData = Object.fromEntries(formData);
+    const validatedFields = IncidentSchema.safeParse(rawData);
+
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        message: "Validation failed.",
+        issues: validatedFields.error.flatten().fieldErrors.title,
+      };
+    }
+
+    const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = validatedFields.data;
+    
+    const newIncidentRef = db.ref('incidents').push();
+    
+    const incidentData = {
+      id: newIncidentRef.key,
+      title,
+      description,
+      location: (latitude && longitude) ? { address: location, latitude, longitude } : location,
+      category,
+      status: 'Reported' as const,
+      priority: 'Medium' as const,
+      dateReported: new Date().toISOString(),
+      reporter: {
+        isAnonymous,
+        userId: isAnonymous ? null : userId
+      },
+      media: [],
+      departmentId: departmentId || null,
+    };
+
     await newIncidentRef.set(incidentData);
     revalidatePath('/incidents');
     revalidatePath('/citizen');
@@ -400,20 +407,20 @@ const UpdateIncidentSchema = z.object({
     priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
 });
 export async function updateIncident(formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
-    const rawData = Object.fromEntries(formData);
-    const validatedFields = UpdateIncidentSchema.safeParse(rawData);
-
-    if (!validatedFields.success) return errorState("Invalid data");
-
-    const { incidentId, ...updates } = validatedFields.data;
-    if (Object.keys(updates).length === 0) return errorState("No updates provided.");
-    
     try {
-        await db.ref(`incidents/${incidentId}`).update(updates);
-        revalidatePath(`/incidents/${incidentId}`);
-        revalidatePath('/incidents');
-        return successState("Incident updated.");
+      const db = getDatabase(initializeAdminApp());
+      const rawData = Object.fromEntries(formData);
+      const validatedFields = UpdateIncidentSchema.safeParse(rawData);
+
+      if (!validatedFields.success) return errorState("Invalid data");
+
+      const { incidentId, ...updates } = validatedFields.data;
+      if (Object.keys(updates).length === 0) return errorState("No updates provided.");
+      
+      await db.ref(`incidents/${incidentId}`).update(updates);
+      revalidatePath(`/incidents/${incidentId}`);
+      revalidatePath('/incidents');
+      return successState("Incident updated.");
     } catch (e: any) {
         return errorState(e.message);
     }
@@ -428,25 +435,25 @@ const NoteSchema = z.object({
     note: z.string().min(1, "Note cannot be empty."),
 });
 export async function addInvestigationNote(prevState: any, formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
-    const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
-    if (!validatedFields.success) return errorState("Invalid note data.");
-    
-    const { incidentId, userId, userName, note } = validatedFields.data;
-    const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
-    
-    const noteData = {
-        id: noteRef.key,
-        note,
-        authorId: userId,
-        authorName: userName,
-        timestamp: new Date().toISOString()
-    };
-
     try {
-        await noteRef.set(noteData);
-        revalidatePath(`/incidents/${incidentId}`);
-        return successState("Note added.");
+      const db = getDatabase(initializeAdminApp());
+      const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
+      if (!validatedFields.success) return errorState("Invalid note data.");
+      
+      const { incidentId, userId, userName, note } = validatedFields.data;
+      const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
+      
+      const noteData = {
+          id: noteRef.key,
+          note,
+          authorId: userId,
+          authorName: userName,
+          timestamp: new Date().toISOString()
+      };
+
+      await noteRef.set(noteData);
+      revalidatePath(`/incidents/${incidentId}`);
+      return successState("Note added.");
     } catch (e: any) {
         return errorState(e.message);
     }
@@ -459,19 +466,19 @@ const AssignResponderSchema = z.object({
     responder: z.string().min(1, "Responder is required."),
 });
 export async function assignResponder(formData: FormData) {
-     const db = getDatabase(initializeAdminApp());
-     const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
-     if (!validatedFields.success) return errorState("Invalid assignment data.");
-
-     const { incidentId, responder } = validatedFields.data;
      try {
-        await db.ref(`incidents/${incidentId}`).update({
-            assignedTo: responder,
-            status: 'Team Dispatched',
-            dateDispatched: new Date().toISOString()
-        });
-        revalidatePath(`/incidents/${incidentId}`);
-        return successState(`Assigned to ${responder}.`);
+       const db = getDatabase(initializeAdminApp());
+       const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
+       if (!validatedFields.success) return errorState("Invalid assignment data.");
+
+       const { incidentId, responder } = validatedFields.data;
+      await db.ref(`incidents/${incidentId}`).update({
+          assignedTo: responder,
+          status: 'Team Dispatched',
+          dateDispatched: new Date().toISOString()
+      });
+      revalidatePath(`/incidents/${incidentId}`);
+      return successState(`Assigned to ${responder}.`);
     } catch (e: any) {
         return errorState(e.message);
     }
@@ -494,7 +501,6 @@ const DepartmentSchema = z.object({
 });
 
 export async function createDepartment(prevState: any, formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
     const rawData = {
         ...Object.fromEntries(formData),
         incidentTypesHandled: formData.getAll('incidentTypesHandled'),
@@ -504,24 +510,29 @@ export async function createDepartment(prevState: any, formData: FormData) {
         rawData.category = rawData.otherCategory;
     }
 
-    const validatedFields = DepartmentSchema.safeParse(rawData);
-    if (!validatedFields.success) {
-        return {
-            success: false,
-            message: "Validation failed.",
-            issues: Object.values(validatedFields.error.flatten().fieldErrors).flat()
-        };
-    }
-    
-    const newId = db.ref('departments').push().key;
-    if (!newId) return errorState("Could not generate new ID.");
-    
-    const result = await handleCreateOrUpdate(DepartmentSchema, 'departments', validatedFields.data, '/departments', newId);
+    try {
+      const db = getDatabase(initializeAdminApp());
+      const validatedFields = DepartmentSchema.safeParse(rawData);
+      if (!validatedFields.success) {
+          return {
+              success: false,
+              message: "Validation failed.",
+              issues: Object.values(validatedFields.error.flatten().fieldErrors).flat()
+          };
+      }
+      
+      const newId = db.ref('departments').push().key;
+      if (!newId) return errorState("Could not generate new ID.");
+      
+      const result = await handleCreateOrUpdate(DepartmentSchema, 'departments', validatedFields.data, '/departments', newId);
 
-    if (result.success) {
-        return { ...result, id: newId };
+      if (result.success) {
+          return { ...result, id: newId };
+      }
+      return result;
+    } catch(e: any) {
+      return errorState(e.message);
     }
-    return result;
 }
 
 export async function updateDepartment(prevState: any, formData: FormData) {
@@ -538,8 +549,8 @@ export async function deleteDepartment(formData: FormData) {
 
 // New function to get a single department by ID
 export async function getDepartmentById(id: string) {
-  const db = getDatabase(initializeAdminApp());
   try {
+    const db = getDatabase(initializeAdminApp());
     const snapshot = await db.ref(`departments/${id}`).once('value');
     const department = snapshot.val();
     if (department) {
@@ -561,22 +572,22 @@ const BranchSchema = z.object({
     accessibleModules: z.array(z.string()).optional(),
 });
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
-    const rawData = {
-        ...Object.fromEntries(formData),
-        accessibleModules: formData.getAll('accessibleModules'),
-    };
-    const validatedFields = BranchSchema.safeParse(rawData);
-    if (!validatedFields.success) {
-        return errorState("Invalid branch data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-    }
-    
-    const { departmentId, ...branchData } = validatedFields.data;
     try {
-        const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
-        await newBranchRef.set(branchData);
-        revalidatePath(`/departments/${departmentId}`);
-        return successState("Branch added successfully.");
+      const db = getDatabase(initializeAdminApp());
+      const rawData = {
+          ...Object.fromEntries(formData),
+          accessibleModules: formData.getAll('accessibleModules'),
+      };
+      const validatedFields = BranchSchema.safeParse(rawData);
+      if (!validatedFields.success) {
+          return errorState("Invalid branch data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
+      }
+      
+      const { departmentId, ...branchData } = validatedFields.data;
+      const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
+      await newBranchRef.set(branchData);
+      revalidatePath(`/departments/${departmentId}`);
+      return successState("Branch added successfully.");
     } catch(e: any) {
         return errorState(e.message);
     }
@@ -588,18 +599,18 @@ const AssignStaffSchema = z.object({
     branchId: z.string().min(1, "Branch is required."),
 });
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
-    const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
-    if (!validatedFields.success) {
-        return errorState("Invalid assignment data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-    }
-
-    const { userId, departmentId, branchId } = validatedFields.data;
     try {
-        await db.ref(`users/${userId}`).update({ departmentId, branchId });
-        revalidatePath(`/departments/${departmentId}`);
-        revalidatePath('/staff');
-        return successState("Staff assigned successfully.");
+      const db = getDatabase(initializeAdminApp());
+      const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
+      if (!validatedFields.success) {
+          return errorState("Invalid assignment data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
+      }
+
+      const { userId, departmentId, branchId } = validatedFields.data;
+      await db.ref(`users/${userId}`).update({ departmentId, branchId });
+      revalidatePath(`/departments/${departmentId}`);
+      revalidatePath('/staff');
+      return successState("Staff assigned successfully.");
     } catch (e: any) {
         return errorState(e.message);
     }
@@ -615,17 +626,17 @@ const ProfileSchema = z.object({
     district: z.string().optional(),
 })
 export async function updateProfile(prevState: any, formData: FormData) {
-    const db = getDatabase(initializeAdminApp());
-    const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
-    if (!validatedFields.success) return errorState("Invalid profile data.");
-
-    const { userId, ...profileData } = validatedFields.data;
-
     try {
-        await db.ref(`users/${userId}`).update(profileData);
-        revalidatePath(`/profile/${userId}`);
-        revalidatePath('/profile');
-        return successState("Profile updated successfully.");
+      const db = getDatabase(initializeAdminApp());
+      const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
+      if (!validatedFields.success) return errorState("Invalid profile data.");
+
+      const { userId, ...profileData } = validatedFields.data;
+
+      await db.ref(`users/${userId}`).update(profileData);
+      revalidatePath(`/profile/${userId}`);
+      revalidatePath('/profile');
+      return successState("Profile updated successfully.");
     } catch(e: any) {
         return errorState(e.message);
     }
