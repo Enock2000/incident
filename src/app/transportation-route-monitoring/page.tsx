@@ -4,16 +4,20 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Map } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Truck, CheckCircle, AlertTriangle } from "lucide-react";
+import { Truck, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-const routes = [
-    { id: "ROUTE-01", name: "Lusaka -> Chipata", status: "On Schedule", vehicle: "Scania Truck ZM-1234", driver: "John Banda" },
-    { id: "ROUTE-02", name: "Kitwe -> Solwezi", status: "Delayed", vehicle: "FAW Truck ZM-5678", driver: "Mary Phiri" },
-    { id: "ROUTE-03", name: "Livingstone -> Mongu", status: "On Schedule", vehicle: "Toyota Hilux ZM-9101", driver: "Peter Zulu" },
-];
+import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
+import { ref, query, orderByChild, equalTo } from "firebase/database";
+import type { Incident } from "@/lib/types";
 
 export default function TransportationRouteMonitoringPage() {
+  const database = useDatabase();
+  const routesQuery = useMemoFirebase(() =>
+    database ? query(ref(database, 'incidents'), orderByChild('category'), equalTo('Logistics Disruption')) : null,
+    [database]
+  );
+  const { data: routes, isLoading } = useCollection<Incident>(routesQuery);
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -42,21 +46,27 @@ export default function TransportationRouteMonitoringPage() {
           <CardTitle>Active Routes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {routes.map(route => (
-            <div key={route.id} className="p-4 border rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Truck className="h-8 w-8 text-primary"/>
-                    <div>
-                        <p className="font-bold text-lg">{route.name}</p>
-                        <p className="text-sm text-muted-foreground">{route.vehicle} - {route.driver}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {route.status === "On Schedule" ? <CheckCircle className="text-green-500" /> : <AlertTriangle className="text-yellow-500" />}
-                    <Badge variant={route.status === "Delayed" ? "secondary" : "default"}>{route.status}</Badge>
-                </div>
-            </div>
-          ))}
+          {isLoading ? (
+            <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : routes && routes.length > 0 ? (
+            routes.map(route => (
+              <div key={route.id} className="p-4 border rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                      <Truck className="h-8 w-8 text-primary"/>
+                      <div>
+                          <p className="font-bold text-lg">{route.title}</p>
+                          <p className="text-sm text-muted-foreground">{typeof route.location === 'object' ? route.location.address : route.location}</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      {route.status === "Resolved" ? <CheckCircle className="text-green-500" /> : <AlertTriangle className="text-yellow-500" />}
+                      <Badge variant={route.status === "Resolved" ? "default" : "secondary"}>{route.status}</Badge>
+                  </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center py-10">No active transportation issues.</p>
+          )}
         </CardContent>
       </Card>
     </div>
