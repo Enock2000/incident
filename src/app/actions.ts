@@ -436,11 +436,13 @@ export async function createDepartment(prevState: any, formData: FormData) {
     return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
   }
   
+  let newDeptRefKey: string | null = null;
   const { otherCategory, ...deptData } = parsed.data;
 
   try {
     const departmentsRef = ref(database, 'departments');
     const newDeptRef = push(departmentsRef);
+    newDeptRefKey = newDeptRef.key;
     
     const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
 
@@ -457,10 +459,16 @@ export async function createDepartment(prevState: any, formData: FormData) {
       incidentTypesHandled: deptData.incidentTypesHandled || [],
     });
     revalidatePath('/departments');
-    return { success: true, message: 'Department created!', id: newDeptRef.key };
   } catch (error) {
     console.error("Create department error:", error);
     return { success: false, message: "Failed to create department." };
+  }
+
+  if (newDeptRefKey) {
+    redirect(`/departments/${newDeptRefKey}`);
+  } else {
+    // This part should ideally not be reached if the push was successful
+    return { success: true, message: 'Department created! Redirecting...' };
   }
 }
 

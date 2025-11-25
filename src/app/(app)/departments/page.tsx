@@ -41,8 +41,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo, useEffect, useActionState as useFormState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { zambiaProvinces } from '@/lib/zambia-locations';
@@ -100,24 +100,23 @@ export default function DepartmentsPage() {
   const [updateState, updateFormAction] = useFormState(updateDepartment, initialState);
 
   useEffect(() => {
-    if (createState.message) {
-      if (createState.success) {
-        toast({ title: "Success", description: createState.message });
-        setIsCreateDialogOpen(false);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: (
-            <div>
-              <p>{createState.message}</p>
-              {createState.issues && createState.issues.length > 0 && (
-                <ul className="list-disc list-inside mt-2">{createState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
-              )}
-            </div>
-          )
-        });
-      }
+    // This effect can be simplified or removed if redirect happens on success
+    if (!createState.success && createState.message) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: (
+          <div>
+            <p>{createState.message}</p>
+            {createState.issues && createState.issues.length > 0 && (
+              <ul className="list-disc list-inside mt-2">{createState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
+            )}
+          </div>
+        )
+      });
+    } else if (createState.success) {
+      // The redirect will handle navigation, but you can close the dialog here if needed
+      setIsCreateDialogOpen(false);
     }
   }, [createState, toast]);
 
