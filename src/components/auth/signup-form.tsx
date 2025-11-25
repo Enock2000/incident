@@ -8,15 +8,11 @@ import { signup } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zambiaProvinces } from "@/lib/zambia-locations";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 
 const initialState = {
   message: "",
@@ -37,7 +33,6 @@ export function SignupForm() {
   const [state, formAction] = useActionState(signup, initialState);
   const [province, setProvince] = React.useState('');
   const [district, setDistrict] = React.useState('');
-  const [date, setDate] = React.useState<Date>();
 
   const districtsForSelectedProvince = useMemo(() => {
     const selectedProvince = zambiaProvinces.find(p => p.name === province);
@@ -88,29 +83,7 @@ export function SignupForm() {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
             <Label htmlFor="dateOfBirth">Date of Birth</Label>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                    variant={"outline"}
-                    className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                    )}
-                    >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                    />
-                </PopoverContent>
-            </Popover>
-            <input type="hidden" name="dateOfBirth" value={date ? date.toISOString() : ''} />
+            <Input id="dateOfBirth" name="dateOfBirth" placeholder="YYYY-MM-DD" required />
         </div>
         <div className="space-y-2">
             <Label htmlFor="occupation">Occupation</Label>
