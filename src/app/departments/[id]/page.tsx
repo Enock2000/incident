@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getDepartmentById } from "@/app/actions";
@@ -123,7 +122,7 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
                             </div>
                             <div>
                                 <h4 className="font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4"/> Priority Assignment Rules</h4>
-                                <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'p>
+                                <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -443,3 +442,5 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
         </Dialog>
     )
 }
+
+    
