@@ -5,7 +5,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCollection } from '@/firebase/database/use-collection';
-import { ref, query, orderByChild, update } from 'firebase/database';
+import { ref, query, orderByChild } from 'firebase/database';
 import { useDatabase, useUser, useMemoFirebase } from '@/firebase';
 import {
   PlusCircle,
@@ -17,6 +17,7 @@ import {
   ChevronsUpDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -41,7 +42,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useTransition } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -91,6 +92,7 @@ export default function DepartmentsPage() {
   const database = useDatabase();
   const { user } = useUser();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -100,26 +102,26 @@ export default function DepartmentsPage() {
   const [createState, createFormAction] = useActionState(createDepartment, initialState);
   const [updateState, updateFormAction] = useActionState(updateDepartment, initialState);
 
-  useEffect(() => {
-    // This effect can be simplified or removed if redirect happens on success
-    if (!createState.success && createState.message) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: (
-          <div>
-            <p>{createState.message}</p>
-            {createState.issues && createState.issues.length > 0 && (
-              <ul className="list-disc list-inside mt-2">{createState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
-            )}
-          </div>
-        )
-      });
-    } else if (createState.success) {
-      // The redirect will handle navigation, but you can close the dialog here if needed
-      setIsCreateDialogOpen(false);
+ useEffect(() => {
+    if (createState.success && createState.id) {
+        toast({ title: "Success", description: createState.message });
+        setIsCreateDialogOpen(false);
+        router.push(`/departments/${createState.id}`);
+    } else if (!createState.success && createState.message) {
+        toast({
+            variant: "destructive",
+            title: "Error Creating Department",
+            description: (
+                <div>
+                    <p>{createState.message}</p>
+                    {createState.issues && createState.issues.length > 0 && (
+                        <ul className="list-disc list-inside mt-2">{createState.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
+                    )}
+                </div>
+            )
+        });
     }
-  }, [createState, toast]);
+  }, [createState, toast, router]);
 
   useEffect(() => {
     if (updateState.message) {
@@ -186,7 +188,7 @@ export default function DepartmentsPage() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
-              <DepartmentForm formAction={createFormAction} initialState={initialState}>
+              <DepartmentForm formAction={createFormAction} initialState={createState}>
                 <SubmitButton>Create Department</SubmitButton>
               </DepartmentForm>
             </DialogContent>
@@ -460,5 +462,3 @@ function DepartmentForm({ formAction, initialState, department, children }: { fo
       </form>
   )
 }
-
-    

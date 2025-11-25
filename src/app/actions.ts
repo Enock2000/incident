@@ -422,7 +422,7 @@ const departmentSchema = z.object({
 });
 
 
-export async function createDepartment(prevState: any, formData: FormData) {
+export async function createDepartment(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; issues?: string[]; id?: string | null; }> {
   const { database } = initializeServerFirebase();
   const data = Object.fromEntries(formData);
   
@@ -463,13 +463,8 @@ export async function createDepartment(prevState: any, formData: FormData) {
     console.error("Create department error:", error);
     return { success: false, message: "Failed to create department." };
   }
-
-  if (newDeptRefKey) {
-    redirect(`/departments/${newDeptRefKey}`);
-  } else {
-    // This part should ideally not be reached if the push was successful
-    return { success: true, message: 'Department created! Redirecting...' };
-  }
+  
+  return { success: true, message: 'Department created!', id: newDeptRefKey };
 }
 
 export async function updateDepartment(prevState: any, formData: FormData) {
