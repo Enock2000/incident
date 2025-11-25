@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import { useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
 import { ref } from "firebase/database";
 import type { Incident, InvestigationNote, Priority, Responder, UserProfile } from "@/lib/types";
@@ -275,3 +276,5 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
+
+    
