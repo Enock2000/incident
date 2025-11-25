@@ -1,146 +1,53 @@
 
-'use client';
-
-import { notFound, useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDepartmentById } from "@/app/actions";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, UserPlus, Users, MapPin, BarChart2, Building, Phone, Clock, ShieldAlert, ListChecks, ArrowUpCircle, Package, PlusCircle, Home } from "lucide-react";
 import Link from "next/link";
-import { useDoc } from "@/firebase/database/use-doc";
-import { ref } from "firebase/database";
-import { useDatabase, useMemoFirebase } from "@/firebase";
+import { notFound, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React, { useMemo, useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { zambiaProvinces } from "@/lib/zambia-locations";
-import { addBranchToDepartment } from "@/app/actions";
-import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { addBranchToDepartment } from "@/app/actions";
 
-type Branch = {
-    id: string;
-    name: string;
-    province: string;
-    district: string;
-    address: string;
+interface DepartmentDetailsProps {
+  params: { id: string };
 }
 
-type Department = {
-    id: string;
-    name: string;
-    category: string;
-    province: string;
-    district: string;
-    officeAddress: string;
-    contactNumbers: {
-        landline: string;
-        responders: string[];
-    };
-    operatingHours: string;
-    escalationRules: string;
-    priorityAssignmentRules: string;
-    incidentTypesHandled: string[];
-    branches?: Record<string, Branch>;
-}
+export default async function DepartmentDetailsPage({ params }: DepartmentDetailsProps) {
+  const { id } = params;
+  const department = await getDepartmentById(id);
 
-export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
-  const database = useDatabase();
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
-  const [newBranch, setNewBranch] = useState({
-      name: '',
-      province: '',
-      district: '',
-      address: '',
-  });
-
-  const departmentRef = useMemoFirebase(
-    () => (database ? ref(database, `departments/${id}`) : null),
-    [database, id]
-  );
-  const { data: department, isLoading } = useDoc<Department>(departmentRef);
-
-  useEffect(() => {
-    if (!isLoading && !department) {
-      notFound();
-    }
-  }, [isLoading, department]);
-
-  const handleAddBranch = async () => {
-        if (!newBranch.name || !newBranch.province || !newBranch.district) {
-            toast({ title: "Error", description: "Branch name, province, and district are required.", variant: "destructive" });
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('departmentId', id);
-        formData.append('name', newBranch.name);
-        formData.append('province', newBranch.province);
-        formData.append('district', newBranch.district);
-        formData.append('address', newBranch.address);
-
-        const result = await addBranchToDepartment({}, formData);
-        
-        toast({
-            title: result.success ? "Success" : "Error",
-            description: result.message,
-            variant: result.success ? "default" : "destructive",
-        });
-
-        if (result.success) {
-            setNewBranch({ name: '', province: '', district: '', address: '' });
-            setIsBranchDialogOpen(false);
-        }
-   }
-   
-   const handleBranchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-       const { name, value } = e.target;
-       setNewBranch(prev => ({...prev, [name]: value}));
-   }
-
-   const handleBranchSelectChange = (name: string) => (value: string) => {
-        if (name === 'province') {
-            setNewBranch(prev => ({ ...prev, province: value, district: '' }));
-        } else {
-            setNewBranch(prev => ({ ...prev, [name]: value }));
-        }
-   }
-
-   const districtsForSelectedProvince = useMemo(() => {
-        const selectedProvince = zambiaProvinces.find(p => p.name === newBranch.province);
-        return selectedProvince ? selectedProvince.districts : [];
-   }, [newBranch.province]);
-
-   const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : [];
-
-   if (isLoading || !department) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (!department) {
+    notFound();
   }
+  
+  const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : [];
+
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
        <div className="flex items-center space-x-4 mb-4">
-         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => router.push('/departments')}>
-           <ArrowLeft className="h-4 w-4" />
-           <span className="sr-only">Back</span>
-         </Button>
+         <Link href="/departments" passHref>
+            <Button variant="outline" size="icon" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+            </Button>
+         </Link>
          <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold tracking-tight font-headline">
             {department.name}
             </h1>
             <Badge variant="secondary">{department.category}</Badge>
          </div>
+         <div className="ml-auto">
+            <Link href={`/departments/${id}/edit`}>
+              <Button>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Department
+              </Button>
+            </Link>
+          </div>
        </div>
 
         <Tabs defaultValue="overview">
@@ -194,52 +101,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
                             <CardTitle>Branches</CardTitle>
                             <CardDescription>Manage the physical branches for this department.</CardDescription>
                         </div>
-                        <Dialog open={isBranchDialogOpen} onOpenChange={setIsBranchDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Branch
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Add New Branch</DialogTitle>
-                                    <DialogDescription>Enter the details for the new branch.</DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="branch-name">Branch Name</Label>
-                                        <Input id="branch-name" name="name" value={newBranch.name} onChange={handleBranchInputChange} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="branch-province">Province</Label>
-                                            <Select value={newBranch.province} onValueChange={handleBranchSelectChange('province')}>
-                                                <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
-                                                <SelectContent>
-                                                    {zambiaProvinces.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="branch-district">District</Label>
-                                            <Select value={newBranch.district} onValueChange={handleBranchSelectChange('district')} disabled={!newBranch.province}>
-                                                <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
-                                                <SelectContent>
-                                                    {districtsForSelectedProvince.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="branch-address">Address</Label>
-                                        <Input id="branch-address" name="address" value={newBranch.address} onChange={handleBranchInputChange} />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button onClick={handleAddBranch}>Add Branch</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                        {/* TODO: Add branch dialog */}
                     </CardHeader>
                     <CardContent>
                         {branchesList.length > 0 ? (
@@ -344,7 +206,8 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
             </TabsContent>
 
         </Tabs>
-
     </div>
   );
 }
+
+    

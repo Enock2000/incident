@@ -1,6 +1,7 @@
 
 
 
+
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -67,7 +68,7 @@ export type Incident = {
   media: string[];
   category: string;
   departmentId?: string | null;
-  investigationNotes?: Record<string, InvestigationNote>; // RTDB uses objects for lists
+investigationNotes?: Record<string, InvestigationNote>; // RTDB uses objects for lists
   aiMetadata?: {
     suggestedCategories?: string[];
     isDuplicate?: boolean;
@@ -117,6 +118,15 @@ export type Department = {
     category: string;
     province: string;
     district: string;
+    officeAddress?: string;
+    contactNumbers?: { landline?: string; responders?: string[] };
+    operatingHours?: string;
+    escalationRules?: string;
+    priorityAssignmentRules?: string;
     incidentTypesHandled?: string[];
     branches?: Record<string, Branch>;
+    created_at?: any;
+    updated_at?: any;
 }
+
+    

@@ -7,10 +7,10 @@ import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categorie
 import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ref, set, serverTimestamp, push, update, serverTimestamp as rtdbServerTimestamp, remove } from "firebase/database";
+import { ref, set, serverTimestamp, push, update, serverTimestamp as rtdbServerTimestamp, remove, get } from "firebase/database";
 import { initializeServerFirebase } from "@/firebase/server";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import type { IncidentStatus, Priority, Responder } from '@/lib/types';
+import type { IncidentStatus, Priority, Responder, Department } from '@/lib/types';
 
 // Schema for signing up a new user
 const signupSchema = z.object({
@@ -457,6 +457,8 @@ export async function createDepartment(prevState: any, formData: FormData): Prom
       escalationRules: deptData.escalationRules || '',
       priorityAssignmentRules: deptData.priorityAssignmentRules || '',
       incidentTypesHandled: deptData.incidentTypesHandled || [],
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
     });
     revalidatePath('/departments');
   } catch (error) {
@@ -501,6 +503,7 @@ export async function updateDepartment(prevState: any, formData: FormData) {
       escalationRules: deptData.escalationRules || '',
       priorityAssignmentRules: deptData.priorityAssignmentRules || '',
       incidentTypesHandled: deptData.incidentTypesHandled || [],
+      updated_at: serverTimestamp(),
     });
     revalidatePath('/departments');
     revalidatePath(`/departments/${id}`);
@@ -530,3 +533,20 @@ export async function deleteDepartment(formData: FormData) {
     return { success: false, message: "Failed to delete department." };
   }
 }
+
+export async function getDepartmentById(id: string): Promise<(Department & { id: string }) | null> {
+    const { database } = initializeServerFirebase();
+    const departmentRef = ref(database, `departments/${id}`);
+    try {
+        const snapshot = await get(departmentRef);
+        if (snapshot.exists()) {
+            return { ...snapshot.val(), id: snapshot.key };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching department:", error);
+        return null;
+    }
+}
+
+    
