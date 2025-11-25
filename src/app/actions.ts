@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -6,7 +5,6 @@ import { z } from 'zod';
 import { getDatabase } from 'firebase-admin/database';
 import { initializeAdminApp } from '@/lib/firebase-admin';
 
-const db = getDatabase(initializeAdminApp());
 
 // --- Types ---
 type ActionState = {
@@ -34,6 +32,7 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   revalidateUrl: string,
   idOverride?: string
 ) {
+  const db = getDatabase(initializeAdminApp());
   const validatedFields = schema.safeParse(rawData);
 
   if (!validatedFields.success) {
@@ -62,6 +61,7 @@ async function handleDelete(
   formData: FormData,
   revalidateUrl: string
 ) {
+  const db = getDatabase(initializeAdminApp());
   const id = formData.get('id') as string;
   if (!id) return errorState("Missing ID for deletion.");
   
@@ -79,8 +79,8 @@ async function handleDelete(
 const IncidentTypeSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Name must be at least 2 characters."),
-  isEnabled: z.coerce.boolean(), // Handles "on" -> true automatically if checkbox
-  parentId: z.string().optional().nullable(),
+  isEnabled: z.coerce.boolean(),
+  parentId: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   defaultSeverity: z.string().optional(),
   order: z.coerce.number().optional(),
 });
@@ -176,9 +176,7 @@ const AssetSchema = z.object({
 
 // 1. Incident Types
 export async function createOrUpdateIncidentType(prevState: any, formData: FormData) {
-  // z.coerce.boolean handles checkboxes correctly (if value is present it's true)
   const raw = Object.fromEntries(formData);
-  // Manual fix for checkbox: if 'enabled' is missing, it's false. If present ('on'), coerce makes it true.
   if (!raw.isEnabled) raw.isEnabled = 'false'; 
   
   return handleCreateOrUpdate(IncidentTypeSchema, 'incidentTypes', raw, '/admin/configuration/incident-types');
@@ -274,6 +272,7 @@ export async function deleteRole(formData: FormData) {
 
 // 12. Integration Settings (Single Document)
 export async function updateIntegrationSettings(prevState: any, formData: FormData) {
+  const db = getDatabase(initializeAdminApp());
   const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
   if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
 
@@ -288,6 +287,7 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
 
 // 13. Election Mode (Single Document)
 export async function updateElectionMode(prevState: any, formData: FormData) {
+  const db = getDatabase(initializeAdminApp());
   const raw = Object.fromEntries(formData);
   if (!raw.enabled) raw.enabled = 'false'; // Handle unchecked box
 
@@ -305,6 +305,7 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
 
 // 14. Assets (FIXED LOGIC)
 export async function addAssetToDepartment(prevState: any, formData: FormData) {
+  const db = getDatabase(initializeAdminApp());
   const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
 
   if (!validatedFields.success) {
@@ -314,8 +315,7 @@ export async function addAssetToDepartment(prevState: any, formData: FormData) {
   const { departmentId, ...assetData } = validatedFields.data;
 
   try {
-    // Fix: Correct Firebase Syntax. We push TO the reference.
-    const newRef = await db.ref(`departments/${departmentId}/assets`).push();
+    const newRef = db.ref(`departments/${departmentId}/assets`).push();
     await newRef.set(assetData);
 
     revalidatePath(`/assets`);
@@ -350,6 +350,7 @@ export type FormState = {
 };
 
 export async function createIncident(prevState: FormState, formData: FormData): Promise<FormState> {
+  const db = getDatabase(initializeAdminApp());
   const rawData = Object.fromEntries(formData);
   const validatedFields = IncidentSchema.safeParse(rawData);
 
@@ -399,6 +400,7 @@ const UpdateIncidentSchema = z.object({
     priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
 });
 export async function updateIncident(formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const rawData = Object.fromEntries(formData);
     const validatedFields = UpdateIncidentSchema.safeParse(rawData);
 
@@ -426,6 +428,7 @@ const NoteSchema = z.object({
     note: z.string().min(1, "Note cannot be empty."),
 });
 export async function addInvestigationNote(prevState: any, formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid note data.");
     
@@ -456,6 +459,7 @@ const AssignResponderSchema = z.object({
     responder: z.string().min(1, "Responder is required."),
 });
 export async function assignResponder(formData: FormData) {
+     const db = getDatabase(initializeAdminApp());
      const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
      if (!validatedFields.success) return errorState("Invalid assignment data.");
 
@@ -490,6 +494,7 @@ const DepartmentSchema = z.object({
 });
 
 export async function createDepartment(prevState: any, formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const rawData = {
         ...Object.fromEntries(formData),
         incidentTypesHandled: formData.getAll('incidentTypesHandled'),
@@ -533,6 +538,7 @@ export async function deleteDepartment(formData: FormData) {
 
 // New function to get a single department by ID
 export async function getDepartmentById(id: string) {
+  const db = getDatabase(initializeAdminApp());
   try {
     const snapshot = await db.ref(`departments/${id}`).once('value');
     const department = snapshot.val();
@@ -555,6 +561,7 @@ const BranchSchema = z.object({
     accessibleModules: z.array(z.string()).optional(),
 });
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const rawData = {
         ...Object.fromEntries(formData),
         accessibleModules: formData.getAll('accessibleModules'),
@@ -581,6 +588,7 @@ const AssignStaffSchema = z.object({
     branchId: z.string().min(1, "Branch is required."),
 });
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) {
         return errorState("Invalid assignment data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
@@ -607,6 +615,7 @@ const ProfileSchema = z.object({
     district: z.string().optional(),
 })
 export async function updateProfile(prevState: any, formData: FormData) {
+    const db = getDatabase(initializeAdminApp());
     const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid profile data.");
 
@@ -666,5 +675,3 @@ export async function login(prevState: any, formData: FormData) {
      // Placeholder for actual login
      return errorState("This is a placeholder. Actual login is handled client-side.");
 }
-
-    

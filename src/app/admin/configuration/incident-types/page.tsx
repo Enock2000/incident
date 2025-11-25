@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useCollection, useDatabase, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDatabase, useMemoFirebase } from '@/firebase';
 import { ref, query, orderByChild } from 'firebase/database';
 import { useToast } from '@/hooks/use-toast';
 import { createOrUpdateIncidentType, deleteIncidentType } from '@/app/actions';
@@ -40,7 +40,6 @@ function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button
 
 export default function IncidentTypesPage() {
     const database = useDatabase();
-    const { user } = useUser();
     const { toast } = useToast();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -73,8 +72,8 @@ export default function IncidentTypesPage() {
     }, [state, toast]);
 
     const incidentTypesCollection = useMemoFirebase(
-        () => database && user ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null,
-        [database, user]
+        () => database ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null,
+        [database]
     );
 
     const { data: incidentTypes, isLoading } = useCollection<IncidentType>(incidentTypesCollection);
@@ -111,7 +110,7 @@ export default function IncidentTypesPage() {
                     </TableCell>
                     <TableCell>
                         <Badge variant={type.defaultSeverity === 'Critical' || type.defaultSeverity === 'High' ? 'destructive' : 'secondary'}>
-                            {type.defaultSeverity}
+                            {type.defaultSeverity || 'N/A'}
                         </Badge>
                     </TableCell>
                     <TableCell>{type.order}</TableCell>
@@ -247,8 +246,6 @@ export default function IncidentTypesPage() {
 }
 
 function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, onClose, children }: { formAction: any, initialState: any, incidentType?: IncidentType | null, allTypes: IncidentType[], onClose: () => void, children: React.ReactNode }) {
-    const [isEnabled, setIsEnabled] = useState(incidentType?.isEnabled ?? true);
-
     return (
         <form action={formAction} className="space-y-4">
             <DialogHeader>
@@ -272,6 +269,7 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                         <Select name="parentId" defaultValue={incidentType?.parentId || ''}>
                             <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="">None (Top-Level)</SelectItem>
                                 {allTypes.filter(t => !t.parentId && t.id !== incidentType?.id).map(cat => (
                                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                 ))}
@@ -280,7 +278,7 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="defaultSeverity">Default Severity</Label>
-                        <Select name="defaultSeverity" defaultValue={incidentType?.defaultSeverity} required>
+                        <Select name="defaultSeverity" defaultValue={incidentType?.defaultSeverity}>
                             <SelectTrigger id="defaultSeverity"><SelectValue placeholder="Select severity..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="Low">Low</SelectItem>
@@ -299,7 +297,7 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                 </div>
 
                 <div className="flex items-center space-x-2 pt-2">
-                    <Switch id="isEnabled" name="isEnabled" checked={isEnabled} onCheckedChange={setIsEnabled} />
+                    <Switch id="isEnabled" name="isEnabled" defaultChecked={incidentType?.isEnabled ?? true} />
                     <Label htmlFor="isEnabled">Enable this item</Label>
                 </div>
             </div>
