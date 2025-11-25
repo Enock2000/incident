@@ -26,7 +26,7 @@ import Link from "next/link";
 const configModules = [
   { title: "Incident Category Manager", description: "Define and manage hierarchical incident categories and types.", icon: <ListTree />, href: "/admin/configuration/incident-types", enabled: true },
   { title: "Severity Level Configuration", description: "Configure severity levels (e.g., Low, High, Critical) and their criteria.", icon: <ShieldAlert />, href: "#", enabled: false },
-  { title: "Department Assignment Rules", description: "Set up rules to automatically assign incidents to the correct departments.", icon: <GitBranch />, href: "#", enabled: false },
+  { title: "Department Assignment Rules", description: "Set up rules to automatically assign incidents to the correct departments.", icon: <GitBranch />, href: "/departments", enabled: true },
   { title: "Escalation Workflow Builder", description: "Design workflows for escalating incidents based on time or severity.", icon: <ArrowUpCircle />, href: "#", enabled: false },
   { title: "Incident Status Configuration", description: "Customize the lifecycle statuses of incidents (e.g., Reported, In Progress, Resolved).", icon: <RadioTower />, href: "#", enabled: false },
   { title: "Location Hierarchy Manager", description: "Manage geographical data like provinces, districts, and wards for accurate location tagging.", icon: <Map />, href: "#", enabled: false },
