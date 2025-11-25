@@ -13,16 +13,174 @@ import {
   CheckCircle,
   PlusCircle,
   Loader2,
+  FileText,
+  Shield,
+  BarChart,
+  ArrowRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Incident } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Image from 'next/image';
+
+function LandingPage() {
+  return (
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-card">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+              <div className="flex flex-col justify-center space-y-4">
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
+                    Zambia Tracking Incident System (ZTIS)
+                  </h1>
+                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
+                    A unified platform for reporting, tracking, and managing incidents nationwide. Empowering citizens and response teams for a safer Zambia.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Link href="/report">
+                    <Button size="lg" className="w-full min-[400px]:w-auto">Report an Incident</Button>
+                  </Link>
+                  <Link href="/login">
+                     <Button size="lg" variant="secondary" className="w-full min-[400px]:w-auto">Login / Sign Up</Button>
+                  </Link>
+                </div>
+              </div>
+                <Image
+                    src="https://images.unsplash.com/photo-1568317711805-97917847953d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFwJTIwY2l0eXxlbnwwfHx8fDE3NjM3ODQzOTl8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                    width="600"
+                    height="400"
+                    alt="Hero Map"
+                    data-ai-hint="map city"
+                    className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
+                />
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">A Platform Built for Action</h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  From citizen reporting to emergency response coordination, ZTIS provides the tools needed to manage incidents effectively.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 lg:gap-12">
+              <div className="grid gap-1 text-center">
+                 <div className="mx-auto bg-primary/10 p-4 rounded-full mb-2">
+                    <FileText className="h-10 w-10 text-primary" />
+                 </div>
+                <h3 className="text-xl font-bold font-headline">Real-time Reporting</h3>
+                <p className="text-sm text-muted-foreground">
+                  Citizens can instantly report incidents from anywhere, providing crucial on-the-ground information.
+                </p>
+              </div>
+              <div className="grid gap-1 text-center">
+                <div className="mx-auto bg-primary/10 p-4 rounded-full mb-2">
+                    <Shield className="h-10 w-10 text-primary" />
+                 </div>
+                <h3 className="text-xl font-bold font-headline">Response Coordination</h3>
+                <p className="text-sm text-muted-foreground">
+                  Relevant authorities and departments are notified immediately to dispatch and manage response teams.
+                </p>
+              </div>
+              <div className="grid gap-1 text-center">
+                 <div className="mx-auto bg-primary/10 p-4 rounded-full mb-2">
+                    <BarChart className="h-10 w-10 text-primary" />
+                 </div>
+                <h3 className="text-xl font-bold font-headline">Analytics & Insights</h3>
+                <p className="text-sm text-muted-foreground">
+                  Visualize incident data, track trends, and generate reports to improve future response strategies.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works Section */}
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-card">
+          <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">How It Works</h2>
+              <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                A simple, transparent process from report to resolution.
+              </p>
+            </div>
+            <div className="grid w-full grid-cols-1 md:grid-cols-4 gap-8 pt-12">
+                <div className="flex flex-col items-center space-y-2">
+                    <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold">1</div>
+                    <h3 className="font-bold">Submit Report</h3>
+                    <p className="text-sm text-muted-foreground">A citizen or official reports an incident via the web or mobile app.</p>
+                </div>
+                 <div className="flex flex-col items-center space-y-2">
+                    <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold">2</div>
+                    <h3 className="font-bold">Verify & Triage</h3>
+                    <p className="text-sm text-muted-foreground">The system verifies the report and assigns it a priority level.</p>
+                </div>
+                 <div className="flex flex-col items-center space-y-2">
+                    <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold">3</div>
+                    <h3 className="font-bold">Dispatch Team</h3>
+                    <p className="text-sm text-muted-foreground">The relevant response department is notified and dispatches a team.</p>
+                </div>
+                 <div className="flex flex-col items-center space-y-2">
+                    <div className="bg-primary text-primary-foreground rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold">4</div>
+                    <h3 className="font-bold">Resolve & Document</h3>
+                    <p className="text-sm text-muted-foreground">The incident is resolved, and all actions are documented for future analysis.</p>
+                </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="w-full py-12 md:py-24 lg:py-32">
+          <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">Ready to Make a Difference?</h2>
+              <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                Join the platform today. Report incidents, stay informed, and help build a safer Zambia.
+              </p>
+            </div>
+            <div className="mx-auto w-full max-w-sm space-y-2">
+               <div className="flex justify-center">
+                   <Link href="/report">
+                    <Button type="submit" size="lg">
+                      Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+               </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
+        <p className="text-xs text-muted-foreground">&copy; 2024 Zambia Tracking Incident System. All rights reserved.</p>
+        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
+          <Link href="#" className="text-xs hover:underline underline-offset-4" prefetch={false}>
+            Terms of Service
+          </Link>
+          <Link href="#" className="text-xs hover:underline underline-offset-4" prefetch={false}>
+            Privacy
+          </Link>
+        </nav>
+      </footer>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const database = useDatabase();
   const { user, isUserLoading } = useUser();
-  const router = useRouter();
 
   const incidentsRef = useMemoFirebase(
     () =>
@@ -36,7 +194,7 @@ export default function DashboardPage() {
 
   // SEED DATA
   useEffect(() => {
-    if (!database || !user) return;
+    if (!database) return;
     
     const seedData = async () => {
         try {
@@ -97,17 +255,22 @@ export default function DashboardPage() {
         seedData();
         sessionStorage.setItem('data_seeded_rtdb_v2', 'true');
     }
-  }, [database, user]);
+  }, [database]);
 
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login');
-    }
-  }, [isUserLoading, user, router]);
-
-
-  if (isUserLoading || !user || (user && isIncidentsLoading)) {
+  if (isUserLoading) {
     return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  if (isIncidentsLoading) {
+     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>

@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/login");
+      router.push("/"); // Redirect to landing page on sign out
       router.refresh();
     } catch (error) {
       console.error("Error signing out:", error);
@@ -117,10 +117,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
     { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
   ];
+  
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   // Don't render anything until mounted (prevents SSR issues)
   if (!mounted) {
     return null;
+  }
+  
+  // For auth pages or landing page (if user not logged in), render without app shell
+  if (isAuthPage || !user) {
+     return (
+      <div className="min-h-screen bg-background">
+        <main className="flex-1">{children}</main>
+      </div>
+    );
   }
 
   // Show loading state while checking authentication
@@ -128,15 +139,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // If no user is logged in, render without sidebar
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <main className="flex-1">{children}</main>
       </div>
     );
   }
@@ -158,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem key={item.href}>
                 <Link href={item.href}>
                   <SidebarMenuButton
-                    isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+                    isActive={pathname === item.href}
                     tooltip={item.label}
                   >
                     <item.icon />
