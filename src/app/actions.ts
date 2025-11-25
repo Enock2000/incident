@@ -3,8 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getDatabase } from 'firebase-admin/database';
-import { initializeAdminApp } from '@/lib/firebase-admin';
+import { adminDB } from '@/lib/firebase-admin';
 
 // --- Types ---
 type ActionState = {
@@ -42,14 +41,11 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
       );
     }
 
-    // 2. Initialize DB INSIDE the try block (Prevents server crash)
-    const db = getDatabase(initializeAdminApp());
-
     const { id, ...data } = validatedFields.data;
-    const recordId = idOverride || id || db.ref(collectionPath).push().key;
+    const recordId = idOverride || id || adminDB.ref(collectionPath).push().key;
 
     // 3. Write to Firebase
-    await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
+    await adminDB.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
     
     revalidatePath(revalidateUrl);
     return successState(id ? "Record updated." : "Record created.");
@@ -68,10 +64,7 @@ async function handleDelete(
     const id = formData.get('id') as string;
     if (!id) return errorState("Missing ID for deletion.");
     
-    // Initialize DB safely
-    const db = getDatabase(initializeAdminApp());
-
-    await db.ref(`${collectionPath}/${id}`).remove();
+    await adminDB.ref(`${collectionPath}/${id}`).remove();
     revalidatePath(revalidateUrl);
     return successState("Record deleted.");
   } catch (e: any) {
@@ -277,8 +270,7 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
     const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid data");
 
-    const db = getDatabase(initializeAdminApp()); // Initialize HERE
-    await db.ref('integrationSettings').set(validatedFields.data);
+    await adminDB.ref('integrationSettings').set(validatedFields.data);
     revalidatePath('/admin/configuration/integrations');
     return successState("Integration settings updated.");
   } catch (e: any) {
@@ -295,8 +287,7 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
     const validatedFields = ElectionModeSchema.safeParse(raw);
     if (!validatedFields.success) return errorState("Invalid data");
 
-    const db = getDatabase(initializeAdminApp()); // Initialize HERE
-    await db.ref('electionMode').set(validatedFields.data);
+    await adminDB.ref('electionMode').set(validatedFields.data);
     revalidatePath('/admin/configuration/election-mode');
     return successState("Election mode updated.");
   } catch (e: any) {
@@ -312,9 +303,8 @@ export async function addAssetToDepartment(prevState: any, formData: FormData) {
 
     const { departmentId, ...assetData } = validatedFields.data;
     
-    const db = getDatabase(initializeAdminApp()); // Initialize HERE
     // Fixed: .push() then .set()
-    const newRef = db.ref(`departments/${departmentId}/assets`).push();
+    const newRef = adminDB.ref(`departments/${departmentId}/assets`).push();
     await newRef.set(assetData);
 
     revalidatePath(`/departments/${departmentId}`);
@@ -346,8 +336,7 @@ export async function createIncident(prevState: any, formData: FormData) {
 
     const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = validatedFields.data;
     
-    const db = getDatabase(initializeAdminApp()); // Initialize HERE
-    const newIncidentRef = db.ref('incidents').push();
+    const newIncidentRef = adminDB.ref('incidents').push();
     
     const incidentData = {
       id: newIncidentRef.key,
@@ -387,8 +376,7 @@ export async function updateIncident(formData: FormData) {
         const { incidentId, ...updates } = validatedFields.data;
         if (Object.keys(updates).length === 0) return errorState("No updates provided.");
         
-        const db = getDatabase(initializeAdminApp()); // Initialize HERE
-        await db.ref(`incidents/${incidentId}`).update(updates);
+        await adminDB.ref(`incidents/${incidentId}`).update(updates);
         revalidatePath(`/incidents/${incidentId}`);
         return successState("Incident updated.");
     } catch (e: any) {
@@ -410,8 +398,7 @@ export async function addInvestigationNote(prevState: any, formData: FormData) {
         
         const { incidentId, userId, userName, note } = validatedFields.data;
         
-        const db = getDatabase(initializeAdminApp()); // Initialize HERE
-        const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
+        const noteRef = adminDB.ref(`incidents/${incidentId}/investigationNotes`).push();
         await noteRef.set({
             id: noteRef.key,
             note,
@@ -439,8 +426,7 @@ export async function assignResponder(formData: FormData) {
 
         const { incidentId, responder } = validatedFields.data;
         
-        const db = getDatabase(initializeAdminApp()); // Initialize HERE
-        await db.ref(`incidents/${incidentId}`).update({
+        await adminDB.ref(`incidents/${incidentId}`).update({
             assignedTo: responder,
             status: 'Team Dispatched',
             dateDispatched: new Date().toISOString()
@@ -514,9 +500,8 @@ export async function addBranchToDepartment(prevState: any, formData: FormData) 
         if (!validatedFields.success) return errorState("Invalid branch data.");
 
         const { departmentId, ...branchData } = validatedFields.data;
-        const db = getDatabase(initializeAdminApp());
         
-        const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
+        const newBranchRef = adminDB.ref(`departments/${departmentId}/branches`).push();
         await newBranchRef.set({ ...branchData, id: newBranchRef.key });
 
         revalidatePath(`/departments/${departmentId}`);
@@ -541,8 +526,7 @@ export async function assignStaffToDepartment(prevState: any, formData: FormData
 
         const { userId, departmentId, branchId } = validatedFields.data;
         
-        const db = getDatabase(initializeAdminApp()); // Initialize HERE
-        await db.ref(`users/${userId}`).update({ departmentId, branchId });
+        await adminDB.ref(`users/${userId}`).update({ departmentId, branchId });
         
         revalidatePath(`/departments/${departmentId}`);
         revalidatePath('/staff');
@@ -568,8 +552,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 
         const { userId, ...profileData } = validatedFields.data;
         
-        const db = getDatabase(initializeAdminApp()); // Initialize HERE
-        await db.ref(`users/${userId}`).update(profileData);
+        await adminDB.ref(`users/${userId}`).update(profileData);
         
         revalidatePath(`/profile/${userId}`);
         return successState("Profile updated successfully.");
@@ -602,5 +585,3 @@ export async function login(prevState: any, formData: FormData) {
      if (!validatedFields.success) return errorState("Invalid login data.");
      return errorState("This is a placeholder. Actual login is handled client-side.");
 }
-
-    
