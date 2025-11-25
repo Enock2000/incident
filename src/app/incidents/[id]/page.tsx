@@ -25,21 +25,7 @@ interface IncidentDetailsPageProps {
   params: { id: string };
 }
 
-interface IncidentDetailsProps {
-    id: string;
-}
-
-function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} {...props}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      {children}
-    </Button>
-  );
-}
-
-function IncidentDetails({ id }: IncidentDetailsProps) {
+function IncidentDetails({ id }: { id: string }) {
   const database = useDatabase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -51,7 +37,7 @@ function IncidentDetails({ id }: IncidentDetailsProps) {
   const reporterRef = useMemoFirebase(() => database && reporterId ? ref(database, `users/${reporterId}`) : null, [database, reporterId]);
   const { data: reporterInfo } = useDoc<UserProfile>(reporterRef);
 
-  const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([noteId, note]) => ({...note, id: noteId})).sort((a,b) => b.timestamp - a.timestamp) : [];
+  const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([noteId, note]) => ({...(note as InvestigationNote), id: noteId})).sort((a,b) => b.timestamp - a.timestamp) : [];
 
   if (isLoading || isUserLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -123,7 +109,7 @@ function IncidentDetails({ id }: IncidentDetailsProps) {
               <CardDescription>Internal notes from the response team.</CardDescription>
             </CardHeader>
             <CardContent>
-               <AddNoteForm incidentId={incident.id} user={user} />
+               <AddNoteForm incidentId={incident.id} user={userProfile} />
                <Separator className="my-6" />
                 <div className="space-y-4">
                   {investigationNotes.length > 0 ? (
@@ -165,6 +151,17 @@ function IncidentDetails({ id }: IncidentDetailsProps) {
 export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps) {
     const { id } = params;
     return <IncidentDetails id={id} />;
+}
+
+
+function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} {...props}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {children}
+    </Button>
+  );
 }
 
 
@@ -276,5 +273,3 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
-
-    
