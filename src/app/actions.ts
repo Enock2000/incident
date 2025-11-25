@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -448,6 +449,36 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
         await db.ref('electionMode').set(validatedFields.data);
         revalidatePath('/admin/configuration/election-mode');
         return successState("Election mode settings updated.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+
+// --- Assets ---
+const AssetSchema = z.object({
+    name: z.string().min(2, "Asset name is required."),
+    assetType: z.enum(['Vehicle', 'Equipment', 'Other']),
+    status: z.enum(['Active', 'Maintenance', 'Inactive']),
+    departmentId: z.string().min(1, "Department is required."),
+});
+
+export async function addAssetToDepartment(prevState: any, formData: FormData) {
+    const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return errorState("Invalid form data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    }
+
+    const { departmentId, ...assetData } = validatedFields.data;
+    const assetsRef = db.ref(`departments/${departmentId}/assets`);
+    const newAssetRef = db.ref('departments').push(assetsRef);
+
+    try {
+        await newAssetRef.set(assetData);
+        revalidatePath(`/assets`);
+        revalidatePath(`/departments/${departmentId}`);
+        return successState("Asset added successfully.");
     } catch (e: any) {
         return errorState(e.message);
     }
