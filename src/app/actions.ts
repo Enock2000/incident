@@ -628,15 +628,16 @@ export async function assignStaffToDepartment(prevState: any, formData: FormData
 
 const incidentTypeSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  category: z.string().min(1, "Category is required"),
+  parentId: z.string().optional().nullable(),
   defaultSeverity: z.string().min(1, "Default severity is required"),
+  order: z.coerce.number().default(0),
   isEnabled: z.preprocess((val) => val === 'on', z.boolean()),
 });
 
 export async function createOrUpdateIncidentType(prevState: any, formData: FormData) {
     const { database } = initializeServerFirebase();
     const data = Object.fromEntries(formData);
-
+    
     const schemaWithId = incidentTypeSchema.extend({
         id: z.string().optional(),
     });
@@ -656,7 +657,11 @@ export async function createOrUpdateIncidentType(prevState: any, formData: FormD
     
     try {
         const incidentTypeRef = ref(database, `incidentTypes/${typeId}`);
-        await set(incidentTypeRef, typeData);
+        await set(incidentTypeRef, {
+            ...typeData,
+            // Ensure parentId is stored as null if it's an empty string or not provided
+            parentId: typeData.parentId || null,
+        });
         
         revalidatePath('/admin/configuration/incident-types');
         return { success: true, message: `Incident type successfully ${id ? 'updated' : 'created'}!` };

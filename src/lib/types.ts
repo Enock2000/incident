@@ -140,7 +140,10 @@ export type Department = {
 export type IncidentType = {
     id: string;
     name: string;
-    category: string;
+    // The 'category' field now links to a parent IncidentType
+    // to form a hierarchy. If it's a top-level category, it won't have a parentId.
+    parentId?: string | null;
     isEnabled: boolean;
     defaultSeverity: Priority;
+    order: number; // For custom sorting
 };

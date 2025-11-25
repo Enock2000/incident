@@ -24,8 +24,7 @@ import React from "react";
 import Link from "next/link";
 
 const configModules = [
-  { title: "Incident Types Manager", description: "Define and manage the types of incidents that can be reported (e.g., Crime, Fire).", icon: <ListTree />, href: "/admin/configuration/incident-types", enabled: true },
-  { title: "Incident Category Manager", description: "Group incident types into broader categories for easier filtering and reporting.", icon: <LayoutList />, href: "#", enabled: false },
+  { title: "Incident Category Manager", description: "Define and manage hierarchical incident categories and types.", icon: <ListTree />, href: "/admin/configuration/incident-types", enabled: true },
   { title: "Severity Level Configuration", description: "Configure severity levels (e.g., Low, High, Critical) and their criteria.", icon: <ShieldAlert />, href: "#", enabled: false },
   { title: "Department Assignment Rules", description: "Set up rules to automatically assign incidents to the correct departments.", icon: <GitBranch />, href: "#", enabled: false },
   { title: "Escalation Workflow Builder", description: "Design workflows for escalating incidents based on time or severity.", icon: <ArrowUpCircle />, href: "#", enabled: false },
@@ -35,7 +34,7 @@ const configModules = [
   { title: "Automated Notification Rules", description: "Configure when and to whom automated notifications should be sent.", icon: <Bell />, href: "#", enabled: false },
   { title: "Custom Fields Builder", description: "Add custom data fields to incident reports to capture specific information.", icon: <ListPlus />, href: "#", enabled: false },
   { title: "User Roles & Permissions", description: "Manage user access levels and permissions for different system modules.", icon: <Users />, href: "#", enabled: false },
-  { title: "Audit Logs & Change Tracking", description: "Review a complete history of all changes made within the system.", icon: <History />, href: "#", enabled: false },
+  { title: "Audit Logs & Change Tracking", description: "Review a complete history of all changes made within the system.", icon: <History />, href: "#", "enabled": false },
   { title: "Integration Settings", description: "Configure integrations with external systems like SMS gateways, email, and GIS.", icon: <Plug />, href: "#", enabled: false },
   { title: "Election-Mode Settings", description: "Enable or disable special settings and modules for election periods.", icon: <Vote />, href: "#", enabled: false },
   { title: "AI-Assisted Classification Rules", description: "Fine-tune the AI model for suggesting categories and detecting duplicates.", icon: <Bot />, href: "#", enabled: false },

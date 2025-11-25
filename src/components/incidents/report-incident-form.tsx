@@ -10,15 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Lightbulb, AlertTriangle, Locate } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useDatabase, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { incidentCategories } from "@/lib/incident-categories";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ref, query } from "firebase/database";
-import type { Department } from "@/lib/types";
+import { ref, query, orderByChild } from "firebase/database";
+import type { Department, IncidentType } from "@/lib/types";
 
 const initialState: FormState = {
   message: "",
@@ -49,6 +48,31 @@ export function ReportIncidentForm() {
   const departmentsRef = useMemoFirebase(() => database ? query(ref(database, 'departments')) : null, [database]);
   const { data: departments } = useCollection<Department>(departmentsRef);
 
+  const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null, [database]);
+  const { data: incidentTypes, isLoading: isLoadingTypes } = useCollection<IncidentType>(incidentTypesRef);
+
+  const { rootCategories, subCategories } = useMemo(() => {
+    const root: IncidentType[] = [];
+    const sub = new Map<string, IncidentType[]>();
+
+    if (incidentTypes) {
+      for (const type of incidentTypes) {
+        if (!type.isEnabled) continue;
+
+        if (type.parentId) {
+          if (!sub.has(type.parentId)) {
+            sub.set(type.parentId, []);
+          }
+          sub.get(type.parentId)!.push(type);
+        } else {
+          root.push(type);
+        }
+      }
+    }
+    return { rootCategories: root, subCategories: sub };
+  }, [incidentTypes]);
+
+
   const relevantDepartments = departments?.filter(d => d.incidentTypesHandled?.includes(category)) || [];
 
   useEffect(() => {
@@ -68,12 +92,10 @@ export function ReportIncidentForm() {
   }, [state, toast]);
   
   const handleSuggestedCategoryClick = (suggestedCategory: string) => {
-    if(incidentCategories.includes(suggestedCategory)){
-      setCategory(suggestedCategory);
-    } else {
-      // If the AI suggests a category not in our list, we could either add it,
-      // or default to 'Other'. For now, we'll set it and let the `Select` component handle it.
-      setCategory(suggestedCategory);
+    // We check if the AI suggestion matches the `name` of any of our types
+    const matchedType = incidentTypes?.find(type => type.name === suggestedCategory);
+    if (matchedType) {
+        setCategory(matchedType.id);
     }
   };
 
@@ -141,13 +163,19 @@ export function ReportIncidentForm() {
           <Label htmlFor="category">Category</Label>
            <Select name="category" required value={category} onValueChange={setCategory}>
             <SelectTrigger id="category">
-              <SelectValue placeholder="Select a category" />
+              <SelectValue placeholder={isLoadingTypes ? 'Loading categories...' : 'Select a category'} />
             </SelectTrigger>
             <SelectContent>
-              {incidentCategories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
+              {rootCategories.map(rootCat => (
+                <SelectGroup key={rootCat.id}>
+                  <SelectLabel>{rootCat.name}</SelectLabel>
+                  <SelectItem value={rootCat.id}>{rootCat.name} (General)</SelectItem>
+                  {subCategories.get(rootCat.id)?.map(subCat => (
+                    <SelectItem key={subCat.id} value={subCat.id} className="pl-8">
+                      {subCat.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>

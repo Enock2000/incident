@@ -8,12 +8,11 @@ import { ref, query, orderByChild } from 'firebase/database';
 import { useToast } from '@/hooks/use-toast';
 import { createOrUpdateIncidentType, deleteIncidentType } from '@/app/actions';
 import type { IncidentType, Priority } from '@/lib/types';
-import { incidentCategories } from '@/lib/incident-categories';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PlusCircle, Loader2, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Loader2, Edit, Trash2, ArrowLeft, CornerDownRight } from 'lucide-react';
 import Link from 'next/link';
 
 const initialState: { success: boolean; message: string; issues?: string[]; } = {
@@ -74,11 +73,71 @@ export default function IncidentTypesPage() {
     }, [state, toast]);
 
     const incidentTypesCollection = useMemoFirebase(
-        () => database && user ? query(ref(database, 'incidentTypes'), orderByChild('name')) : null,
+        () => database && user ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null,
         [database, user]
     );
 
     const { data: incidentTypes, isLoading } = useCollection<IncidentType>(incidentTypesCollection);
+
+    const { rootTypes, typesByParent } = useMemo(() => {
+        const root: IncidentType[] = [];
+        const byParent = new Map<string, IncidentType[]>();
+
+        if (incidentTypes) {
+            for (const type of incidentTypes) {
+                if (type.parentId) {
+                    if (!byParent.has(type.parentId)) {
+                        byParent.set(type.parentId, []);
+                    }
+                    byParent.get(type.parentId)!.push(type);
+                } else {
+                    root.push(type);
+                }
+            }
+        }
+        return { rootTypes: root, typesByParent: byParent };
+    }, [incidentTypes]);
+    
+    const renderTypeRows = (types: IncidentType[], level = 0) => {
+        let allRows: JSX.Element[] = [];
+        types.forEach(type => {
+            allRows.push(
+                <TableRow key={type.id}>
+                    <TableCell style={{ paddingLeft: `${1 + level * 1.5}rem` }}>
+                        <span className="flex items-center gap-2">
+                         {level > 0 && <CornerDownRight className="h-4 w-4 text-muted-foreground" />}
+                         <span className="font-medium">{type.name}</span>
+                        </span>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={type.defaultSeverity === 'Critical' || type.defaultSeverity === 'High' ? 'destructive' : 'secondary'}>
+                            {type.defaultSeverity}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>{type.order}</TableCell>
+                    <TableCell>
+                        <Badge variant={type.isEnabled ? 'default' : 'outline'}>
+                            {type.isEnabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(type)}>
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(type.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TableCell>
+                </TableRow>
+            );
+            const children = typesByParent.get(type.id);
+            if (children) {
+                allRows = allRows.concat(renderTypeRows(children, level + 1));
+            }
+        });
+        return allRows;
+    }
+
 
     const handleEditClick = (type: IncidentType) => {
         setEditingType(type);
@@ -114,17 +173,17 @@ export default function IncidentTypesPage() {
                         </Button>
                     </Link>
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
-                        Incident Types Manager
+                        Incident Category Manager
                     </h1>
                 </div>
                 <Button onClick={handleAddNew}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add New Type
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add New
                 </Button>
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>All Incident Types</CardTitle>
-                    <CardDescription>Manage the types of incidents that can be reported in the system.</CardDescription>
+                    <CardTitle>All Categories & Types</CardTitle>
+                    <CardDescription>Manage the types and categories of incidents that can be reported.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -136,42 +195,19 @@ export default function IncidentTypesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Category</TableHead>
                                     <TableHead>Default Severity</TableHead>
+                                    <TableHead>Order</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {incidentTypes.map(type => (
-                                    <TableRow key={type.id}>
-                                        <TableCell className="font-medium">{type.name}</TableCell>
-                                        <TableCell>{type.category}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={type.defaultSeverity === 'Critical' || type.defaultSeverity === 'High' ? 'destructive' : 'secondary'}>
-                                                {type.defaultSeverity}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={type.isEnabled ? 'default' : 'outline'}>
-                                                {type.isEnabled ? 'Enabled' : 'Disabled'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(type)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(type.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {renderTypeRows(rootTypes)}
                             </TableBody>
                         </Table>
                     ) : (
                         <div className="text-center py-10">
-                            <p>No incident types found. Click "Add New Type" to get started.</p>
+                            <p>No incident types or categories found. Click "Add New" to get started.</p>
                         </div>
                     )}
                 </CardContent>
@@ -179,8 +215,15 @@ export default function IncidentTypesPage() {
 
             <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if(!open) setEditingType(null); }}>
                 <DialogContent>
-                    <IncidentTypeForm key={editingType?.id || 'new'} formAction={formAction} initialState={state} incidentType={editingType}>
-                        <SubmitButton>{editingType ? 'Save Changes' : 'Create Type'}</SubmitButton>
+                    <IncidentTypeForm 
+                        key={editingType?.id || 'new'} 
+                        formAction={formAction} 
+                        initialState={state} 
+                        incidentType={editingType}
+                        allTypes={incidentTypes || []}
+                        onClose={() => setIsFormOpen(false)}
+                    >
+                        <SubmitButton>{editingType ? 'Save Changes' : 'Create'}</SubmitButton>
                     </IncidentTypeForm>
                 </DialogContent>
             </Dialog>
@@ -190,7 +233,7 @@ export default function IncidentTypesPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the incident type.
+                            This action cannot be undone. This will permanently delete the category/type.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -203,15 +246,15 @@ export default function IncidentTypesPage() {
     );
 }
 
-function IncidentTypeForm({ formAction, initialState, incidentType, children }: { formAction: any, initialState: any, incidentType?: IncidentType | null, children: React.ReactNode }) {
+function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, onClose, children }: { formAction: any, initialState: any, incidentType?: IncidentType | null, allTypes: IncidentType[], onClose: () => void, children: React.ReactNode }) {
     const [isEnabled, setIsEnabled] = useState(incidentType?.isEnabled ?? true);
 
     return (
         <form action={formAction} className="space-y-4">
             <DialogHeader>
-                <DialogTitle>{incidentType ? 'Edit Incident Type' : 'Create New Incident Type'}</DialogTitle>
+                <DialogTitle>{incidentType ? 'Edit Category / Type' : 'Create New Category / Type'}</DialogTitle>
                 <DialogDescription>
-                    {incidentType ? 'Update the details for this incident type.' : 'Add a new incident type to the system.'}
+                    {incidentType ? 'Update the details for this item.' : 'Add a new category or incident type to the system.'}
                 </DialogDescription>
             </DialogHeader>
 
@@ -219,18 +262,19 @@ function IncidentTypeForm({ formAction, initialState, incidentType, children }: 
                 {incidentType && <input type="hidden" name="id" value={incidentType.id} />}
                 
                 <div className="space-y-2">
-                    <Label htmlFor="name">Type Name</Label>
-                    <Input id="name" name="name" defaultValue={incidentType?.name} placeholder="e.g., Political Violence" required />
+                    <Label htmlFor="name">Name</Label>
+                    <Input id="name" name="name" defaultValue={incidentType?.name} placeholder="e.g., Security, or Assault" required />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Select name="category" defaultValue={incidentType?.category} required>
-                            <SelectTrigger id="category"><SelectValue placeholder="Select a category..." /></SelectTrigger>
+                        <Label htmlFor="parentId">Parent Category</Label>
+                        <Select name="parentId" defaultValue={incidentType?.parentId || ''}>
+                            <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
-                                {incidentCategories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                <SelectItem value="">None (Top-Level)</SelectItem>
+                                {allTypes.filter(t => !t.parentId && t.id !== incidentType?.id).map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -249,9 +293,15 @@ function IncidentTypeForm({ formAction, initialState, incidentType, children }: 
                     </div>
                 </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="order">Order</Label>
+                    <Input id="order" name="order" type="number" defaultValue={incidentType?.order ?? 0} placeholder="0" />
+                    <p className="text-xs text-muted-foreground">Items with lower numbers appear first.</p>
+                </div>
+
                 <div className="flex items-center space-x-2 pt-2">
                     <Switch id="isEnabled" name="isEnabled" checked={isEnabled} onCheckedChange={setIsEnabled} />
-                    <Label htmlFor="isEnabled">Enable this incident type</Label>
+                    <Label htmlFor="isEnabled">Enable this item</Label>
                 </div>
             </div>
 
@@ -270,7 +320,7 @@ function IncidentTypeForm({ formAction, initialState, incidentType, children }: 
             )}
 
             <DialogFooter>
-                <Button variant="ghost" onClick={() => (document.querySelector('[data-radix-dialog-content-close-button]') as HTMLElement)?.click()}>Cancel</Button>
+                <Button variant="ghost" type="button" onClick={onClose}>Cancel</Button>
                 {children}
             </DialogFooter>
         </form>
