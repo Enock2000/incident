@@ -21,8 +21,29 @@ export function UserProfileCard({ user }: UserProfileCardProps) {
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
-        return format(new Date(dateString), 'PPP');
+        try {
+            return format(new Date(dateString), 'PPP');
+        } catch (e) {
+            return dateString; // Fallback to raw string if date is invalid
+        }
     }
+    
+    const calculateAge = (dateString?: string): number | null => {
+        if (!dateString) return null;
+        const birthDate = new Date(dateString);
+        if (isNaN(birthDate.getTime())) return null;
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDifference = today.getMonth() - birthDate.getMonth();
+
+        if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    };
+
+    const age = calculateAge(user.dateOfBirth);
 
     return (
         <div className="grid gap-6 md:grid-cols-3">
@@ -73,7 +94,7 @@ export function UserProfileCard({ user }: UserProfileCardProps) {
                            <Calendar className="h-5 w-5 text-muted-foreground" />
                            <div className="flex flex-col">
                                 <span className="text-muted-foreground">Date of Birth</span>
-                                <span>{formatDate(user.dateOfBirth)}</span>
+                                <span>{formatDate(user.dateOfBirth)} {age !== null ? `(Age: ${age})` : ''}</span>
                            </div>
                         </div>
                          <div className="flex items-center gap-4 text-sm">
