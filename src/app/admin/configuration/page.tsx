@@ -21,23 +21,24 @@ import {
     Bot 
 } from "lucide-react";
 import React from "react";
+import Link from "next/link";
 
 const configModules = [
-  { title: "Incident Types Manager", description: "Define and manage the types of incidents that can be reported (e.g., Crime, Fire).", icon: <ListTree /> },
-  { title: "Incident Category Manager", description: "Group incident types into broader categories for easier filtering and reporting.", icon: <LayoutList /> },
-  { title: "Severity Level Configuration", description: "Configure severity levels (e.g., Low, High, Critical) and their criteria.", icon: <ShieldAlert /> },
-  { title: "Department Assignment Rules", description: "Set up rules to automatically assign incidents to the correct departments.", icon: <GitBranch /> },
-  { title: "Escalation Workflow Builder", description: "Design workflows for escalating incidents based on time or severity.", icon: <ArrowUpCircle /> },
-  { title: "Incident Status Configuration", description: "Customize the lifecycle statuses of incidents (e.g., Reported, In Progress, Resolved).", icon: <RadioTower /> },
-  { title: "Location Hierarchy Manager", description: "Manage geographical data like provinces, districts, and wards for accurate location tagging.", icon: <Map /> },
-  { title: "SLA & Response Time Settings", description: "Define Service Level Agreements for different incident types and priorities.", icon: <Clock /> },
-  { title: "Automated Notification Rules", description: "Configure when and to whom automated notifications should be sent.", icon: <Bell /> },
-  { title: "Custom Fields Builder", description: "Add custom data fields to incident reports to capture specific information.", icon: <ListPlus /> },
-  { title: "User Roles & Permissions", description: "Manage user access levels and permissions for different system modules.", icon: <Users /> },
-  { title: "Audit Logs & Change Tracking", description: "Review a complete history of all changes made within the system.", icon: <History /> },
-  { title: "Integration Settings", description: "Configure integrations with external systems like SMS gateways, email, and GIS.", icon: <Plug /> },
-  { title: "Election-Mode Settings", description: "Enable or disable special settings and modules for election periods.", icon: <Vote /> },
-  { title: "AI-Assisted Classification Rules", description: "Fine-tune the AI model for suggesting categories and detecting duplicates.", icon: <Bot /> },
+  { title: "Incident Types Manager", description: "Define and manage the types of incidents that can be reported (e.g., Crime, Fire).", icon: <ListTree />, href: "/admin/configuration/incident-types", enabled: true },
+  { title: "Incident Category Manager", description: "Group incident types into broader categories for easier filtering and reporting.", icon: <LayoutList />, href: "#", enabled: false },
+  { title: "Severity Level Configuration", description: "Configure severity levels (e.g., Low, High, Critical) and their criteria.", icon: <ShieldAlert />, href: "#", enabled: false },
+  { title: "Department Assignment Rules", description: "Set up rules to automatically assign incidents to the correct departments.", icon: <GitBranch />, href: "#", enabled: false },
+  { title: "Escalation Workflow Builder", description: "Design workflows for escalating incidents based on time or severity.", icon: <ArrowUpCircle />, href: "#", enabled: false },
+  { title: "Incident Status Configuration", description: "Customize the lifecycle statuses of incidents (e.g., Reported, In Progress, Resolved).", icon: <RadioTower />, href: "#", enabled: false },
+  { title: "Location Hierarchy Manager", description: "Manage geographical data like provinces, districts, and wards for accurate location tagging.", icon: <Map />, href: "#", enabled: false },
+  { title: "SLA & Response Time Settings", description: "Define Service Level Agreements for different incident types and priorities.", icon: <Clock />, href: "#", enabled: false },
+  { title: "Automated Notification Rules", description: "Configure when and to whom automated notifications should be sent.", icon: <Bell />, href: "#", enabled: false },
+  { title: "Custom Fields Builder", description: "Add custom data fields to incident reports to capture specific information.", icon: <ListPlus />, href: "#", enabled: false },
+  { title: "User Roles & Permissions", description: "Manage user access levels and permissions for different system modules.", icon: <Users />, href: "#", enabled: false },
+  { title: "Audit Logs & Change Tracking", description: "Review a complete history of all changes made within the system.", icon: <History />, href: "#", enabled: false },
+  { title: "Integration Settings", description: "Configure integrations with external systems like SMS gateways, email, and GIS.", icon: <Plug />, href: "#", enabled: false },
+  { title: "Election-Mode Settings", description: "Enable or disable special settings and modules for election periods.", icon: <Vote />, href: "#", enabled: false },
+  { title: "AI-Assisted Classification Rules", description: "Fine-tune the AI model for suggesting categories and detecting duplicates.", icon: <Bot />, href: "#", enabled: false },
 ];
 
 export default function AdminConfigurationPage() {
@@ -62,7 +63,9 @@ export default function AdminConfigurationPage() {
               </div>
             </CardHeader>
             <CardFooter className="mt-auto">
-              <Button disabled className="w-full">Configure</Button>
+              <Button asChild disabled={!mod.enabled} className="w-full">
+                <Link href={mod.href}>Configure</Link>
+              </Button>
             </CardFooter>
           </Card>
         ))}

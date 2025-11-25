@@ -626,4 +626,62 @@ export async function assignStaffToDepartment(prevState: any, formData: FormData
     }
 }
 
+const incidentTypeSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  category: z.string().min(1, "Category is required"),
+  defaultSeverity: z.string().min(1, "Default severity is required"),
+  isEnabled: z.preprocess((val) => val === 'on', z.boolean()),
+});
+
+export async function createOrUpdateIncidentType(prevState: any, formData: FormData) {
+    const { database } = initializeServerFirebase();
+    const data = Object.fromEntries(formData);
+
+    const schemaWithId = incidentTypeSchema.extend({
+        id: z.string().optional(),
+    });
     
+    const parsed = schemaWithId.safeParse(data);
+    
+    if (!parsed.success) {
+        return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+    }
+
+    const { id, ...typeData } = parsed.data;
+    const typeId = id || push(ref(database, 'incidentTypes')).key;
+
+    if (!typeId) {
+         return { success: false, message: "Failed to generate a new ID for the incident type." };
+    }
+    
+    try {
+        const incidentTypeRef = ref(database, `incidentTypes/${typeId}`);
+        await set(incidentTypeRef, typeData);
+        
+        revalidatePath('/admin/configuration/incident-types');
+        return { success: true, message: `Incident type successfully ${id ? 'updated' : 'created'}!` };
+
+    } catch (error) {
+        console.error("Error saving incident type:", error);
+        return { success: false, message: 'Failed to save incident type.' };
+    }
+}
+
+export async function deleteIncidentType(formData: FormData) {
+    const { database } = initializeServerFirebase();
+    const id = formData.get('id') as string;
+
+    if (!id) {
+        return { success: false, message: "Incident Type ID is missing." };
+    }
+
+    try {
+        const incidentTypeRef = ref(database, `incidentTypes/${id}`);
+        await remove(incidentTypeRef);
+        revalidatePath('/admin/configuration/incident-types');
+        return { success: true, message: 'Incident type deleted successfully!' };
+    } catch (error) {
+        console.error("Delete incident type error:", error);
+        return { success: false, message: "Failed to delete incident type." };
+    }
+}

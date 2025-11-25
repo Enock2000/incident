@@ -137,4 +137,10 @@ export type Department = {
     updated_at?: any;
 }
 
-    
+export type IncidentType = {
+    id: string;
+    name: string;
+    category: string;
+    isEnabled: boolean;
+    defaultSeverity: Priority;
+};
