@@ -42,6 +42,7 @@ import {
   Route,
   CloudSun,
   Swords,
+  ListOrdered,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -86,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: Home },
+    { href: "/incidents", label: "Incident Management", icon: ListOrdered },
     { href: "/citizen", label: "My Activity", icon: User },
     { href: "/report", label: "Report Incident", icon: PlusCircle },
     { href: "/map", label: "Map View", icon: Map },
