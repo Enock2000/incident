@@ -41,8 +41,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo, useEffect } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useState, useMemo, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { zambiaProvinces } from '@/lib/zambia-locations';
@@ -96,8 +96,8 @@ export default function DepartmentsPage() {
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   
-  const [createState, createFormAction] = useFormState(createDepartment, initialState);
-  const [updateState, updateFormAction] = useFormState(updateDepartment, initialState);
+  const [createState, createFormAction] = useActionState(createDepartment, initialState);
+  const [updateState, updateFormAction] = useActionState(updateDepartment, initialState);
 
   useEffect(() => {
     // This effect can be simplified or removed if redirect happens on success
