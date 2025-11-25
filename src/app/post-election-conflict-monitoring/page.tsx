@@ -48,7 +48,7 @@ export default function PostElectionConflictMonitoringPage() {
                 zoom: 5
                 }}
                 style={{width: '100%', height: '100%'}}
-                mapStyle="mapbox://styles/mapbox/dark-v11"
+                mapStyle="mapbox://styles/mapbox/light-v11"
                 mapboxAccessToken="pk.eyJ1IjoiZW5vY2syMDAwIiwiYSI6ImNtaWEyZmFkZTBvbDMya3NlbnNoN3o0ZmcifQ.F7pia859U0ApvbVDoKp4AA"
             />
         </CardContent>
