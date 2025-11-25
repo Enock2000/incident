@@ -3,7 +3,7 @@ import { getDepartmentById } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -209,5 +209,3 @@ export default async function DepartmentDetailsPage({ params }: DepartmentDetail
     </div>
   );
 }
-
-    
