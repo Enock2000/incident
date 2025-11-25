@@ -549,4 +549,36 @@ export async function getDepartmentById(id: string): Promise<(Department & { id:
     }
 }
 
-    
+const assignStaffSchema = z.object({
+  departmentId: z.string(),
+  userId: z.string(),
+});
+
+export async function assignStaffToDepartment(prevState: any, formData: FormData) {
+    const { database } = initializeServerFirebase();
+    const data = Object.fromEntries(formData);
+    const parsed = assignStaffSchema.safeParse(data);
+
+    if (!parsed.success) {
+        return { success: false, message: "Invalid data.", issues: parsed.error.issues.map(i => i.message) };
+    }
+
+    const { departmentId, userId } = parsed.data;
+
+    try {
+        // Add departmentId to the user's profile
+        const userRef = ref(database, `users/${userId}`);
+        await update(userRef, { departmentId: departmentId });
+
+        // Optional: Add userId to the department's staff list
+        const departmentStaffRef = ref(database, `departments/${departmentId}/staff/${userId}`);
+        await set(departmentStaffRef, true);
+
+        revalidatePath(`/departments/${departmentId}`);
+        return { success: true, message: 'Staff assigned successfully!' };
+
+    } catch (error) {
+        console.error("Error assigning staff:", error);
+        return { success: false, message: 'Failed to assign staff.' };
+    }
+}

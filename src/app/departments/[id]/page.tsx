@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { addBranchToDepartment } from "@/app/actions";
+import { addBranchToDepartment, assignStaffToDepartment } from "@/app/actions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,10 @@ import { zambiaProvinces } from "@/lib/zambia-locations";
 import React, { useState, useMemo, useEffect, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
-import type { Department } from "@/lib/types";
+import type { Department, UserProfile } from "@/lib/types";
+import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
+import { query, ref, orderByChild, equalTo } from "firebase/database";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface DepartmentDetailsProps {
   params: { id: string };
@@ -30,6 +33,7 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
   const { id } = params;
   const [department, setDepartment] = useState< (Department & { id: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const database = useDatabase();
 
   useEffect(() => {
     async function fetchDepartment() {
@@ -41,6 +45,11 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
     fetchDepartment();
   }, [id]);
 
+  const staffQuery = useMemoFirebase(() =>
+    database ? query(ref(database, 'users'), orderByChild('departmentId'), equalTo(id)) : null
+  , [database, id]);
+
+  const { data: staff, isLoading: isStaffLoading } = useCollection<UserProfile>(staffQuery);
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -114,7 +123,7 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
                             </div>
                             <div>
                                 <h4 className="font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4"/> Priority Assignment Rules</h4>
-                                <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'}</p>
+                                <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'p>
                             </div>
                         </CardContent>
                     </Card>
@@ -173,22 +182,48 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
             <TabsContent value="staff">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Staff & Roles</CardTitle>
-                         <Button>
-                            <UserPlus className="mr-2 h-4 w-4"/>
-                            Assign Staff
-                        </Button>
+                        <div>
+                            <CardTitle>Staff & Roles</CardTitle>
+                            <CardDescription>Manage staff members assigned to this department.</CardDescription>
+                        </div>
+                        <AssignStaffDialog departmentId={department.id} />
                     </CardHeader>
-                     <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
-                        <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                           <Users className="h-10 w-10 text-primary" />
-                       </div>
-                       <h3 className="mt-4 text-xl font-headline">
-                           No Staff Assigned
-                       </h3>
-                       <p className="text-muted-foreground">
-                           Assign staff members to this department to manage roles and permissions.
-                       </p>
+                     <CardContent>
+                        {isStaffLoading ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : staff && staff.length > 0 ? (
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Role</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {staff.map(member => (
+                                        <TableRow key={member.id}>
+                                            <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
+                                            <TableCell>{member.email}</TableCell>
+                                            <TableCell><Badge variant="secondary">{member.userType}</Badge></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                             <div className="flex flex-col items-center justify-center text-center p-10 min-h-[200px]">
+                                <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                                <Users className="h-10 w-10 text-primary" />
+                                </div>
+                                <h3 className="mt-4 text-xl font-headline">
+                                    No Staff Assigned
+                                </h3>
+                                <p className="text-muted-foreground">
+                                    Assign staff members to this department to manage roles and permissions.
+                                </p>
+                                <div className="mt-4">
+                                    <AssignStaffDialog departmentId={department.id} />
+                                </div>
+                             </div>
+                        )}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -241,12 +276,12 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
 }
 
 
-function SubmitButton() {
+function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} {...props}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Add Branch
+      {children}
     </Button>
   );
 }
@@ -331,7 +366,77 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                         <Input id="address" name="address" placeholder="e.g., 123 Main St" />
                     </div>
                     <div className="flex justify-end">
-                       <SubmitButton />
+                       <SubmitButton>Add Branch</SubmitButton>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function AssignStaffDialog({ departmentId }: { departmentId: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+    const { toast } = useToast();
+    const database = useDatabase();
+    
+    const initialState = { success: false, message: "", issues: [] };
+    const [state, formAction] = useActionState(assignStaffToDepartment, initialState);
+
+    const usersQuery = useMemoFirebase(() => database ? ref(database, 'users') : null, [database]);
+    const { data: allUsers, isLoading: usersLoading } = useCollection<UserProfile>(usersQuery);
+
+    const unassignedUsers = useMemo(() => allUsers?.filter(user => !user.departmentId) ?? [], [allUsers]);
+
+    useEffect(() => {
+        if(state.message) {
+            if(state.success) {
+                toast({ title: 'Success', description: state.message });
+                setIsOpen(false);
+                setSelectedUser(null);
+            } else {
+                 toast({ variant: 'destructive', title: 'Error', description: state.message });
+            }
+        }
+    }, [state, toast])
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button><UserPlus className="mr-2 h-4 w-4"/>Assign Staff</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Assign Staff to Department</DialogTitle>
+                    <DialogDescription>
+                        Select a user to assign to this department. Only users not already in a department are shown.
+                    </DialogDescription>
+                </DialogHeader>
+                <form action={formAction} className="space-y-4">
+                    <input type="hidden" name="departmentId" value={departmentId} />
+                    <input type="hidden" name="userId" value={selectedUser?.id || ''} />
+
+                     <div className="space-y-2">
+                        <Label>User</Label>
+                         <Select onValueChange={(userId) => setSelectedUser(unassignedUsers.find(u => u.id === userId) || null)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a user...">
+                                    {selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email})` : 'Select a user...'}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {usersLoading ? <div className="p-4 text-center">Loading...</div> : unassignedUsers.map(user => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                       {user.firstName} {user.lastName} ({user.email})
+                                    </SelectItem>
+                                ))}
+                                {!usersLoading && unassignedUsers.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No unassigned users found.</div>}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                        <SubmitButton disabled={!selectedUser}>Assign Staff</SubmitButton>
                     </div>
                 </form>
             </DialogContent>
