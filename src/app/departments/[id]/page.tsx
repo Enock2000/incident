@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { addBranchToDepartment, assignStaffToDepartment } from "@/app/actions";
@@ -19,9 +19,13 @@ import { zambiaProvinces } from "@/lib/zambia-locations";
 import React, { useState, useMemo, useEffect, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
-import type { Department, UserProfile } from "@/lib/types";
+import type { Department, UserProfile, Branch } from "@/lib/types";
 import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
 import { query, ref, orderByChild, equalTo } from "firebase/database";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { allModules } from "@/components/layout/app-shell";
 
 interface DepartmentDetailsPageProps {
   params: { id: string };
@@ -60,7 +64,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
     notFound();
   }
   
-  const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : [];
+  const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...(branch as Branch), id: branchId })) : [];
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -147,7 +151,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                                     <TableRow>
                                         <TableHead>Branch Name</TableHead>
                                         <TableHead>Location</TableHead>
-                                        <TableHead>Address</TableHead>
+                                        <TableHead>Accessible Modules</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -155,7 +159,11 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                                         <TableRow key={branch.id}>
                                             <TableCell className="font-medium">{branch.name}</TableCell>
                                             <TableCell>{branch.district}, {branch.province}</TableCell>
-                                            <TableCell>{branch.address || 'N/A'}</TableCell>
+                                            <TableCell className="max-w-xs">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {branch.accessibleModules?.map(m => <Badge variant="secondary" key={m}>{allModules.find(mod => mod.href === m)?.label || m}</Badge>) ?? <span className="text-muted-foreground text-xs">All</span>}
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -187,7 +195,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                             <CardTitle>Staff & Roles</CardTitle>
                             <CardDescription>Manage staff members assigned to this department.</CardDescription>
                         </div>
-                        <AssignStaffDialog departmentId={department.id} />
+                        <AssignStaffDialog departmentId={department.id} branches={branchesList} />
                     </CardHeader>
                      <CardContent>
                         {isStaffLoading ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : staff && staff.length > 0 ? (
@@ -196,6 +204,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                                     <TableRow>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Email</TableHead>
+                                        <TableHead>Branch</TableHead>
                                         <TableHead>Role</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -204,6 +213,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                                         <TableRow key={member.id}>
                                             <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
                                             <TableCell>{member.email}</TableCell>
+                                             <TableCell>{branchesList.find(b => b.id === member.branchId)?.name || 'N/A'}</TableCell>
                                             <TableCell><Badge variant="secondary">{member.userType}</Badge></TableCell>
                                         </TableRow>
                                     ))}
@@ -221,7 +231,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
                                     Assign staff members to this department to manage roles and permissions.
                                 </p>
                                 <div className="mt-4">
-                                    <AssignStaffDialog departmentId={department.id} />
+                                    <AssignStaffDialog departmentId={department.id} branches={branchesList} />
                                 </div>
                              </div>
                         )}
@@ -301,6 +311,7 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
 
     const [province, setProvince] = useState('');
     const [district, setDistrict] = useState('');
+    const [accessibleModules, setAccessibleModules] = useState<string[]>([]);
 
     const districtsForSelectedProvince = useMemo(() => {
         const selectedProvince = zambiaProvinces.find(p => p.name === province);
@@ -311,12 +322,21 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
         setProvince(value);
         setDistrict('');
     };
+
+    const handleModuleToggle = (moduleHref: string) => {
+        setAccessibleModules(prev => 
+            prev.includes(moduleHref) 
+            ? prev.filter(m => m !== moduleHref) 
+            : [...prev, moduleHref]
+        );
+    }
     
     useEffect(() => {
         if(state.message) {
             if(state.success) {
                 toast({ title: 'Success', description: state.message });
                 setIsOpen(false);
+                setAccessibleModules([]);
             } else {
                  toast({ variant: 'destructive', title: 'Error', description: state.message });
             }
@@ -330,11 +350,11 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Branch
                 </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Add New Branch</DialogTitle>
                     <DialogDescription>
-                        Create a new branch for this department.
+                        Create a new branch and assign module permissions.
                     </DialogDescription>
                 </DialogHeader>
                 <form action={formAction} className="space-y-4">
@@ -371,6 +391,55 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                         <Label htmlFor="address">Address</Label>
                         <Input id="address" name="address" placeholder="e.g., 123 Main St" />
                     </div>
+                     <div className="space-y-2">
+                        <Label>Accessible Modules</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                                >
+                                <span className="truncate">
+                                    {accessibleModules.length > 0 ? `${accessibleModules.length} selected` : 'Select modules...'}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                <CommandInput placeholder="Search modules..." />
+                                <CommandEmpty>No modules found.</CommandEmpty>
+                                <CommandGroup>
+                                    <CommandList>
+                                        {allModules.map((module) => (
+                                            <CommandItem
+                                            key={module.href}
+                                            onSelect={() => handleModuleToggle(module.href)}
+                                            >
+                                            <Check
+                                                className={cn(
+                                                "mr-2 h-4 w-4",
+                                                accessibleModules.includes(module.href) ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {module.label}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandList>
+                                </CommandGroup>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                         <div className="flex flex-wrap gap-1 mt-2">
+                            {accessibleModules.map(href => (
+                                <Badge key={href} variant="secondary">{allModules.find(m => m.href === href)?.label}</Badge>
+                            ))}
+                        </div>
+                        {accessibleModules.map(href => (
+                            <input key={href} type="hidden" name="accessibleModules" value={href} />
+                        ))}
+                    </div>
                     <div className="flex justify-end">
                        <SubmitButton>Add Branch</SubmitButton>
                     </div>
@@ -380,9 +449,10 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
     )
 }
 
-function AssignStaffDialog({ departmentId }: { departmentId: string }) {
+function AssignStaffDialog({ departmentId, branches }: { departmentId: string, branches: Branch[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+    const [selectedBranch, setSelectedBranch] = useState<string>('');
     const { toast } = useToast();
     const database = useDatabase();
     
@@ -400,6 +470,7 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
                 toast({ title: 'Success', description: state.message });
                 setIsOpen(false);
                 setSelectedUser(null);
+                setSelectedBranch('');
             } else {
                  toast({ variant: 'destructive', title: 'Error', description: state.message });
             }
@@ -415,12 +486,13 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
                 <DialogHeader>
                     <DialogTitle>Assign Staff to Department</DialogTitle>
                     <DialogDescription>
-                        Select a user to assign to this department. Only users not already in a department are shown.
+                        Select a user and assign them to a branch within this department.
                     </DialogDescription>
                 </DialogHeader>
                 <form action={formAction} className="space-y-4">
                     <input type="hidden" name="departmentId" value={departmentId} />
                     <input type="hidden" name="userId" value={selectedUser?.id || ''} />
+                    <input type="hidden" name="branchId" value={selectedBranch || ''} />
 
                      <div className="space-y-2">
                         <Label>User</Label>
@@ -441,8 +513,23 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
                         </Select>
                     </div>
 
+                    <div className="space-y-2">
+                        <Label>Branch</Label>
+                        <Select onValueChange={setSelectedBranch} value={selectedBranch} disabled={branches.length === 0}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Assign to a branch..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                               {branches.map(branch => (
+                                 <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                               ))}
+                               {branches.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No branches exist for this department.</div>}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex justify-end pt-4">
-                        <SubmitButton disabled={!selectedUser}>Assign Staff</SubmitButton>
+                        <SubmitButton disabled={!selectedUser || !selectedBranch}>Assign Staff</SubmitButton>
                     </div>
                 </form>
             </DialogContent>

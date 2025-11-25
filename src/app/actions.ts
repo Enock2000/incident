@@ -379,12 +379,16 @@ const addBranchSchema = z.object({
     province: z.string().min(1, "Province is required"),
     district: z.string().min(1, "District is required"),
     address: z.string().optional(),
+    accessibleModules: z.array(z.string()).optional(),
 });
 
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
     const { database } = initializeServerFirebase();
     const data = Object.fromEntries(formData);
-    const parsed = addBranchSchema.safeParse(data);
+    const accessibleModules = formData.getAll('accessibleModules');
+    const finalData = { ...data, accessibleModules };
+
+    const parsed = addBranchSchema.safeParse(finalData);
 
     if (!parsed.success) {
         return { success: false, message: "Invalid branch data.", issues: parsed.error.issues.map(i => i.message) };
@@ -582,6 +586,7 @@ export async function getDepartmentById(id: string): Promise<(Department & { id:
 const assignStaffSchema = z.object({
   departmentId: z.string(),
   userId: z.string(),
+  branchId: z.string(),
 });
 
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
@@ -593,16 +598,24 @@ export async function assignStaffToDepartment(prevState: any, formData: FormData
         return { success: false, message: "Invalid data.", issues: parsed.error.issues.map(i => i.message) };
     }
 
-    const { departmentId, userId } = parsed.data;
+    const { departmentId, userId, branchId } = parsed.data;
 
     try {
-        // Add departmentId to the user's profile
+        // Add department and branch to the user's profile
         const userRef = ref(database, `users/${userId}`);
-        await update(userRef, { departmentId: departmentId });
+        await update(userRef, { 
+            departmentId: departmentId,
+            branchId: branchId
+        });
 
-        // Optional: Add userId to the department's staff list
-        const departmentStaffRef = ref(database, `departments/${departmentId}/staff/${userId}`);
-        await set(departmentStaffRef, true);
+        // Optional: Add userId to the department's staff list (might be better to query users by deptId)
+        // const departmentStaffRef = ref(database, `departments/${departmentId}/staff/${userId}`);
+        // await set(departmentStaffRef, true);
+
+        // Optional: Add userId to the branch's staff list
+        const branchStaffRef = ref(database, `departments/${departmentId}/branches/${branchId}/staff/${userId}`);
+        await set(branchStaffRef, true);
+
 
         revalidatePath(`/departments/${departmentId}`);
         return { success: true, message: 'Staff assigned successfully!' };

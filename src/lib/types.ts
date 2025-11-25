@@ -29,6 +29,7 @@ export type UserProfile = {
   email: string;
   userType: UserRole;
   departmentId?: string;
+  branchId?: string; // Add branchId to user profile
   nrc?: string;
   province?: string;
   district?: string;
@@ -107,6 +108,7 @@ export type Branch = {
     province: string;
     district: string;
     address: string;
+    accessibleModules?: string[];
 }
 
 export type Asset = {

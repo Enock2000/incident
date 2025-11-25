@@ -1,3 +1,4 @@
+
 // Fixed AppShell component with proper authentication state handling
 "use client";
 
@@ -56,17 +57,66 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useDatabase, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useLocationTracker } from "@/hooks/use-location-tracker";
 import React, { useEffect, useState } from "react";
+import type { Branch, Department } from "@/lib/types";
+import { ref } from "firebase/database";
+
+
+const navItems = [
+    { href: "/", label: "Dashboard", icon: Home },
+    { href: "/incidents", label: "Incident Management", icon: ListOrdered },
+    { href: "/citizen", label: "My Activity", icon: User },
+    { href: "/report", label: "Report Incident", icon: PlusCircle },
+    { href: "/map", label: "Map View", icon: Map },
+    { href: "/analytics", label: "Analytics", icon: BarChart2 },
+  ];
+
+const managementItems = [
+    { href: "/departments", label: "Departments", icon: Building },
+    { href: "/staff", label: "Staff & Roles", icon: Users },
+    { href: "/assets", label: "Assets", icon: Package },
+    { href: "/notifications", label: "Notifications", icon: Bell },
+    { href: "/settings", label: "Settings", icon: Settings },
+  ];
+
+const electionModules = [
+    { href: "/election-incident-reporting", label: "Election Incident Reporting", icon: Vote },
+    { href: "/polling-station-monitoring", label: "Polling Station Monitoring", icon: Monitor },
+    { href: "/election-security-alerts", label: "Election Security Alerts", icon: Siren },
+    { href: "/voter-safety-incident", label: "Voter Safety Incident", icon: UserCheck },
+    { href: "/violence-intimidation-monitoring", label: "Violence & Intimidation", icon: Swords },
+    { href: "/political-activity-tracking", label: "Political Activity Tracking", icon: Flag },
+    { href: "/crowd-queue-management", label: "Crowd & Queue Management", icon: Users2 },
+    { href: "/illegal-campaign-activity", label: "Illegal Campaign Activity", icon: Scale },
+    { href: "/electoral-material-damage", label: "Electoral Material Damage", icon: Archive },
+    { href: "/polling-staff-emergency-support", label: "Polling Staff Support", icon: HelpCircle },
+    { href: "/election-logistics-disruption", label: "Logistics Disruption", icon: Truck },
+    { href: "/fake-news-misinformation", label: "Fake News & Misinformation", icon: FileWarning },
+    { href: "/transportation-route-monitoring", label: "Transport Monitoring", icon: Route },
+    { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
+    { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
+];
+
+export const allModules = [...navItems, ...managementItems, ...electionModules];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const database = useDatabase();
+  const { user, isUserLoading, userProfile } = useUser();
   const [mounted, setMounted] = useState(false);
+
+  const branchRef = useMemoFirebase(() => 
+    (database && userProfile?.departmentId && userProfile?.branchId) 
+    ? ref(database, `departments/${userProfile.departmentId}/branches/${userProfile.branchId}`) 
+    : null, 
+  [database, userProfile]);
+
+  const { data: branchData } = useDoc<Branch>(branchRef);
 
   useLocationTracker();
 
@@ -84,43 +134,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       console.error("Error signing out:", error);
     }
   };
-
-  const navItems = [
-    { href: "/", label: "Dashboard", icon: Home },
-    { href: "/incidents", label: "Incident Management", icon: ListOrdered },
-    { href: "/citizen", label: "My Activity", icon: User },
-    { href: "/report", label: "Report Incident", icon: PlusCircle },
-    { href: "/map", label: "Map View", icon: Map },
-    { href: "/analytics", label: "Analytics", icon: BarChart2 },
-  ];
-
-  const managementItems = [
-    { href: "/departments", label: "Departments", icon: Building },
-    { href: "/staff", label: "Staff & Roles", icon: Users },
-    { href: "/assets", label: "Assets", icon: Package },
-    { href: "/notifications", label: "Notifications", icon: Bell },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ];
-
-  const electionModules = [
-    { href: "/election-incident-reporting", label: "Election Incident Reporting", icon: Vote },
-    { href: "/polling-station-monitoring", label: "Polling Station Monitoring", icon: Monitor },
-    { href: "/election-security-alerts", label: "Election Security Alerts", icon: Siren },
-    { href: "/voter-safety-incident", label: "Voter Safety Incident", icon: UserCheck },
-    { href: "/violence-intimidation-monitoring", label: "Violence & Intimidation", icon: Swords },
-    { href: "/political-activity-tracking", label: "Political Activity Tracking", icon: Flag },
-    { href: "/crowd-queue-management", label: "Crowd & Queue Management", icon: Users2 },
-    { href: "/illegal-campaign-activity", label: "Illegal Campaign Activity", icon: Scale },
-    { href: "/electoral-material-damage", label: "Electoral Material Damage", icon: Archive },
-    { href: "/polling-staff-emergency-support", label: "Polling Staff Support", icon: HelpCircle },
-    { href: "/election-logistics-disruption", label: "Logistics Disruption", icon: Truck },
-    { href: "/fake-news-misinformation", label: "Fake News & Misinformation", icon: FileWarning },
-    { href: "/transportation-route-monitoring", label: "Transport Monitoring", icon: Route },
-    { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
-    { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
-  ];
   
   const isAuthPage = pathname === '/login' || pathname === '/signup';
+
+  const userHasAccessToModule = (href: string) => {
+    // Admins see everything
+    if (userProfile?.userType === 'admin') return true;
+    
+    // If user is not in a branch or branch has no specific permissions, show all
+    if (!branchData || !branchData.accessibleModules || branchData.accessibleModules.length === 0) {
+      return true;
+    }
+    
+    // Check if the module href is in the branch's accessible modules
+    return branchData.accessibleModules.includes(href);
+  };
+  
+  const visibleNavItems = navItems.filter(item => userHasAccessToModule(item.href));
+  const visibleManagementItems = managementItems.filter(item => userHasAccessToModule(item.href));
+  const visibleElectionModules = electionModules.filter(item => userHasAccessToModule(item.href));
+
 
   // Don't render anything until mounted (prevents SSR issues)
   if (!mounted) {
@@ -157,61 +190,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
+          {visibleNavItems.length > 0 && (
+            <SidebarMenu>
+              {visibleNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <Link href={item.href}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      tooltip={item.label}
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          )}
+
+          {visibleManagementItems.length > 0 && <SidebarSeparator />}
+
+          {visibleManagementItems.length > 0 && (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <span className="text-xs text-muted-foreground px-2 font-semibold">
+                  Management
+                </span>
               </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+              {visibleManagementItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <Link href={item.href}>
+                    <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          )}
 
-          <SidebarSeparator />
+          {visibleElectionModules.length > 0 && <SidebarSeparator />}
 
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <span className="text-xs text-muted-foreground px-2 font-semibold">
-                Management
-              </span>
-            </SidebarMenuItem>
-            {managementItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
-                  <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
+          {visibleElectionModules.length > 0 && (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <span className="text-xs text-muted-foreground px-2 font-semibold">
+                  Election Modules
+                </span>
               </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-
-          <SidebarSeparator />
-
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <span className="text-xs text-muted-foreground px-2 font-semibold">
-                Election Modules
-              </span>
-            </SidebarMenuItem>
-            {electionModules.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
-                  <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+              {visibleElectionModules.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <Link href={item.href}>
+                    <SidebarMenuButton isActive={pathname.startsWith(item.href)}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          )}
         </SidebarContent>
 
         <SidebarFooter>
