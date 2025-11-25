@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Cat, Gauge, ShieldAlert, Siren, Map, Sliders, Waypoints, Bell, FileText, UserCheck, History, Plug, Vote } from "lucide-react";
 import Link from "next/link";
