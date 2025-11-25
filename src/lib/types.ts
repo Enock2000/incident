@@ -1,8 +1,4 @@
 
-
-
-
-
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -98,7 +94,7 @@ export type PollingStation = {
     hasPowerOutage: boolean;
     hasTamperingReport: boolean;
     registeredVoters: number;
-    lastCheckin: number;
+    lastCheckin: number; // as timestamp
     location: {
         latitude: number;
         longitude: number;

@@ -40,6 +40,7 @@ export default function DashboardPage() {
     
     const seedData = async () => {
         try {
+            // Seed Departments & Assets
             const policeDeptRef = ref(database, 'departments/police_dept_123');
             await set(policeDeptRef, {
                 name: "Zambia Police Service",
@@ -68,15 +69,33 @@ export default function DashboardPage() {
             if (!fireSnapshot.exists()) {
                  await push(fireAssetsRef, { name: 'Fire Engine 3', assetType: 'Vehicle', status: 'Active', departmentId: 'fire_dept_456' });
             }
+
+            // Seed Polling Stations
+            const pollingStationsRef = ref(database, 'polling-stations');
+            const pollingSnapshot = await get(pollingStationsRef);
+            if(!pollingSnapshot.exists()){
+                const pollingStations = [
+                    { id: 'PS001', name: 'Chawama Primary School', province: 'Lusaka', district: 'Lusaka', status: 'Open', queueLength: 35, hasMissingMaterials: false, staffAttendance: { present: 5, absent: 0}, hasPowerOutage: false, hasTamperingReport: false, registeredVoters: 1200, lastCheckin: Date.now(), location: { latitude: -15.4612, longitude: 28.3031 } },
+                    { id: 'PS002', name: 'Libala Secondary School', province: 'Lusaka', district: 'Lusaka', status: 'Open', queueLength: 50, hasMissingMaterials: true, staffAttendance: { present: 4, absent: 1}, hasPowerOutage: false, hasTamperingReport: false, registeredVoters: 1500, lastCheckin: Date.now(), location: { latitude: -15.4496, longitude: 28.3218 } },
+                    { id: 'PS003', name: 'Ndeke Primary', province: 'Copperbelt', district: 'Kitwe', status: 'Delayed', queueLength: 120, hasMissingMaterials: false, staffAttendance: { present: 5, absent: 0}, hasPowerOutage: true, hasTamperingReport: false, registeredVoters: 1800, lastCheckin: Date.now(), location: { latitude: -12.8625, longitude: 28.2567 } },
+                    { id: 'PS004', name: 'Jacaranda Basic', province: 'Copperbelt', district: 'Ndola', status: 'Closed', queueLength: 0, hasMissingMaterials: false, staffAttendance: { present: 5, absent: 0}, hasPowerOutage: false, hasTamperingReport: false, registeredVoters: 950, lastCheckin: Date.now(), location: { latitude: -12.9833, longitude: 28.6500 } },
+                    { id: 'PS005', name: 'Maramba Cultural Village', province: 'Southern', district: 'Livingstone', status: 'Interrupted', queueLength: 25, hasMissingMaterials: false, staffAttendance: { present: 3, absent: 2}, hasPowerOutage: false, hasTamperingReport: true, registeredVoters: 800, lastCheckin: Date.now(), location: { latitude: -17.8225, longitude: 25.8425 } },
+                ];
+
+                for(const station of pollingStations){
+                    await set(ref(database, `polling-stations/${station.id}`), station);
+                }
+            }
+
         } catch(e) {
             console.error("Error seeding data:", e);
         }
     };
 
-    const seeded = sessionStorage.getItem('assets_seeded_rtdb');
+    const seeded = sessionStorage.getItem('data_seeded_rtdb_v2');
     if (!seeded) {
         seedData();
-        sessionStorage.setItem('assets_seeded_rtdb', 'true');
+        sessionStorage.setItem('data_seeded_rtdb_v2', 'true');
     }
   }, [database, user]);
 
