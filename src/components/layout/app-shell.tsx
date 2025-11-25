@@ -44,6 +44,7 @@ import {
   CloudSun,
   Swords,
   ListOrdered,
+  SlidersHorizontal,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -78,6 +79,7 @@ const managementItems = [
     { href: "/departments", label: "Departments", icon: Building },
     { href: "/staff", label: "Staff & Roles", icon: Users },
     { href: "/assets", label: "Assets", icon: Package },
+    { href: "/admin/configuration", label: "Admin Configuration", icon: SlidersHorizontal },
     { href: "/notifications", label: "Notifications", icon: Bell },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
