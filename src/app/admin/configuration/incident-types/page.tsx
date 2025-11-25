@@ -272,7 +272,6 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                         <Select name="parentId" defaultValue={incidentType?.parentId || ''}>
                             <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">None (Top-Level)</SelectItem>
                                 {allTypes.filter(t => !t.parentId && t.id !== incidentType?.id).map(cat => (
                                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                 ))}
