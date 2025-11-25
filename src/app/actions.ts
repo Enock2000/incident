@@ -183,7 +183,8 @@ export async function createIncident(
   }
 
   try {
-    const incidentsRef = ref(database, 'incidents');
+    const incidentId = `ZTIS-INC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newIncidentRef = ref(database, `incidents/${incidentId}`);
 
     const locationData = (latitude && longitude) ? {
       latitude: parseFloat(latitude),
@@ -191,7 +192,6 @@ export async function createIncident(
       address: location,
     } : location;
 
-    const newIncidentRef = push(incidentsRef);
     await set(newIncidentRef, {
       title,
       description,
@@ -470,13 +470,11 @@ export async function createDepartment(prevState: any, formData: FormData): Prom
     return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
   }
   
-  let newDeptRefKey: string | null = null;
   const { otherCategory, ...deptData } = parsed.data;
 
   try {
-    const departmentsRef = ref(database, 'departments');
-    const newDeptRef = push(departmentsRef);
-    newDeptRefKey = newDeptRef.key;
+    const deptId = `ZTIS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newDeptRef = ref(database, `departments/${deptId}`);
     
     const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
 
@@ -495,12 +493,11 @@ export async function createDepartment(prevState: any, formData: FormData): Prom
       updated_at: serverTimestamp(),
     });
     revalidatePath('/departments');
+    return { success: true, message: 'Department created!', id: deptId };
   } catch (error) {
     console.error("Create department error:", error);
     return { success: false, message: "Failed to create department." };
   }
-  
-  return { success: true, message: 'Department created!', id: newDeptRefKey };
 }
 
 export async function updateDepartment(prevState: any, formData: FormData) {
