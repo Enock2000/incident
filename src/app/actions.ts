@@ -1,5 +1,4 @@
 
-
 "use server";
 
 import { z } from "zod";
@@ -309,7 +308,7 @@ const addNoteSchema = z.object({
   userName: z.string(),
 });
 
-export async function addInvestigationNote(formData: FormData) {
+export async function addInvestigationNote(prevState: any, formData: FormData) {
     const { database } = initializeServerFirebase();
     const rawData = Object.fromEntries(formData);
     const parsed = addNoteSchema.safeParse(rawData);
@@ -613,3 +612,5 @@ export async function assignStaffToDepartment(prevState: any, formData: FormData
         return { success: false, message: 'Failed to assign staff.' };
     }
 }
+
+    
