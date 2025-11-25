@@ -5,7 +5,7 @@ import { useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
 import { ref, update, push, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
 import type { Incident, InvestigationNote, Priority, Responder, UserProfile } from "@/lib/types";
 import { notFound, useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, MapPin, Tag, ShieldAlert, Calendar, User, Edit, MessageSquare, PlusCircle, Send } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Tag, ShieldAlert, Calendar, User, Edit, MessageSquare, PlusCircle, Send, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -13,13 +13,12 @@ import { IncidentStatusBadge, PriorityBadge } from "@/components/incidents/incid
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionState, useEffect, useState, use } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { addInvestigationNote, updateIncident, assignResponder } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lightbulb } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 interface IncidentDetailsPageProps {
@@ -38,7 +37,7 @@ function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button
 
 
 export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps) {
-  const { id } = use(Promise.resolve(params));
+  const { id } = params;
   const database = useDatabase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -269,7 +268,5 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
-
-    
 
     

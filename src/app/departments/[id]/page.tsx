@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zambiaProvinces } from "@/lib/zambia-locations";
-import React, { useState, useMemo, useEffect, useActionState, use } from "react";
+import React, { useState, useMemo, useEffect, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { Department, UserProfile } from "@/lib/types";
@@ -29,7 +29,7 @@ interface DepartmentDetailsProps {
 }
 
 export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps) {
-  const { id } = use(Promise.resolve(params));
+  const { id } = params;
   const [department, setDepartment] = useState< (Department & { id: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const database = useDatabase();
@@ -442,5 +442,7 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
         </Dialog>
     )
 }
+
+    
 
     
