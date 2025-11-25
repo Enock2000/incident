@@ -2,6 +2,7 @@
 
 
 
+
 export type IncidentStatus =
   | 'Reported'
   | 'Verified'
@@ -112,6 +113,14 @@ export type Branch = {
     address: string;
 }
 
+export type Asset = {
+    id: string;
+    name: string;
+    assetType: 'Vehicle' | 'Equipment' | string;
+    status: 'Active' | 'Inactive' | 'Maintenance';
+    departmentId: string;
+};
+
 export type Department = {
     id: string;
     name: string;
@@ -125,6 +134,7 @@ export type Department = {
     priorityAssignmentRules?: string;
     incidentTypesHandled?: string[];
     branches?: Record<string, Branch>;
+    assets?: Record<string, Asset>;
     created_at?: any;
     updated_at?: any;
 }
