@@ -11,7 +11,7 @@ import { ref } from "firebase/database"; // Removed unused push/update
 import { useDatabase, useMemoFirebase } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +66,12 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   );
   const { data: department, isLoading } = useDoc<Department>(departmentRef);
 
+  useEffect(() => {
+    if (!isLoading && !department) {
+      notFound();
+    }
+  }, [isLoading, department]);
+
   const handleAddBranch = async () => {
         if (!newBranch.name || !newBranch.province || !newBranch.district) {
             toast({ title: "Error", description: "Branch name, province, and district are required.", variant: "destructive" });
@@ -113,16 +119,12 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
 
    const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...branch, id: branchId })) : [];
 
-   if (isLoading) {
+   if (isLoading || !department) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!department) {
-    notFound();
   }
 
   return (
