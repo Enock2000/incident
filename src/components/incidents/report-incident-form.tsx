@@ -20,6 +20,7 @@ import { ref, query, orderByChild } from "firebase/database";
 import type { Department, IncidentType } from "@/lib/types";
 
 const initialState: FormState = {
+  success: false,
   message: "",
 };
 
@@ -73,10 +74,17 @@ export function ReportIncidentForm() {
   }, [incidentTypes]);
 
 
-  const relevantDepartments = departments?.filter(d => d.incidentTypesHandled?.includes(category)) || [];
+  const relevantDepartments = useMemo(() => {
+      const selectedType = incidentTypes?.find(t => t.id === category);
+      if (!selectedType || !departments) return [];
+      
+      const categoryName = selectedType.name;
+      return departments.filter(d => d.incidentTypesHandled?.includes(categoryName)) || [];
+  }, [category, departments, incidentTypes]);
+  
 
   useEffect(() => {
-    if (state?.message && state.issues) {
+    if (state?.success === false && state.message && state.issues) {
       toast({
         variant: "destructive",
         title: state.message,
@@ -169,6 +177,7 @@ export function ReportIncidentForm() {
               {rootCategories.map(rootCat => (
                 <SelectGroup key={rootCat.id}>
                   <SelectLabel>{rootCat.name}</SelectLabel>
+                  {/* Option to select the parent category itself */}
                   <SelectItem value={rootCat.id}>{rootCat.name} (General)</SelectItem>
                   {subCategories.get(rootCat.id)?.map(subCat => (
                     <SelectItem key={subCat.id} value={subCat.id} className="pl-8">
@@ -182,12 +191,12 @@ export function ReportIncidentForm() {
         </div>
       </div>
 
-      {category && (
+       {category && (
          <div className="space-y-2">
-          <Label htmlFor="departmentId">Assign to Department</Label>
+          <Label htmlFor="departmentId">Assign to Department (Optional)</Label>
            <Select name="departmentId" value={departmentId} onValueChange={setDepartmentId} disabled={relevantDepartments.length === 0}>
             <SelectTrigger id="departmentId">
-              <SelectValue placeholder={relevantDepartments.length > 0 ? "Select a department" : "No departments for this category"} />
+              <SelectValue placeholder={relevantDepartments.length > 0 ? "Select a department..." : "No departments for this category"} />
             </SelectTrigger>
             <SelectContent>
               {relevantDepartments.map((dept) => (
@@ -197,6 +206,7 @@ export function ReportIncidentForm() {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-sm text-muted-foreground">If you know the responsible department, select it. Otherwise, it will be automatically assigned.</p>
         </div>
       )}
 
@@ -260,4 +270,3 @@ export function ReportIncidentForm() {
     </form>
   );
 }
-
