@@ -22,14 +22,16 @@ import { useToast } from "@/hooks/use-toast";
 import type { Department, UserProfile } from "@/lib/types";
 import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
 import { query, ref, orderByChild, equalTo } from "firebase/database";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-interface DepartmentDetailsProps {
+interface DepartmentDetailsPageProps {
   params: { id: string };
 }
 
-export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps) {
-  const { id } = params;
+interface DepartmentDetailsProps {
+  id: string;
+}
+
+function DepartmentDetails({ id }: DepartmentDetailsProps) {
   const [department, setDepartment] = useState< (Department & { id: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const database = useDatabase();
@@ -274,6 +276,11 @@ export default function DepartmentDetailsPage({ params }: DepartmentDetailsProps
   );
 }
 
+export default function DepartmentDetailsPage({ params }: DepartmentDetailsPageProps) {
+  const { id } = params;
+  return <DepartmentDetails id={id} />;
+}
+
 
 function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
@@ -442,7 +449,3 @@ function AssignStaffDialog({ departmentId }: { departmentId: string }) {
         </Dialog>
     )
 }
-
-    
-
-    

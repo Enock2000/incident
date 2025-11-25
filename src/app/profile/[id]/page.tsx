@@ -11,8 +11,11 @@ interface ProfilePageWithIdProps {
     params: { id: string };
 }
 
-export default function ProfilePageWithId({ params }: ProfilePageWithIdProps) {
-    const { id } = params;
+interface ProfilePageProps {
+    id: string | undefined;
+}
+
+function ProfilePageClient({ id }: ProfilePageProps) {
     const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
     const database = useDatabase();
     
@@ -44,4 +47,10 @@ export default function ProfilePageWithId({ params }: ProfilePageWithIdProps) {
             <UserProfileCard user={userProfile} />
         </div>
     );
+}
+
+
+export default function ProfilePageWithId({ params }: ProfilePageWithIdProps) {
+    const { id } = params;
+    return <ProfilePageClient id={id} />;
 }

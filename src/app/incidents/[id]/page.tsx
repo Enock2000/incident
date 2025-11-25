@@ -2,13 +2,12 @@
 'use client';
 
 import { useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
-import { ref, update, push, serverTimestamp as rtdbServerTimestamp } from "firebase/database";
+import { ref } from "firebase/database";
 import type { Incident, InvestigationNote, Priority, Responder, UserProfile } from "@/lib/types";
 import { notFound, useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, MapPin, Tag, ShieldAlert, Calendar, User, Edit, MessageSquare, PlusCircle, Send, Lightbulb } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Tag, ShieldAlert, Calendar, User, MessageSquare, Send, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { IncidentStatusBadge, PriorityBadge } from "@/components/incidents/incident-status-badge";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +24,10 @@ interface IncidentDetailsPageProps {
   params: { id: string };
 }
 
+interface IncidentDetailsProps {
+    id: string;
+}
+
 function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
   return (
@@ -35,9 +38,7 @@ function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button
   );
 }
 
-
-export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps) {
-  const { id } = params;
+function IncidentDetails({ id }: IncidentDetailsProps) {
   const database = useDatabase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps
   const reporterRef = useMemoFirebase(() => database && reporterId ? ref(database, `users/${reporterId}`) : null, [database, reporterId]);
   const { data: reporterInfo } = useDoc<UserProfile>(reporterRef);
 
-  const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([id, note]) => ({...note, id})).sort((a,b) => b.timestamp - a.timestamp) : [];
+  const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([noteId, note]) => ({...note, id: noteId})).sort((a,b) => b.timestamp - a.timestamp) : [];
 
   if (isLoading || isUserLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -160,6 +161,12 @@ export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps
   );
 }
 
+export default function IncidentDetailsPage({ params }: IncidentDetailsPageProps) {
+    const { id } = params;
+    return <IncidentDetails id={id} />;
+}
+
+
 function AddNoteForm({ incidentId, user }: { incidentId: string, user: UserProfile | null }) {
     const { toast } = useToast();
     const [state, formAction] = useActionState(addInvestigationNote, { success: false, message: "" });
@@ -268,5 +275,3 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
-
-    
