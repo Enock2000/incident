@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { adminDB } from '@/lib/firebase-admin';
+import { getAdminDB } from '@/lib/firebase-admin';
 
 // --- Types ---
 type ActionState = {
@@ -14,6 +14,7 @@ type ActionState = {
 
 // --- Helpers ---
 
+// 1. Standardized Response Helpers
 function errorState(message: string, issues?: string[]): ActionState {
   return { success: false, message, issues: issues || [] };
 }
@@ -22,7 +23,7 @@ function successState(message: string): ActionState {
   return { success: true, message };
 }
 
-// GENERIC HANDLER: Prevents code repetition and handles DB connection safely
+// 2. Generic CRUD Handler (Refactored for Safety)
 async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   schema: T,
   collectionPath: string,
@@ -30,8 +31,8 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   revalidateUrl: string,
   idOverride?: string
 ) {
+  // MOVED TRY/CATCH TO WRAP THE WHOLE FUNCTION
   try {
-    // 1. Validate Zod Schema
     const validatedFields = schema.safeParse(rawData);
 
     if (!validatedFields.success) {
@@ -41,17 +42,21 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
       );
     }
 
+    // Initialize DB *inside* the try block
+    const adminDB = getAdminDB(); 
+
     const { id, ...data } = validatedFields.data;
     const recordId = idOverride || id || adminDB.ref(collectionPath).push().key;
 
-    // 3. Write to Firebase
+    // Ensure the ID is saved within the document as well
     await adminDB.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
     
     revalidatePath(revalidateUrl);
     return successState(id ? "Record updated." : "Record created.");
+
   } catch (e: any) {
-    console.error(`Error in ${collectionPath}:`, e);
-    return errorState(e.message || "Server error.");
+    console.error(`Error in ${collectionPath}:`, e); // Log the actual error to your server console
+    return errorState(e.message || "Server configuration error.");
   }
 }
 
@@ -63,13 +68,17 @@ async function handleDelete(
   try {
     const id = formData.get('id') as string;
     if (!id) return errorState("Missing ID for deletion.");
+
+    // Initialize DB *inside* the try block
+    const adminDB = getAdminDB();
     
     await adminDB.ref(`${collectionPath}/${id}`).remove();
     revalidatePath(revalidateUrl);
     return successState("Record deleted.");
+
   } catch (e: any) {
-    console.error(`Delete error in ${collectionPath}:`, e);
-    return errorState(e.message);
+    console.error(`Error deleting from ${collectionPath}:`, e);
+    return errorState(e.message || "Server deletion error.");
   }
 }
 
@@ -267,6 +276,7 @@ export async function deleteRole(formData: FormData) {
 // 12. Integration Settings
 export async function updateIntegrationSettings(prevState: any, formData: FormData) {
   try {
+    const adminDB = getAdminDB();
     const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid data");
 
@@ -281,6 +291,7 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
 // 13. Election Mode
 export async function updateElectionMode(prevState: any, formData: FormData) {
   try {
+    const adminDB = getAdminDB();
     const raw = Object.fromEntries(formData);
     if (!raw.enabled) raw.enabled = 'false';
 
@@ -298,6 +309,7 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
 // 14. Assets
 export async function addAssetToDepartment(prevState: any, formData: FormData) {
   try {
+    const adminDB = getAdminDB();
     const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid data");
 
@@ -331,6 +343,7 @@ const IncidentSchema = z.object({
 
 export async function createIncident(prevState: any, formData: FormData) {
   try {
+    const adminDB = getAdminDB();
     const validatedFields = IncidentSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return { success: false, message: "Validation failed" };
 
@@ -370,6 +383,7 @@ const UpdateIncidentSchema = z.object({
 });
 export async function updateIncident(formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const validatedFields = UpdateIncidentSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
@@ -393,6 +407,7 @@ const NoteSchema = z.object({
 });
 export async function addInvestigationNote(prevState: any, formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
         
@@ -421,6 +436,7 @@ const AssignResponderSchema = z.object({
 });
 export async function assignResponder(formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
@@ -492,6 +508,7 @@ const BranchSchema = z.object({
 });
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const rawData = {
           ...Object.fromEntries(formData),
           accessibleModules: formData.getAll('accessibleModules'),
@@ -521,6 +538,7 @@ const AssignStaffSchema = z.object({
 });
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
@@ -547,6 +565,7 @@ const ProfileSchema = z.object({
 })
 export async function updateProfile(prevState: any, formData: FormData) {
     try {
+        const adminDB = getAdminDB();
         const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 

@@ -22,5 +22,5 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-// Export the initialized database instance for use in other server files.
-export const adminDB = getDatabase(app);
+// Export a function to get the initialized database instance
+export const getAdminDB = () => getDatabase(app);
