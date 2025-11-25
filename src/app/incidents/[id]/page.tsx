@@ -27,11 +27,11 @@ interface IncidentDetailsPageProps {
 
 function IncidentDetails({ id }: { id: string }) {
   const database = useDatabase();
-  const { user, isUserLoading } = useUser();
+  const { user, userProfile, isUserLoading: isAuthLoading } = useUser();
   const router = useRouter();
 
   const incidentRef = useMemoFirebase(() => database ? ref(database, `incidents/${id}`) : null, [database, id]);
-  const { data: incident, isLoading } = useDoc<Incident>(incidentRef);
+  const { data: incident, isLoading: isIncidentLoading } = useDoc<Incident>(incidentRef);
 
   const reporterId = incident?.reporter?.userId;
   const reporterRef = useMemoFirebase(() => database && reporterId ? ref(database, `users/${reporterId}`) : null, [database, reporterId]);
@@ -39,12 +39,20 @@ function IncidentDetails({ id }: { id: string }) {
 
   const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([noteId, note]) => ({...(note as InvestigationNote), id: noteId})).sort((a,b) => b.timestamp - a.timestamp) : [];
 
-  if (isLoading || isUserLoading) {
+  const isLoading = isAuthLoading || isIncidentLoading;
+
+  if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
-  if (!incident) {
+  
+  // Only call notFound if loading is complete and there is still no incident.
+  if (!isLoading && !incident) {
     notFound();
+  }
+
+  // This check is for TypeScript's benefit after the notFound() call.
+  if (!incident) {
+      return null;
   }
   
   const formatDate = (timestamp: any) => {
@@ -273,3 +281,5 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
+
+    

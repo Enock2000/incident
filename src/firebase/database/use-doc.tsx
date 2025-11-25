@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -42,7 +43,7 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start as true
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -62,10 +63,11 @@ export function useDoc<T = any>(
         if (snapshot.exists()) {
           setData({ ...(snapshot.val() as T), id: snapshot.key! });
         } else {
+          // The document does not exist
           setData(null);
         }
         setError(null);
-        setIsLoading(false);
+        setIsLoading(false); // Set loading to false only after we have a result
       },
       (error: Error) => {
         const contextualError = new DatabasePermissionError({
@@ -75,7 +77,7 @@ export function useDoc<T = any>(
 
         setError(contextualError);
         setData(null);
-        setIsLoading(false);
+        setIsLoading(false); // Also set loading false on error
 
         errorEmitter.emit('permission-error', contextualError);
       }
@@ -86,3 +88,5 @@ export function useDoc<T = any>(
 
   return { data, isLoading, error };
 }
+
+    
