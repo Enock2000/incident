@@ -198,6 +198,14 @@ export function ReportIncidentForm() {
             </AlertDescription>
           </Alert>
        )}
+      
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Warning</AlertTitle>
+        <AlertDescription>
+          Providing false or misleading information is a serious offense. Action will be taken against individuals who misuse this platform.
+        </AlertDescription>
+      </Alert>
 
 
       <div className="space-y-2">
@@ -224,3 +232,4 @@ export function ReportIncidentForm() {
     </form>
   );
 }
+
