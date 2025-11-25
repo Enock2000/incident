@@ -6,7 +6,7 @@ import { getDepartmentById } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zambiaProvinces } from "@/lib/zambia-locations";
-import React, { useState, useMemo, useEffect } from "react";
-import { useFormStatus, useFormState } from "react-dom";
+import React, { useState, useMemo, useEffect, useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { Department } from "@/lib/types";
 
@@ -256,7 +256,7 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const { toast } = useToast();
     const initialState = { success: false, message: "", issues: [] };
-    const [state, formAction] = useFormState(addBranchToDepartment, initialState);
+    const [state, formAction] = useActionState(addBranchToDepartment, initialState);
 
     const [province, setProvince] = useState('');
     const [district, setDistrict] = useState('');
