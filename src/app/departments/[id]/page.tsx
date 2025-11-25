@@ -1,13 +1,13 @@
 
 'use client';
 
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, UserPlus, Users, MapPin, BarChart2, Building, Phone, Clock, ShieldAlert, ListChecks, ArrowUpCircle, Package, PlusCircle, Home } from "lucide-react";
 import Link from "next/link";
 import { useDoc } from "@/firebase/database/use-doc";
-import { ref } from "firebase/database"; // Removed unused push/update
+import { ref } from "firebase/database";
 import { useDatabase, useMemoFirebase } from "@/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +51,7 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   const { id } = React.use(params);
   const database = useDatabase();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
   const [newBranch, setNewBranch] = useState({
@@ -130,12 +131,10 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
        <div className="flex items-center space-x-4 mb-4">
-         <Link href="/departments">
-           <Button variant="outline" size="icon" className="h-8 w-8">
-             <ArrowLeft className="h-4 w-4" />
-             <span className="sr-only">Back</span>
-           </Button>
-         </Link>
+         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => router.push('/departments')}>
+           <ArrowLeft className="h-4 w-4" />
+           <span className="sr-only">Back</span>
+         </Button>
          <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold tracking-tight font-headline">
             {department.name}
@@ -349,3 +348,5 @@ export default function DepartmentDetailPage({ params }: { params: { id: string 
     </div>
   );
 }
+
+    

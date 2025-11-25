@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -42,7 +41,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { useState, useMemo, useEffect, useTransition } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -70,7 +69,7 @@ type Department = {
     incidentTypesHandled?: string[];
 }
 
-const initialState = {
+const initialState: { success: boolean; message: string; issues?: string[]; id?: string | null; } = {
   success: false,
   message: "",
   issues: [],
@@ -462,3 +461,5 @@ function DepartmentForm({ formAction, initialState, department, children }: { fo
       </form>
   )
 }
+
+    
