@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { notFound } from "next/navigation";
@@ -49,7 +48,7 @@ type Department = {
 }
 
 export default function DepartmentDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = React.use(params);
   const database = useDatabase();
   const { toast } = useToast();
 
