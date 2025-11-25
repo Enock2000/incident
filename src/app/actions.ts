@@ -1,692 +1,454 @@
+'use server';
 
-"use server";
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { getDatabase } from 'firebase-admin/database';
+import { initializeAdminApp } from '@/lib/firebase-admin';
 
-import { z } from "zod";
-import { suggestIncidentCategories } from "@/ai/flows/suggest-incident-categories";
-import { detectDuplicateOrSuspiciousReports } from "@/ai/flows/detect-duplicate-suspicious-reports";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { ref, set, serverTimestamp, push, update, serverTimestamp as rtdbServerTimestamp, remove, get } from "firebase/database";
-import { initializeServerFirebase } from "@/firebase/server";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import type { IncidentStatus, Priority, Responder, Department } from '@/lib/types';
+const db = getDatabase(initializeAdminApp());
 
-// Schema for signing up a new user
-const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6, "Password must be at least 6 characters long."),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  nrc: z.string().min(1, "NRC number is required"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  occupation: z.string().min(1, "Occupation is required"),
-  province: z.string().min(1, "Province is required"),
-  district: z.string().min(1, "District is required"),
-});
-
-
-// Schema for logging in an existing user
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-
-export async function signup(prevState: any, formData: FormData) {
-  const { auth, database } = initializeServerFirebase();
-  const data = Object.fromEntries(formData);
-  const parsed = signupSchema.safeParse(data);
-
-  if (!parsed.success) {
-    return { message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
-  }
-
-  const { email, password, firstName, lastName, phoneNumber, nrc, dateOfBirth, occupation, province, district } = parsed.data;
-
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    const userRef = ref(database, 'users/' + user.uid);
-    await set(userRef, {
-        id: user.uid, // Ensure the ID is saved within the document
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
-        nrc,
-        dateOfBirth,
-        occupation,
-        province,
-        district,
-        userType: 'citizen', // Default role
-    });
-    
-  } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
-      return { message: "An account with this email already exists." };
-    }
-    console.error("Signup error:", error);
-    return { message: "Failed to create user." };
-  }
-
-  redirect("/");
+// Helper for returning a consistent error state
+function errorState(message: string, issues?: string[]) {
+    return { success: false, message, issues: issues || [] };
 }
 
-
-export async function login(prevState: any, formData: FormData) {
-  const { auth } = initializeServerFirebase();
-  const data = Object.fromEntries(formData);
-  const parsed = loginSchema.safeParse(data);
-
-  if (!parsed.success) {
-    return { message: "Invalid form data." };
-  }
-  
-  const { email, password } = parsed.data;
-
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (e: any) {
-    return { message: "Failed to log in" };
-  }
-
-  redirect("/");
+// Helper for returning a consistent success state
+function successState(message: string) {
+    return { success: true, message };
 }
 
-
-const reportIncidentSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters long."),
-  description: z.string().min(20, "Description must be at least 20 characters long."),
-  location: z.string().min(3, "Location is required."),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  category: z.string().min(3, "Category is required."),
-  departmentId: z.string().optional(),
-  isAnonymous: z.string().optional(),
-  userId: z.string().optional(),
-});
-
-export type FormState = {
-  success: boolean;
-  message: string;
-  fields?: Record<string, string>;
-  issues?: string[];
-  aiSuggestions?: {
-    category?: string[];
-    duplicate?: boolean;
-    suspicious?: boolean;
-  };
-};
-
-export async function createIncident(
-  prevState: FormState,
-  data: FormData
-): Promise<FormState> {
-  const { database } = initializeServerFirebase();
-  
-  const formData = Object.fromEntries(data);
-  const parsed = reportIncidentSchema.safeParse(formData);
-
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((issue) => issue.message);
-    return {
-      success: false,
-      message: "Invalid form data.",
-      issues,
-      fields: {
-        title: parsed.error.formErrors.fieldErrors.title?.join(", ") ?? "",
-        description: parsed.error.formErrors.fieldErrors.description?.join(", ") ?? "",
-        location: parsed.error.formErrors.fieldErrors.location?.join(", ") ?? "",
-        category: parsed.error.formErrors.fieldErrors.category?.join(", ") ?? "",
-      }
-    };
-  }
-
-  const { title, description, location, latitude, longitude, userId, category, isAnonymous, departmentId } = parsed.data;
-
-  const reporter: { isAnonymous: boolean, userId: string | null } = {
-      isAnonymous: isAnonymous === 'on',
-      userId: isAnonymous === 'on' ? null : (userId ?? null)
-  };
-
-
-  let aiSuggestions: FormState['aiSuggestions'] = {};
-
-  try {
-    console.log("AI: Suggesting categories...");
-    const categorySuggestions = await suggestIncidentCategories({
-      reportDescription: description,
-      reportData: { title, location },
-    });
-    aiSuggestions.category = categorySuggestions.suggestedCategories;
-    console.log("AI Suggestions:", categorySuggestions);
-
-    console.log("AI: Detecting duplicates...");
-    const duplicateCheck = await detectDuplicateOrSuspiciousReports({
-      reportContent: `${title}: ${description}`,
-      location: location,
-      metadata: { timestamp: new Date().toISOString(), userId: userId },
-    });
-    aiSuggestions.duplicate = duplicateCheck.isDuplicate;
-    aiSuggestions.suspicious = duplicateCheck.isSuspicious;
-    console.log("AI Duplicate Check:", duplicateCheck);
-
-  } catch (error) {
-    console.error("AI processing failed:", error);
-  }
-
-  if (aiSuggestions.duplicate || aiSuggestions.suspicious) {
-     console.warn("AI flagged this report as potentially duplicate or suspicious.", aiSuggestions);
-  }
-
-  try {
-    const incidentId = `ZTIS-INC-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newIncidentRef = ref(database, `incidents/${incidentId}`);
-
-    const locationData = (latitude && longitude) ? {
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      address: location,
-    } : location;
-
-    await set(newIncidentRef, {
-      title,
-      description,
-      location: locationData,
-      category,
-      departmentId: departmentId ?? null,
-      status: "Reported",
-      priority: "Medium", // Default priority
-      dateReported: serverTimestamp(),
-      reporter: reporter,
-      media: [], // Handle file uploads separately
-      aiMetadata: {
-        suggestedCategories: aiSuggestions.category ?? [],
-        isDuplicate: aiSuggestions.duplicate ?? false,
-        isSuspicious: aiSuggestions.suspicious ?? false,
-      }
-    });
-    console.log("New incident reported:", parsed.data);
-  } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      message: "Failed to create incident in Realtime Database."
-    }
-  }
-  
-  revalidatePath("/");
-  redirect(`/`);
-}
-
-const updateProfileSchema = z.object({
-  userId: z.string(),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  occupation: z.string().min(1, "Occupation is required"),
-  province: z.string().min(1, "Province is required"),
-  district: z.string().min(1, "District is required"),
-});
-
-export async function updateProfile(prevState: any, formData: FormData) {
-  const { database } = initializeServerFirebase();
-  const data = Object.fromEntries(formData);
-  const parsed = updateProfileSchema.safeParse(data);
-
-  if (!parsed.success) {
-    return { message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
-  }
-  
-  const { userId, ...profileData } = parsed.data;
-
-  try {
-    const userRef = ref(database, `users/${userId}`);
-    await update(userRef, profileData);
-    
-  } catch (error) {
-    console.error("Update profile error:", error);
-    return { message: "Failed to update profile." };
-  }
-
-  revalidatePath('/profile');
-  return { message: 'Profile updated successfully!', issues: [] };
-}
-
-
-const updateIncidentSchema = z.object({
-  incidentId: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-});
-
-export async function updateIncident(formData: FormData) {
-  const { database } = initializeServerFirebase();
-  const rawData = Object.fromEntries(formData);
-  const parsed = updateIncidentSchema.safeParse(rawData);
-
-  if (!parsed.success) {
-    console.error('Invalid data for updating incident:', parsed.error);
-    return { success: false, message: 'Invalid data provided.' };
-  }
-
-  const { incidentId, status, priority } = parsed.data;
-
-  try {
-    const incidentRef = ref(database, `incidents/${incidentId}`);
-    const updateData: { status?: IncidentStatus, priority?: Priority, dateVerified?: any, dateResolved?: any } = {};
-    if (status) {
-        updateData.status = status as IncidentStatus;
-        if (status === 'Verified') {
-            updateData.dateVerified = rtdbServerTimestamp();
-        }
-        if (status === 'Resolved') {
-            updateData.dateResolved = rtdbServerTimestamp();
-        }
-    }
-    if (priority) updateData.priority = priority as Priority;
-
-    await update(incidentRef, updateData);
-    
-    revalidatePath(`/incidents/${incidentId}`);
-    revalidatePath('/');
-    return { success: true, message: 'Incident updated successfully.' };
-
-  } catch (error) {
-    console.error('Error updating incident:', error);
-    return { success: false, message: 'Failed to update incident.' };
-  }
-}
-
-
-const addNoteSchema = z.object({
-  incidentId: z.string(),
-  note: z.string().min(1, "Note cannot be empty."),
-  userId: z.string(),
-  userName: z.string(),
-});
-
-export async function addInvestigationNote(prevState: any, formData: FormData) {
-    const { database } = initializeServerFirebase();
-    const rawData = Object.fromEntries(formData);
-    const parsed = addNoteSchema.safeParse(rawData);
-
-    if (!parsed.success) {
-        console.error('Invalid data for adding note:', parsed.error);
-        return { success: false, message: 'Invalid data provided.' };
-    }
-
-    const { incidentId, note, userId, userName } = parsed.data;
-
-    try {
-        const notesRef = ref(database, `incidents/${incidentId}/investigationNotes`);
-        const newNoteRef = push(notesRef);
-        await set(newNoteRef, {
-            note: note,
-            authorId: userId,
-            authorName: userName,
-            timestamp: rtdbServerTimestamp(),
-        });
-
-        revalidatePath(`/incidents/${incidentId}`);
-        return { success: true, message: 'Note added successfully.' };
-
-    } catch (error) {
-        console.error('Error adding note:', error);
-        return { success: false, message: 'Failed to add note.' };
-    }
-}
-
-const assignResponderSchema = z.object({
-  incidentId: z.string(),
-  responder: z.string(),
-});
-
-export async function assignResponder(formData: FormData) {
-  const { database } = initializeServerFirebase();
-  const rawData = Object.fromEntries(formData);
-  const parsed = assignResponderSchema.safeParse(rawData);
-
-  if (!parsed.success) {
-    console.error('Invalid data for assigning responder:', parsed.error);
-    return { success: false, message: 'Invalid data provided.' };
-  }
-  
-  const { incidentId, responder } = parsed.data;
-
-  try {
-    const incidentRef = ref(database, `incidents/${incidentId}`);
-    await update(incidentRef, {
-      assignedTo: responder as Responder,
-      status: 'Team Dispatched',
-      dateDispatched: rtdbServerTimestamp(),
-    });
-
-    revalidatePath(`/incidents/${incidentId}`);
-    revalidatePath('/');
-    return { success: true, message: `Assigned to ${responder} and status updated.`};
-  } catch (error) {
-    console.error('Error assigning responder:', error);
-    return { success: false, message: 'Failed to assign responder.' };
-  }
-}
-
-const addBranchSchema = z.object({
-    departmentId: z.string(),
-    name: z.string().min(1, "Branch name is required"),
-    province: z.string().min(1, "Province is required"),
-    district: z.string().min(1, "District is required"),
-    address: z.string().optional(),
-    accessibleModules: z.array(z.string()).optional(),
-});
-
-export async function addBranchToDepartment(prevState: any, formData: FormData) {
-    const { database } = initializeServerFirebase();
-    const data = Object.fromEntries(formData);
-    const accessibleModules = formData.getAll('accessibleModules');
-    const finalData = { ...data, accessibleModules };
-
-    const parsed = addBranchSchema.safeParse(finalData);
-
-    if (!parsed.success) {
-        return { success: false, message: "Invalid branch data.", issues: parsed.error.issues.map(i => i.message) };
-    }
-
-    const { departmentId, ...branchData } = parsed.data;
-
-    try {
-        const branchesRef = ref(database, `departments/${departmentId}/branches`);
-        const newBranchRef = push(branchesRef);
-        await set(newBranchRef, branchData);
-
-        revalidatePath(`/departments/${departmentId}`);
-        return { success: true, message: 'Branch added successfully!' };
-
-    } catch (error) {
-        console.error("Error adding branch:", error);
-        return { success: false, message: 'Failed to add branch.' };
-    }
-}
-
-const addAssetSchema = z.object({
-    departmentId: z.string().min(1, "Department is required"),
-    name: z.string().min(1, "Asset name is required"),
-    assetType: z.string().min(1, "Asset type is required"),
-    status: z.string().min(1, "Status is required"),
-});
-
-export async function addAssetToDepartment(prevState: any, formData: FormData) {
-    const { database } = initializeServerFirebase();
-    const data = Object.fromEntries(formData);
-    const parsed = addAssetSchema.safeParse(data);
-
-    if (!parsed.success) {
-        return { success: false, message: "Invalid asset data.", issues: parsed.error.issues.map(i => i.message) };
-    }
-
-    const { departmentId, ...assetData } = parsed.data;
-
-    try {
-        const assetsRef = ref(database, `departments/${departmentId}/assets`);
-        const newAssetRef = push(assetsRef);
-        await set(newAssetRef, { ...assetData, departmentId });
-
-        revalidatePath(`/assets`);
-        revalidatePath(`/departments/${departmentId}`);
-        return { success: true, message: 'Asset added successfully!' };
-
-    } catch (error) {
-        console.error("Error adding asset:", error);
-        return { success: false, message: 'Failed to add asset.' };
-    }
-}
-
-
-const departmentSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  category: z.string().min(1, "Category is required"),
-  province: z.string().min(1, "Province is required"),
-  district: z.string().min(1, "District is required"),
-  officeAddress: z.string().optional(),
-  landline: z.string().optional(),
-  operatingHours: z.string().optional(),
-  escalationRules: z.string().optional(),
-  priorityAssignmentRules: z.string().optional(),
-  incidentTypesHandled: z.array(z.string()).optional(),
-  otherCategory: z.string().optional(),
-});
-
-
-export async function createDepartment(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; issues?: string[]; id?: string | null; }> {
-  const { database } = initializeServerFirebase();
-  const data = Object.fromEntries(formData);
-  
-  // Handle array from FormData
-  const incidentTypes = formData.getAll('incidentTypesHandled');
-  const finalData = { ...data, incidentTypesHandled: incidentTypes };
-
-  const parsed = departmentSchema.safeParse(finalData);
-
-  if (!parsed.success) {
-    return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
-  }
-  
-  const { otherCategory, ...deptData } = parsed.data;
-
-  try {
-    const deptId = `ZTIS-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newDeptRef = ref(database, `departments/${deptId}`);
-    
-    const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
-
-    await set(newDeptRef, {
-      name: deptData.name,
-      category: categoryToSave,
-      province: deptData.province,
-      district: deptData.district,
-      officeAddress: deptData.officeAddress,
-      contactNumbers: { landline: deptData.landline || '', responders: [] },
-      operatingHours: deptData.operatingHours || '',
-      escalationRules: deptData.escalationRules || '',
-      priorityAssignmentRules: deptData.priorityAssignmentRules || '',
-      incidentTypesHandled: deptData.incidentTypesHandled || [],
-      created_at: serverTimestamp(),
-      updated_at: serverTimestamp(),
-    });
-    revalidatePath('/departments');
-    return { success: true, message: 'Department created!', id: deptId };
-  } catch (error) {
-    console.error("Create department error:", error);
-    return { success: false, message: "Failed to create department." };
-  }
-}
-
-export async function updateDepartment(prevState: any, formData: FormData) {
-  const { database } = initializeServerFirebase();
-  const data = Object.fromEntries(formData);
-  
-  const incidentTypes = formData.getAll('incidentTypesHandled');
-  const finalData = { ...data, incidentTypesHandled: incidentTypes };
-
-  const updateSchema = departmentSchema.extend({
-    id: z.string().min(1, "Department ID is missing"),
-  });
-
-  const parsed = updateSchema.safeParse(finalData);
-
-  if (!parsed.success) {
-    return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
-  }
-
-  const { id, otherCategory, ...deptData } = parsed.data;
-
-  try {
-    const departmentRef = ref(database, `departments/${id}`);
-    const categoryToSave = deptData.category === 'Other' && otherCategory ? otherCategory : deptData.category;
-    
-    await update(departmentRef, {
-      name: deptData.name,
-      category: categoryToSave,
-      province: deptData.province,
-      district: deptData.district,
-      officeAddress: deptData.officeAddress,
-      'contactNumbers/landline': deptData.landline || '',
-      operatingHours: deptData.operatingHours || '',
-      escalationRules: deptData.escalationRules || '',
-      priorityAssignmentRules: deptData.priorityAssignmentRules || '',
-      incidentTypesHandled: deptData.incidentTypesHandled || [],
-      updated_at: serverTimestamp(),
-    });
-    revalidatePath('/departments');
-    revalidatePath(`/departments/${id}`);
-    return { success: true, message: 'Department updated successfully!' };
-  } catch (error) {
-    console.error("Update department error:", error);
-    return { success: false, message: "Failed to update department." };
-  }
-}
-
-export async function deleteDepartment(formData: FormData) {
-  const { database } = initializeServerFirebase();
-  const id = formData.get('id') as string;
-
-  if (!id) {
-    return { success: false, message: "Department ID is missing." };
-  }
-
-  try {
-    const departmentRef = ref(database, `departments/${id}`);
-    await remove(departmentRef);
-
-    revalidatePath('/departments');
-    return { success: true, message: 'Department deleted successfully!' };
-  } catch (error) {
-    console.error("Delete department error:", error);
-    return { success: false, message: "Failed to delete department." };
-  }
-}
-
-export async function getDepartmentById(id: string): Promise<(Department & { id: string }) | null> {
-    const { database } = initializeServerFirebase();
-    const departmentRef = ref(database, `departments/${id}`);
-    try {
-        const snapshot = await get(departmentRef);
-        if (snapshot.exists()) {
-            return { ...snapshot.val(), id: snapshot.key };
-        }
-        return null;
-    } catch (error) {
-        console.error("Error fetching department:", error);
-        return null;
-    }
-}
-
-const assignStaffSchema = z.object({
-  departmentId: z.string(),
-  userId: z.string(),
-  branchId: z.string(),
-});
-
-export async function assignStaffToDepartment(prevState: any, formData: FormData) {
-    const { database } = initializeServerFirebase();
-    const data = Object.fromEntries(formData);
-    const parsed = assignStaffSchema.safeParse(data);
-
-    if (!parsed.success) {
-        return { success: false, message: "Invalid data.", issues: parsed.error.issues.map(i => i.message) };
-    }
-
-    const { departmentId, userId, branchId } = parsed.data;
-
-    try {
-        // Add department and branch to the user's profile
-        const userRef = ref(database, `users/${userId}`);
-        await update(userRef, { 
-            departmentId: departmentId,
-            branchId: branchId
-        });
-
-        // Optional: Add userId to the department's staff list (might be better to query users by deptId)
-        // const departmentStaffRef = ref(database, `departments/${departmentId}/staff/${userId}`);
-        // await set(departmentStaffRef, true);
-
-        // Optional: Add userId to the branch's staff list
-        const branchStaffRef = ref(database, `departments/${departmentId}/branches/${branchId}/staff/${userId}`);
-        await set(branchStaffRef, true);
-
-
-        revalidatePath(`/departments/${departmentId}`);
-        return { success: true, message: 'Staff assigned successfully!' };
-
-    } catch (error) {
-        console.error("Error assigning staff:", error);
-        return { success: false, message: 'Failed to assign staff.' };
-    }
-}
-
-const incidentTypeSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  parentId: z.string().optional().nullable(),
-  defaultSeverity: z.string().min(1, "Default severity is required"),
-  order: z.coerce.number().default(0),
-  isEnabled: z.preprocess((val) => val === 'on', z.boolean()),
+// --- Incident Types ---
+const IncidentTypeSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    enabled: z.preprocess(val => val === 'on' || val === true, z.boolean()),
 });
 
 export async function createOrUpdateIncidentType(prevState: any, formData: FormData) {
-    const { database } = initializeServerFirebase();
-    const data = Object.fromEntries(formData);
-    
-    const schemaWithId = incidentTypeSchema.extend({
-        id: z.string().optional(),
-    });
-    
-    const parsed = schemaWithId.safeParse(data);
-    
-    if (!parsed.success) {
-        return { success: false, message: "Invalid form data.", issues: parsed.error.issues.map(i => i.message) };
+    const validatedFields = IncidentTypeSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return errorState("Invalid form data.", validatedFields.error.flatten().fieldErrors.name);
     }
 
-    const { id, ...typeData } = parsed.data;
-    const typeId = id || push(ref(database, 'incidentTypes')).key;
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('incidentTypes').push().key;
 
-    if (!typeId) {
-         return { success: false, message: "Failed to generate a new ID for the incident type." };
-    }
-    
     try {
-        const incidentTypeRef = ref(database, `incidentTypes/${typeId}`);
-        await set(incidentTypeRef, {
-            ...typeData,
-            // Ensure parentId is stored as null if it's an empty string or not provided
-            parentId: typeData.parentId || null,
-        });
-        
+        await db.ref(`incidentTypes/${recordId}`).set({ ...data, id: recordId });
         revalidatePath('/admin/configuration/incident-types');
-        return { success: true, message: `Incident type successfully ${id ? 'updated' : 'created'}!` };
-
-    } catch (error) {
-        console.error("Error saving incident type:", error);
-        return { success: false, message: 'Failed to save incident type.' };
+        return successState(id ? "Incident type updated." : "Incident type created.");
+    } catch (e: any) {
+        return errorState(e.message);
     }
 }
 
 export async function deleteIncidentType(formData: FormData) {
-    const { database } = initializeServerFirebase();
     const id = formData.get('id') as string;
-
-    if (!id) {
-        return { success: false, message: "Incident Type ID is missing." };
+    if (!id) return errorState("Missing ID for deletion.");
+    try {
+        await db.ref(`incidentTypes/${id}`).remove();
+        revalidatePath('/admin/configuration/incident-types');
+        return successState("Incident type deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
     }
+}
+
+// --- Categories ---
+const CategorySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name must be at least 2 characters."),
+    parentId: z.string().optional(),
+});
+
+export async function createOrUpdateCategory(prevState: any, formData: FormData) {
+    const validatedFields = CategorySchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", validatedFields.error.flatten().fieldErrors.name);
+
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('categories').push().key;
 
     try {
-        const incidentTypeRef = ref(database, `incidentTypes/${id}`);
-        await remove(incidentTypeRef);
-        revalidatePath('/admin/configuration/incident-types');
-        return { success: true, message: 'Incident type deleted successfully!' };
-    } catch (error) {
-        console.error("Delete incident type error:", error);
-        return { success: false, message: "Failed to delete incident type." };
+        await db.ref(`categories/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/categories');
+        return successState(id ? "Category updated." : "Category created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteCategory(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`categories/${id}`).remove();
+        revalidatePath('/admin/configuration/categories');
+        return successState("Category deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+
+// --- Severities ---
+const SeveritySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name must be at least 2 characters."),
+    level: z.coerce.number().min(1, "Level must be at least 1."),
+    color: z.string().min(3, "Color is required."),
+});
+
+export async function createOrUpdateSeverity(prevState: any, formData: FormData) {
+    const validatedFields = SeveritySchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('severities').push().key;
+
+    try {
+        await db.ref(`severities/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/severities');
+        return successState(id ? "Severity updated." : "Severity created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteSeverity(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`severities/${id}`).remove();
+        revalidatePath('/admin/configuration/severities');
+        return successState("Severity deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Department Rules ---
+const DepartmentRuleSchema = z.object({
+    id: z.string().optional(),
+    incidentTypeId: z.string().min(1, "Incident Type is required."),
+    departmentId: z.string().min(1, "Department is required."),
+    priority: z.coerce.number().min(1, "Priority is required.")
+});
+
+export async function createOrUpdateDepartmentRule(prevState: any, formData: FormData) {
+    const validatedFields = DepartmentRuleSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('departmentRules').push().key;
+
+    try {
+        await db.ref(`departmentRules/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/department-rules');
+        return successState(id ? "Rule updated." : "Rule created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteDepartmentRule(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`departmentRules/${id}`).remove();
+        revalidatePath('/admin/configuration/department-rules');
+        return successState("Rule deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Escalations ---
+const EscalationSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    waitMinutes: z.coerce.number().min(0, "Wait minutes cannot be negative.")
+});
+
+export async function createOrUpdateEscalation(prevState: any, formData: FormData) {
+    const validatedFields = EscalationSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('escalations').push().key;
+
+    try {
+        await db.ref(`escalations/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/escalations');
+        return successState(id ? "Escalation step updated." : "Escalation step created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteEscalation(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`escalations/${id}`).remove();
+        revalidatePath('/admin/configuration/escalations');
+        return successState("Escalation step deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Statuses ---
+const StatusSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    order: z.coerce.number().min(0, "Order cannot be negative.")
+});
+
+export async function createOrUpdateStatus(prevState: any, formData: FormData) {
+    const validatedFields = StatusSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('statuses').push().key;
+
+    try {
+        await db.ref(`statuses/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/statuses');
+        return successState(id ? "Status updated." : "Status created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteStatus(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`statuses/${id}`).remove();
+        revalidatePath('/admin/configuration/statuses');
+        return successState("Status deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Locations ---
+const LocationSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    type: z.enum(['province', 'district', 'ward', 'village']),
+    parentId: z.string().optional().nullable(),
+});
+
+export async function createOrUpdateLocation(prevState: any, formData: FormData) {
+    const rawData = Object.fromEntries(formData.entries());
+    if (rawData.parentId === 'null' || rawData.parentId === '') rawData.parentId = null;
+
+    const validatedFields = LocationSchema.safeParse(rawData);
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('locations').push().key;
+
+    try {
+        await db.ref(`locations/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/locations');
+        return successState(id ? "Location updated." : "Location created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteLocation(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`locations/${id}`).remove();
+        revalidatePath('/admin/configuration/locations');
+        return successState("Location deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- SLAs ---
+const SlaSchema = z.object({
+    id: z.string().optional(),
+    incidentTypeId: z.string().min(1, "Incident Type is required."),
+    severityId: z.string().min(1, "Severity is required."),
+    responseMinutes: z.coerce.number().min(0, "Response minutes cannot be negative.")
+});
+
+export async function createOrUpdateSla(prevState: any, formData: FormData) {
+    const validatedFields = SlaSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('slas').push().key;
+
+    try {
+        await db.ref(`slas/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/slas');
+        return successState(id ? "SLA updated." : "SLA created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteSla(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`slas/${id}`).remove();
+        revalidatePath('/admin/configuration/slas');
+        return successState("SLA deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Notification Rules ---
+const NotificationRuleSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    channels: z.string().min(1, "Channels are required.").transform(val => val.split(',').map(s => s.trim())),
+    incidentTypes: z.preprocess(val => formData.getAll('incidentTypes'), z.array(z.string())),
+});
+
+export async function createOrUpdateNotificationRule(prevState: any, formData: FormData) {
+    const validatedFields = NotificationRuleSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('notificationRules').push().key;
+
+    try {
+        await db.ref(`notificationRules/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/notifications');
+        return successState(id ? "Rule updated." : "Rule created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteNotificationRule(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`notificationRules/${id}`).remove();
+        revalidatePath('/admin/configuration/notifications');
+        return successState("Rule deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Custom Fields ---
+const CustomFieldSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    type: z.enum(['text', 'number', 'select', 'checkbox', 'date', 'file']),
+    options: z.string().optional().transform(val => val ? val.split(',').map(s => s.trim()) : []),
+});
+
+export async function createOrUpdateCustomField(prevState: any, formData: FormData) {
+    const validatedFields = CustomFieldSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('customFields').push().key;
+
+    try {
+        await db.ref(`customFields/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/custom-fields');
+        return successState(id ? "Field updated." : "Field created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteCustomField(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`customFields/${id}`).remove();
+        revalidatePath('/admin/configuration/custom-fields');
+        return successState("Field deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Roles ---
+const RoleSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(2, "Name is required."),
+    permissions: z.string().transform(val => val.split(',').map(s => s.trim())),
+});
+
+export async function createOrUpdateRole(prevState: any, formData: FormData) {
+    const validatedFields = RoleSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+    
+    const { id, ...data } = validatedFields.data;
+    const recordId = id || db.ref('roles').push().key;
+
+    try {
+        await db.ref(`roles/${recordId}`).set({ ...data, id: recordId });
+        revalidatePath('/admin/configuration/roles');
+        return successState(id ? "Role updated." : "Role created.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+export async function deleteRole(formData: FormData) {
+    const id = formData.get('id') as string;
+    if (!id) return errorState("Missing ID.");
+    try {
+        await db.ref(`roles/${id}`).remove();
+        revalidatePath('/admin/configuration/roles');
+        return successState("Role deleted.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Integration Settings ---
+const IntegrationSettingsSchema = z.object({
+    smsGateway: z.string().optional(),
+    emailServer: z.string().optional(),
+    mapProvider: z.string().optional(),
+});
+
+export async function updateIntegrationSettings(prevState: any, formData: FormData) {
+    const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+
+    try {
+        await db.ref('integrationSettings').set(validatedFields.data);
+        revalidatePath('/admin/configuration/integrations');
+        return successState("Integration settings updated.");
+    } catch (e: any) {
+        return errorState(e.message);
+    }
+}
+
+// --- Election Mode ---
+const ElectionModeSchema = z.object({
+    enabled: z.preprocess(val => val === 'on' || val === true, z.boolean()),
+});
+
+export async function updateElectionMode(prevState: any, formData: FormData) {
+    const validatedFields = ElectionModeSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat());
+
+    try {
+        await db.ref('electionMode').set(validatedFields.data);
+        revalidatePath('/admin/configuration/election-mode');
+        return successState("Election mode settings updated.");
+    } catch (e: any) {
+        return errorState(e.message);
     }
 }
