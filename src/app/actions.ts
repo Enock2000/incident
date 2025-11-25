@@ -407,6 +407,40 @@ export async function addBranchToDepartment(prevState: any, formData: FormData) 
     }
 }
 
+const addAssetSchema = z.object({
+    departmentId: z.string().min(1, "Department is required"),
+    name: z.string().min(1, "Asset name is required"),
+    assetType: z.string().min(1, "Asset type is required"),
+    status: z.string().min(1, "Status is required"),
+});
+
+export async function addAssetToDepartment(prevState: any, formData: FormData) {
+    const { database } = initializeServerFirebase();
+    const data = Object.fromEntries(formData);
+    const parsed = addAssetSchema.safeParse(data);
+
+    if (!parsed.success) {
+        return { success: false, message: "Invalid asset data.", issues: parsed.error.issues.map(i => i.message) };
+    }
+
+    const { departmentId, ...assetData } = parsed.data;
+
+    try {
+        const assetsRef = ref(database, `departments/${departmentId}/assets`);
+        const newAssetRef = push(assetsRef);
+        await set(newAssetRef, { ...assetData, departmentId });
+
+        revalidatePath(`/assets`);
+        revalidatePath(`/departments/${departmentId}`);
+        return { success: true, message: 'Asset added successfully!' };
+
+    } catch (error) {
+        console.error("Error adding asset:", error);
+        return { success: false, message: 'Failed to add asset.' };
+    }
+}
+
+
 const departmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string().min(1, "Category is required"),

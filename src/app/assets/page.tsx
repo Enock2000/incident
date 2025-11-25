@@ -9,16 +9,23 @@ import { Loader2, Package, Truck, Shield } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useActionState, useFormStatus } from "react-dom";
+import { addAssetToDepartment } from "@/app/actions";
 
 type AssetStatus = 'Active' | 'Inactive' | 'Maintenance';
+type AssetType = 'Vehicle' | 'Equipment' | 'Other';
 
 type Asset = {
     id: string;
     name: string;
-    assetType: 'Vehicle' | 'Equipment' | string;
+    assetType: AssetType | string;
     status: AssetStatus;
     departmentId: string;
     departmentName?: string;
@@ -89,10 +96,7 @@ export default function AssetsPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Asset Management
         </h1>
-         <Button disabled>
-            <PlusCircle className="mr-2 h-4 w-4"/>
-            Add Asset
-         </Button>
+         <AddAssetDialog departments={departments || []} />
       </div>
       <Card>
         <CardHeader>
@@ -151,12 +155,106 @@ export default function AssetsPage() {
                     No Assets Found
                 </h3>
                 <p className="text-muted-foreground">
-                    There are no assets to display or none match your search.
+                    There are no assets to display. Get started by adding one.
                 </p>
+                <div className="mt-4">
+                  <AddAssetDialog departments={departments || []} />
+                </div>
              </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} {...props}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {children}
+    </Button>
+  );
+}
+
+function AddAssetDialog({ departments }: { departments: Department[] }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { toast } = useToast();
+    const initialState = { success: false, message: "", issues: [] };
+    const [state, formAction] = useActionState(addAssetToDepartment, initialState);
+    
+    useEffect(() => {
+        if(state.message) {
+            if(state.success) {
+                toast({ title: 'Success', description: state.message });
+                setIsOpen(false);
+            } else {
+                 toast({ variant: 'destructive', title: 'Error', description: state.message });
+            }
+        }
+    }, [state, toast])
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Add Asset
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Asset</DialogTitle>
+                    <DialogDescription>
+                        Assign a new asset to a department.
+                    </DialogDescription>
+                </DialogHeader>
+                <form action={formAction} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Asset Name</Label>
+                        <Input id="name" name="name" placeholder="e.g., Patrol Car 2, Riot Shield 10" required />
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="assetType">Asset Type</Label>
+                            <Select name="assetType" required>
+                                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Vehicle">Vehicle</SelectItem>
+                                    <SelectItem value="Equipment">Equipment</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="status">Status</Label>
+                            <Select name="status" required>
+                                <SelectTrigger><SelectValue placeholder="Select status..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Active">Active</SelectItem>
+                                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                                    <SelectItem value="Inactive">Inactive</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="departmentId">Department</Label>
+                        <Select name="departmentId" required>
+                            <SelectTrigger><SelectValue placeholder="Assign to department..." /></SelectTrigger>
+                            <SelectContent>
+                                {departments.map(dept => (
+                                    <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex justify-end pt-4">
+                       <SubmitButton>Add Asset</SubmitButton>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
 }
