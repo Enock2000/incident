@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useObjectVal, useDatabase, useMemoFirebase } from '@/firebase';
+import { useDoc, useDatabase, useMemoFirebase } from '@/firebase';
 import { ref } from 'firebase/database';
 import { useToast } from '@/hooks/use-toast';
 import { updateElectionMode } from '@/app/actions';
@@ -62,7 +62,7 @@ export default function ElectionModePage() {
         () => database ? ref(database, 'electionMode') : null,
         [database]
     );
-    const { data: electionMode, isLoading } = useObjectVal<ElectionMode>(settingsRef);
+    const { data: electionMode, isLoading } = useDoc<ElectionMode>(settingsRef);
     
     const [enabled, setEnabled] = useState(electionMode?.enabled || false);
 

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useObjectVal, useDatabase } from '@/firebase';
+import { useDoc, useDatabase } from '@/firebase';
 import { ref } from 'firebase/database';
 import { useToast } from '@/hooks/use-toast';
 import { updateIntegrationSettings } from '@/app/actions';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/provider';
 
 const initialState: { success: boolean; message: string; issues?: string[]; } = {
   success: false,
@@ -62,7 +63,7 @@ export default function IntegrationsPage() {
         () => database ? ref(database, 'integrationSettings') : null,
         [database]
     );
-    const { data: settings, isLoading } = useObjectVal<IntegrationSettings>(settingsRef);
+    const { data: settings, isLoading } = useDoc<IntegrationSettings>(settingsRef);
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
