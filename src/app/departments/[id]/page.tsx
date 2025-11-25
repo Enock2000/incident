@@ -1,11 +1,10 @@
 
 'use client';
 
-import { getDepartmentById } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MapPin, Building, Phone, Clock, ListChecks, ArrowUpCircle, ShieldAlert, Edit, PlusCircle, Home, UserPlus, Users, Package, BarChart2, Loader2, User as UserIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +19,7 @@ import React, { useState, useMemo, useEffect, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { Department, UserProfile, Branch } from "@/lib/types";
-import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
+import { useCollection, useDatabase, useMemoFirebase, useDoc } from "@/firebase";
 import { query, ref, orderByChild, equalTo } from "firebase/database";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -36,20 +35,12 @@ interface DepartmentDetailsProps {
 }
 
 function DepartmentDetails({ id }: DepartmentDetailsProps) {
-  const [department, setDepartment] = useState< (Department & { id: string }) | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   const database = useDatabase();
 
-  useEffect(() => {
-    async function fetchDepartment() {
-      setIsLoading(true);
-      const dept = await getDepartmentById(id);
-      setDepartment(dept);
-      setIsLoading(false);
-    }
-    fetchDepartment();
-  }, [id]);
-
+  const deptRef = useMemoFirebase(() => database ? ref(database, `departments/${id}`) : null, [database, id]);
+  const { data: department, isLoading } = useDoc<Department>(deptRef);
+  
   const staffQuery = useMemoFirebase(() =>
     database ? query(ref(database, 'users'), orderByChild('departmentId'), equalTo(id)) : null
   , [database, id]);
@@ -82,7 +73,7 @@ function DepartmentDetails({ id }: DepartmentDetailsProps) {
             <Badge variant="secondary">{department.category}</Badge>
          </div>
          <div className="ml-auto">
-            <Link href={`/departments/${id}/edit`}>
+            <Link href={`/departments/${department.id}/edit`}>
               <Button>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Department

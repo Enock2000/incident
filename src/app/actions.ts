@@ -1,11 +1,9 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDatabase } from 'firebase-admin/database';
 import { initializeAdminApp } from '@/lib/firebase-admin';
-
 
 // --- Types ---
 type ActionState = {
@@ -16,7 +14,6 @@ type ActionState = {
 
 // --- Helpers ---
 
-// 1. Standardized Response Helpers
 function errorState(message: string, issues?: string[]): ActionState {
   return { success: false, message, issues: issues || [] };
 }
@@ -25,7 +22,7 @@ function successState(message: string): ActionState {
   return { success: true, message };
 }
 
-// 2. Generic CRUD Handler (Reduces Boilerplate)
+// GENERIC HANDLER: Prevents code repetition and handles DB connection safely
 async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   schema: T,
   collectionPath: string,
@@ -34,7 +31,7 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   idOverride?: string
 ) {
   try {
-    const db = getDatabase(initializeAdminApp());
+    // 1. Validate Zod Schema
     const validatedFields = schema.safeParse(rawData);
 
     if (!validatedFields.success) {
@@ -44,21 +41,20 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
       );
     }
 
+    // 2. Initialize DB INSIDE the try block (Prevents server crash)
+    const db = getDatabase(initializeAdminApp());
+
     const { id, ...data } = validatedFields.data;
-    // Use existing ID from form, or generate a new one
     const recordId = idOverride || id || db.ref(collectionPath).push().key;
 
-    try {
-      // Ensure the ID is saved within the document as well
-      await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
-      revalidatePath(revalidateUrl);
-      return successState(id ? "Record updated." : "Record created.");
-    } catch (e: any) {
-      return errorState(e.message);
-    }
+    // 3. Write to Firebase
+    await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
+    
+    revalidatePath(revalidateUrl);
+    return successState(id ? "Record updated." : "Record created.");
   } catch (e: any) {
-    console.error(`Error in handleCreateOrUpdate for ${collectionPath}:`, e);
-    return errorState(e.message || "A server error occurred during the update.");
+    console.error(`Error in ${collectionPath}:`, e);
+    return errorState(e.message || "Server error.");
   }
 }
 
@@ -68,16 +64,18 @@ async function handleDelete(
   revalidateUrl: string
 ) {
   try {
-    const db = getDatabase(initializeAdminApp());
     const id = formData.get('id') as string;
     if (!id) return errorState("Missing ID for deletion.");
     
+    // Initialize DB safely
+    const db = getDatabase(initializeAdminApp());
+
     await db.ref(`${collectionPath}/${id}`).remove();
     revalidatePath(revalidateUrl);
     return successState("Record deleted.");
   } catch (e: any) {
-    console.error(`Error in handleDelete for ${collectionPath}:`, e);
-    return errorState(e.message || "A server error occurred during deletion.");
+    console.error(`Delete error in ${collectionPath}:`, e);
+    return errorState(e.message);
   }
 }
 
@@ -91,7 +89,6 @@ const IncidentTypeSchema = z.object({
   defaultSeverity: z.string().optional(),
   order: z.coerce.number().optional(),
 });
-
 
 const CategorySchema = z.object({
   id: z.string().optional(),
@@ -129,7 +126,6 @@ const LocationSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
   type: z.enum(['province', 'district', 'ward', 'village']),
-  // Fix: Convert empty strings or "null" strings to real null/undefined
   parentId: z.string().optional().nullable().transform(v => (v === 'null' || v === '' ? null : v)),
 });
 
@@ -140,12 +136,11 @@ const SlaSchema = z.object({
   responseMinutes: z.coerce.number().min(0)
 });
 
-// Fix: Removed dependency on global formData. Logic moved to the Action function.
 const NotificationRuleSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
   channels: z.string().transform(val => val.split(',').map(s => s.trim())),
-  incidentTypes: z.array(z.string()), // Expects an array now
+  incidentTypes: z.array(z.string()), 
 });
 
 const CustomFieldSchema = z.object({
@@ -178,14 +173,13 @@ const AssetSchema = z.object({
   departmentId: z.string().min(1, "Department is required."),
 });
 
-
-// --- Actions (Implementation) ---
+// --- ACTIONS ---
 
 // 1. Incident Types
 export async function createOrUpdateIncidentType(prevState: any, formData: FormData) {
   const raw = Object.fromEntries(formData);
+  // Manual checkbox handling for "false" state
   if (!raw.isEnabled) raw.isEnabled = 'false'; 
-  
   return handleCreateOrUpdate(IncidentTypeSchema, 'incidentTypes', raw, '/admin/configuration/incident-types');
 }
 export async function deleteIncidentType(formData: FormData) {
@@ -248,12 +242,11 @@ export async function deleteSla(formData: FormData) {
   return handleDelete('slas', formData, '/admin/configuration/slas');
 }
 
-// 9. Notification Rules (FIXED LOGIC)
+// 9. Notification Rules
 export async function createOrUpdateNotificationRule(prevState: any, formData: FormData) {
   const raw = {
     ...Object.fromEntries(formData),
-    // Fix: Explicitly get all values for the multi-select field
-    incidentTypes: formData.getAll('incidentTypes'), 
+    incidentTypes: formData.getAll('incidentTypes'), // Handle Array
   };
   return handleCreateOrUpdate(NotificationRuleSchema, 'notificationRules', raw, '/admin/configuration/notifications');
 }
@@ -277,13 +270,13 @@ export async function deleteRole(formData: FormData) {
   return handleDelete('roles', formData, '/admin/configuration/roles');
 }
 
-// 12. Integration Settings (Single Document)
+// 12. Integration Settings
 export async function updateIntegrationSettings(prevState: any, formData: FormData) {
   try {
-    const db = getDatabase(initializeAdminApp());
     const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
-    if (!validatedFields.success) return errorState("Invalid data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
+    if (!validatedFields.success) return errorState("Invalid data");
 
+    const db = getDatabase(initializeAdminApp()); // Initialize HERE
     await db.ref('integrationSettings').set(validatedFields.data);
     revalidatePath('/admin/configuration/integrations');
     return successState("Integration settings updated.");
@@ -292,40 +285,37 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
   }
 }
 
-// 13. Election Mode (Single Document)
+// 13. Election Mode
 export async function updateElectionMode(prevState: any, formData: FormData) {
   try {
-    const db = getDatabase(initializeAdminApp());
     const raw = Object.fromEntries(formData);
-    if (!raw.enabled) raw.enabled = 'false'; // Handle unchecked box
+    if (!raw.enabled) raw.enabled = 'false';
 
     const validatedFields = ElectionModeSchema.safeParse(raw);
     if (!validatedFields.success) return errorState("Invalid data");
 
+    const db = getDatabase(initializeAdminApp()); // Initialize HERE
     await db.ref('electionMode').set(validatedFields.data);
     revalidatePath('/admin/configuration/election-mode');
-    return successState("Election mode settings updated.");
+    return successState("Election mode updated.");
   } catch (e: any) {
     return errorState(e.message);
   }
 }
 
-// 14. Assets (FIXED LOGIC)
+// 14. Assets
 export async function addAssetToDepartment(prevState: any, formData: FormData) {
   try {
-    const db = getDatabase(initializeAdminApp());
     const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
-
-    if (!validatedFields.success) {
-      return errorState("Invalid form data", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-    }
+    if (!validatedFields.success) return errorState("Invalid data");
 
     const { departmentId, ...assetData } = validatedFields.data;
-
+    
+    const db = getDatabase(initializeAdminApp()); // Initialize HERE
+    // Fixed: .push() then .set()
     const newRef = db.ref(`departments/${departmentId}/assets`).push();
     await newRef.set(assetData);
 
-    revalidatePath(`/assets`);
     revalidatePath(`/departments/${departmentId}`);
     return successState("Asset added successfully.");
   } catch (e: any) {
@@ -333,11 +323,14 @@ export async function addAssetToDepartment(prevState: any, formData: FormData) {
   }
 }
 
+// --- SPECIAL ACTIONS (Manual Implementation) ---
+
+// Create Incident
 const IncidentSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters."),
-  description: z.string().min(10, "Description must be at least 10 characters."),
-  location: z.string().min(3, "Location is required."),
-  category: z.string().min(1, "Category is required."),
+  title: z.string().min(5),
+  description: z.string().min(10),
+  location: z.string().min(3),
+  category: z.string().min(1),
   userId: z.string().optional(),
   isAnonymous: z.coerce.boolean(),
   latitude: z.coerce.number().optional(),
@@ -345,33 +338,14 @@ const IncidentSchema = z.object({
   departmentId: z.string().optional(),
 });
 
-export type FormState = {
-  success: boolean;
-  message: string;
-  issues?: string[];
-  aiSuggestions?: {
-    category?: string[];
-    duplicate?: boolean;
-    suspicious?: boolean;
-  }
-};
-
-export async function createIncident(prevState: FormState, formData: FormData): Promise<FormState> {
+export async function createIncident(prevState: any, formData: FormData) {
   try {
-    const db = getDatabase(initializeAdminApp());
-    const rawData = Object.fromEntries(formData);
-    const validatedFields = IncidentSchema.safeParse(rawData);
-
-    if (!validatedFields.success) {
-      return {
-        success: false,
-        message: "Validation failed.",
-        issues: validatedFields.error.flatten().fieldErrors.title,
-      };
-    }
+    const validatedFields = IncidentSchema.safeParse(Object.fromEntries(formData));
+    if (!validatedFields.success) return { success: false, message: "Validation failed" };
 
     const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = validatedFields.data;
     
+    const db = getDatabase(initializeAdminApp()); // Initialize HERE
     const newIncidentRef = db.ref('incidents').push();
     
     const incidentData = {
@@ -380,27 +354,25 @@ export async function createIncident(prevState: FormState, formData: FormData): 
       description,
       location: (latitude && longitude) ? { address: location, latitude, longitude } : location,
       category,
-      status: 'Reported' as const,
-      priority: 'Medium' as const,
+      status: 'Reported',
+      priority: 'Medium',
       dateReported: new Date().toISOString(),
       reporter: {
         isAnonymous,
         userId: isAnonymous ? null : userId
       },
-      media: [],
       departmentId: departmentId || null,
     };
 
     await newIncidentRef.set(incidentData);
     revalidatePath('/incidents');
-    revalidatePath('/citizen');
     return { success: true, message: 'Incident reported successfully!' };
   } catch (error: any) {
     return { success: false, message: `Database error: ${error.message}` };
   }
 }
 
-// Action to update an incident's status or priority
+// Update Incident
 const UpdateIncidentSchema = z.object({
     incidentId: z.string(),
     status: z.enum(['Reported', 'Verified', 'Team Dispatched', 'In Progress', 'Resolved', 'Rejected']).optional(),
@@ -408,137 +380,111 @@ const UpdateIncidentSchema = z.object({
 });
 export async function updateIncident(formData: FormData) {
     try {
-      const db = getDatabase(initializeAdminApp());
-      const rawData = Object.fromEntries(formData);
-      const validatedFields = UpdateIncidentSchema.safeParse(rawData);
+        const validatedFields = UpdateIncidentSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedFields.success) return errorState("Invalid data");
 
-      if (!validatedFields.success) return errorState("Invalid data");
-
-      const { incidentId, ...updates } = validatedFields.data;
-      if (Object.keys(updates).length === 0) return errorState("No updates provided.");
-      
-      await db.ref(`incidents/${incidentId}`).update(updates);
-      revalidatePath(`/incidents/${incidentId}`);
-      revalidatePath('/incidents');
-      return successState("Incident updated.");
+        const { incidentId, ...updates } = validatedFields.data;
+        if (Object.keys(updates).length === 0) return errorState("No updates provided.");
+        
+        const db = getDatabase(initializeAdminApp()); // Initialize HERE
+        await db.ref(`incidents/${incidentId}`).update(updates);
+        revalidatePath(`/incidents/${incidentId}`);
+        return successState("Incident updated.");
     } catch (e: any) {
         return errorState(e.message);
     }
 }
 
-
-// Action to add an investigation note
+// Add Note
 const NoteSchema = z.object({
     incidentId: z.string(),
     userId: z.string(),
     userName: z.string(),
-    note: z.string().min(1, "Note cannot be empty."),
+    note: z.string().min(1),
 });
 export async function addInvestigationNote(prevState: any, formData: FormData) {
     try {
-      const db = getDatabase(initializeAdminApp());
-      const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
-      if (!validatedFields.success) return errorState("Invalid note data.");
-      
-      const { incidentId, userId, userName, note } = validatedFields.data;
-      const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
-      
-      const noteData = {
-          id: noteRef.key,
-          note,
-          authorId: userId,
-          authorName: userName,
-          timestamp: new Date().toISOString()
-      };
-
-      await noteRef.set(noteData);
-      revalidatePath(`/incidents/${incidentId}`);
-      return successState("Note added.");
+        const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedFields.success) return errorState("Invalid data");
+        
+        const { incidentId, userId, userName, note } = validatedFields.data;
+        
+        const db = getDatabase(initializeAdminApp()); // Initialize HERE
+        const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
+        await noteRef.set({
+            id: noteRef.key,
+            note,
+            authorId: userId,
+            authorName: userName,
+            timestamp: new Date().toISOString()
+        });
+        
+        revalidatePath(`/incidents/${incidentId}`);
+        return successState("Note added.");
     } catch (e: any) {
         return errorState(e.message);
     }
 }
 
-
-// Action to assign a responder
+// Assign Responder
 const AssignResponderSchema = z.object({
     incidentId: z.string(),
-    responder: z.string().min(1, "Responder is required."),
+    responder: z.string().min(1),
 });
 export async function assignResponder(formData: FormData) {
-     try {
-       const db = getDatabase(initializeAdminApp());
-       const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
-       if (!validatedFields.success) return errorState("Invalid assignment data.");
+    try {
+        const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedFields.success) return errorState("Invalid data");
 
-       const { incidentId, responder } = validatedFields.data;
-      await db.ref(`incidents/${incidentId}`).update({
-          assignedTo: responder,
-          status: 'Team Dispatched',
-          dateDispatched: new Date().toISOString()
-      });
-      revalidatePath(`/incidents/${incidentId}`);
-      return successState(`Assigned to ${responder}.`);
+        const { incidentId, responder } = validatedFields.data;
+        
+        const db = getDatabase(initializeAdminApp()); // Initialize HERE
+        await db.ref(`incidents/${incidentId}`).update({
+            assignedTo: responder,
+            status: 'Team Dispatched',
+            dateDispatched: new Date().toISOString()
+        });
+        
+        revalidatePath(`/incidents/${incidentId}`);
+        return successState(`Assigned to ${responder}.`);
     } catch (e: any) {
         return errorState(e.message);
     }
 }
 
-
+// Department Creation
 const DepartmentSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(2, "Name is required"),
-  category: z.string().min(2, "Category is required"),
+  name: z.string().min(2),
+  category: z.string().min(2),
   otherCategory: z.string().optional(),
-  province: z.string().min(1, "Province is required"),
-  district: z.string().min(1, "District is required"),
+  province: z.string().min(1),
+  district: z.string().min(1),
   officeAddress: z.string().optional(),
   landline: z.string().optional(),
   incidentTypesHandled: z.array(z.string()).optional(),
   operatingHours: z.string().optional(),
   escalationRules: z.string().optional(),
   priorityAssignmentRules: z.string().optional(),
+  accessibleModules: z.array(z.string()).optional(), // Add this
 });
-
 export async function createDepartment(prevState: any, formData: FormData) {
     const rawData = {
         ...Object.fromEntries(formData),
         incidentTypesHandled: formData.getAll('incidentTypesHandled'),
+        accessibleModules: formData.getAll('accessibleModules'),
     };
-    
     if (rawData.category === 'Other' && rawData.otherCategory) {
         rawData.category = rawData.otherCategory;
     }
-
-    try {
-      const db = getDatabase(initializeAdminApp());
-      const validatedFields = DepartmentSchema.safeParse(rawData);
-      if (!validatedFields.success) {
-          return {
-              success: false,
-              message: "Validation failed.",
-              issues: Object.values(validatedFields.error.flatten().fieldErrors).flat()
-          };
-      }
-      
-      const newId = db.ref('departments').push().key;
-      if (!newId) return errorState("Could not generate new ID.");
-      
-      const result = await handleCreateOrUpdate(DepartmentSchema, 'departments', validatedFields.data, '/departments', newId);
-
-      if (result.success) {
-          return { ...result, id: newId };
-      }
-      return result;
-    } catch(e: any) {
-      return errorState(e.message);
-    }
+    return handleCreateOrUpdate(DepartmentSchema, 'departments', rawData, '/departments');
 }
 
 export async function updateDepartment(prevState: any, formData: FormData) {
    const rawData = {
         ...Object.fromEntries(formData),
         incidentTypesHandled: formData.getAll('incidentTypesHandled'),
+        accessibleModules: formData.getAll('accessibleModules'),
     };
     return handleCreateOrUpdate(DepartmentSchema, 'departments', rawData, '/departments');
 }
@@ -547,70 +493,59 @@ export async function deleteDepartment(formData: FormData) {
     return handleDelete('departments', formData, '/departments');
 }
 
-// New function to get a single department by ID
-export async function getDepartmentById(id: string) {
-  try {
-    const db = getDatabase(initializeAdminApp());
-    const snapshot = await db.ref(`departments/${id}`).once('value');
-    const department = snapshot.val();
-    if (department) {
-      return { ...department, id };
-    }
-    return null;
-  } catch (e: any) {
-    console.error("Error fetching department:", e);
-    return null;
-  }
-}
 
+// Branch Addition
 const BranchSchema = z.object({
-    name: z.string().min(2, "Name is required"),
-    province: z.string().min(1, "Province is required"),
-    district: z.string().min(1, "District is required"),
+    departmentId: z.string().min(1),
+    name: z.string().min(2),
+    province: z.string().min(1),
+    district: z.string().min(1),
     address: z.string().optional(),
-    departmentId: z.string(),
     accessibleModules: z.array(z.string()).optional(),
 });
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
     try {
-      const db = getDatabase(initializeAdminApp());
-      const rawData = {
+        const rawData = {
           ...Object.fromEntries(formData),
           accessibleModules: formData.getAll('accessibleModules'),
-      };
-      const validatedFields = BranchSchema.safeParse(rawData);
-      if (!validatedFields.success) {
-          return errorState("Invalid branch data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-      }
-      
-      const { departmentId, ...branchData } = validatedFields.data;
-      const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
-      await newBranchRef.set(branchData);
-      revalidatePath(`/departments/${departmentId}`);
-      return successState("Branch added successfully.");
-    } catch(e: any) {
+        };
+        const validatedFields = BranchSchema.safeParse(rawData);
+        if (!validatedFields.success) return errorState("Invalid branch data.");
+
+        const { departmentId, ...branchData } = validatedFields.data;
+        const db = getDatabase(initializeAdminApp());
+        
+        const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
+        await newBranchRef.set({ ...branchData, id: newBranchRef.key });
+
+        revalidatePath(`/departments/${departmentId}`);
+        return successState("Branch added successfully.");
+
+    } catch (e: any) {
         return errorState(e.message);
     }
 }
 
+
+// Staff Assignment
 const AssignStaffSchema = z.object({
-    userId: z.string().min(1, "User is required."),
-    departmentId: z.string().min(1, "Department is required."),
-    branchId: z.string().min(1, "Branch is required."),
+    userId: z.string().min(1),
+    departmentId: z.string().min(1),
+    branchId: z.string().min(1),
 });
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
     try {
-      const db = getDatabase(initializeAdminApp());
-      const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
-      if (!validatedFields.success) {
-          return errorState("Invalid assignment data.", Object.values(validatedFields.error.flatten().fieldErrors).flat() as string[]);
-      }
+        const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedFields.success) return errorState("Invalid data");
 
-      const { userId, departmentId, branchId } = validatedFields.data;
-      await db.ref(`users/${userId}`).update({ departmentId, branchId });
-      revalidatePath(`/departments/${departmentId}`);
-      revalidatePath('/staff');
-      return successState("Staff assigned successfully.");
+        const { userId, departmentId, branchId } = validatedFields.data;
+        
+        const db = getDatabase(initializeAdminApp()); // Initialize HERE
+        await db.ref(`users/${userId}`).update({ departmentId, branchId });
+        
+        revalidatePath(`/departments/${departmentId}`);
+        revalidatePath('/staff');
+        return successState("Staff assigned successfully.");
     } catch (e: any) {
         return errorState(e.message);
     }
@@ -627,63 +562,43 @@ const ProfileSchema = z.object({
 })
 export async function updateProfile(prevState: any, formData: FormData) {
     try {
-      const db = getDatabase(initializeAdminApp());
-      const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
-      if (!validatedFields.success) return errorState("Invalid profile data.");
+        const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedFields.success) return errorState("Invalid data");
 
-      const { userId, ...profileData } = validatedFields.data;
-
-      await db.ref(`users/${userId}`).update(profileData);
-      revalidatePath(`/profile/${userId}`);
-      revalidatePath('/profile');
-      return successState("Profile updated successfully.");
+        const { userId, ...profileData } = validatedFields.data;
+        
+        const db = getDatabase(initializeAdminApp()); // Initialize HERE
+        await db.ref(`users/${userId}`).update(profileData);
+        
+        revalidatePath(`/profile/${userId}`);
+        return successState("Profile updated successfully.");
     } catch(e: any) {
         return errorState(e.message);
     }
 }
 
-// Signup action is missing, so we'll add it.
+// Signup (Stub)
 const SignupSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  phoneNumber: z.string().optional(),
-  nrc: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  occupation: z.string().optional(),
-  province: z.string().optional(),
-  district: z.string().optional(),
 });
 export async function signup(prevState: any, formData: FormData) {
     const validatedFields = SignupSchema.safeParse(Object.fromEntries(formData));
-    if (!validatedFields.success) {
-         return {
-            success: false,
-            message: "Validation failed.",
-            issues: Object.values(validatedFields.error.flatten().fieldErrors).flat()
-        };
-    }
-    // This is a placeholder for actual user creation with Firebase Auth
-    // In a real app, you would use Firebase Auth Admin SDK here or a client-side call
-    console.log("Signup data:", validatedFields.data);
-    
-    // For now, we just return success
+    if (!validatedFields.success) return { success: false, message: "Invalid data" };
+    // Real auth logic would go here
     return successState("Signup successful! Please log in.");
 }
 
-// Login action is missing, so we'll add it
+// Login (Stub)
 const LoginSchema = z.object({
     email: z.string().email(),
     password: z.string(),
 });
 export async function login(prevState: any, formData: FormData) {
      const validatedFields = LoginSchema.safeParse(Object.fromEntries(formData));
-     if (!validatedFields.success) {
-         return errorState("Invalid login data.");
-     }
-     console.log("Login attempt:", validatedFields.data.email);
-     // Placeholder for actual login
+     if (!validatedFields.success) return errorState("Invalid login data.");
      return errorState("This is a placeholder. Actual login is handled client-side.");
 }
 
