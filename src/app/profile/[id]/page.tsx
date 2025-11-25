@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from "@/firebase";
@@ -7,42 +6,40 @@ import { Loader2 } from "lucide-react";
 import { useDatabase, useDoc, useMemoFirebase } from "@/firebase";
 import { ref } from "firebase/database";
 import type { UserProfile } from "@/lib/types";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
+interface ProfilePageWithIdProps {
+    params: { id: string };
+}
 
-export default function ProfilePage() {
-    const { user, isUserLoading } = useUser();
+export default function ProfilePageWithId({ params }: ProfilePageWithIdProps) {
+    const { id } = params;
+    const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
     const database = useDatabase();
-    const router = useRouter();
+    
+    // If an ID is provided in the URL, view that user's profile.
+    // Otherwise, fall back to the authenticated user's profile.
+    const userIdToFetch = id || authUser?.uid;
 
     const userProfileRef = useMemoFirebase(
-        () => (database && user) ? ref(database, `users/${user.uid}`) : null,
-        [database, user]
+        () => (database && userIdToFetch) ? ref(database, `users/${userIdToFetch}`) : null,
+        [database, userIdToFetch]
     );
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+    
+    const isLoading = isAuthUserLoading || isProfileLoading;
 
-    useEffect(() => {
-        // Redirect to login if no user is authenticated after loading.
-        if (!isUserLoading && !user) {
-            router.push('/login');
-        }
-    }, [isUserLoading, user, router]);
-
-
-    if (isUserLoading || isProfileLoading) {
+    if (isLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    if (!user || !userProfile) {
-        // This can briefly show if auth state is resolved but profile is still loading, or if profile is genuinely not found.
-        return <div className="flex h-full items-center justify-center">Loading profile...</div>;
+    if (!userProfile) {
+        return <div className="flex h-full items-center justify-center">User not found.</div>;
     }
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
             <h1 className="font-headline text-3xl font-bold tracking-tight">
-                My Profile
+                User Profile
             </h1>
             <UserProfileCard user={userProfile} />
         </div>
