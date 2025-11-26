@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { IncidentImagesDialog } from "./incident-images-dialog";
 import { useMemo } from "react";
 
-export function IncidentTable({ incidents, incidentTypes }: { incidents: Incident[], incidentTypes: IncidentType[] }) {
+export function IncidentTable({ incidents, incidentTypes = [] }: { incidents: Incident[], incidentTypes: IncidentType[] }) {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "N/A";
     const date = new Date(timestamp);
@@ -26,6 +26,7 @@ export function IncidentTable({ incidents, incidentTypes }: { incidents: Inciden
   };
 
   const categoryMap = useMemo(() => {
+    if (!incidentTypes) return new Map();
     return new Map(incidentTypes.map(type => [type.id, type.name]));
   }, [incidentTypes]);
 

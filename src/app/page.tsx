@@ -19,7 +19,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import Link from 'next/link';
-import type { Incident } from '@/lib/types';
+import type { Incident, IncidentType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Image from 'next/image';
@@ -192,6 +192,10 @@ export default function DashboardPage() {
   
   const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsRef);
 
+  const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes')) : null, [database]);
+  const { data: incidentTypes, isLoading: isTypesLoading } = useCollection<IncidentType>(incidentTypesRef);
+
+
   // SEED DATA
   useEffect(() => {
     if (!database) return;
@@ -269,7 +273,7 @@ export default function DashboardPage() {
     return <LandingPage />;
   }
 
-  if (isIncidentsLoading) {
+  if (isIncidentsLoading || isTypesLoading) {
      return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -364,7 +368,7 @@ export default function DashboardPage() {
             <CardTitle>Recent Incidents</CardTitle>
           </CardHeader>
           <CardContent>
-            {incidents && <IncidentTable incidents={incidents.slice(0, 10)} />}
+            {incidents && <IncidentTable incidents={incidents.slice(0, 10)} incidentTypes={incidentTypes || []} />}
           </CardContent>
         </Card>
       </div>
