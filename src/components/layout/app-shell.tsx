@@ -68,6 +68,7 @@ import { ref } from "firebase/database";
 
 const navItems = [
     { href: "/", label: "Dashboard", icon: Home },
+    { href: "/department-dashboard", label: "Department Dashboard", icon: Shield, departmentOnly: true },
     { href: "/incidents", label: "Incident Management", icon: ListOrdered },
     { href: "/citizen", label: "My Activity", icon: User },
     { href: "/report", label: "Report Incident", icon: PlusCircle },
@@ -152,7 +153,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return branchData.accessibleModules.includes(href);
   };
   
-  const visibleNavItems = navItems.filter(item => userHasAccessToModule(item.href));
+  const visibleNavItems = navItems.filter(item => {
+    if (!userHasAccessToModule(item.href)) return false;
+    if (item.departmentOnly) {
+        return !!userProfile?.departmentId;
+    }
+    return true;
+  });
   const visibleManagementItems = managementItems.filter(item => userHasAccessToModule(item.href));
   const visibleElectionModules = electionModules.filter(item => userHasAccessToModule(item.href));
 
