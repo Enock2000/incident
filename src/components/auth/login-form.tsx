@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth, useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
+import { useAuth, useDatabase } from "@/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ref } from "firebase/database";
+import { ref, get } from "firebase/database";
 import type { UserProfile } from "@/lib/types";
 
 const loginSchema = z.object({
@@ -24,17 +24,7 @@ const loginSchema = z.object({
 
 type LoginFormInputs = z.infer<typeof loginSchema>;
 
-function SubmitButton() {
-  const { formState: { isSubmitting } } = useForm(); // Simplified for this component
-  return (
-    <Button type="submit" disabled={isSubmitting} className="w-full">
-      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Login
-    </Button>
-  );
-}
-
-export function LoginForm({ portal }: { portal?: 'citizen' | 'department' }) {
+export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'department' }) {
   const auth = useAuth();
   const database = useDatabase();
   const router = useRouter();
@@ -57,24 +47,31 @@ export function LoginForm({ portal }: { portal?: 'citizen' | 'department' }) {
       const user = userCredential.user;
 
       if (user) {
-        // Fetch user profile to decide redirection
         const userProfileRef = ref(database, `users/${user.uid}`);
-        const { get } = await import("firebase/database");
         const snapshot = await get(userProfileRef);
 
         if (snapshot.exists()) {
           const userProfile: UserProfile = snapshot.val();
-          if (userProfile.departmentId) {
-            router.push('/department-dashboard');
+          
+          if (portal === 'department') {
+            if (userProfile.departmentId) {
+              router.push('/department-dashboard');
+            } else {
+              setFirebaseError("You are not authorized to access this portal. Please contact an administrator.");
+              await auth.signOut();
+              setIsSubmitting(false);
+              return;
+            }
           } else {
             router.push('/');
           }
         } else {
-          // Default redirect if profile doesn't exist for some reason
-          router.push('/');
+           setFirebaseError("User profile not found. Please contact support.");
+           await auth.signOut();
+           setIsSubmitting(false);
+           return;
         }
       }
-
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -92,21 +89,12 @@ export function LoginForm({ portal }: { portal?: 'citizen' | 'department' }) {
            break;
       }
       setFirebaseError(errorMessage);
-      setIsSubmitting(false);
+    } finally {
+        if (firebaseError === null) {
+          setIsSubmitting(false);
+        }
     }
   };
-  
-  const { user } = useUser();
-   useEffect(() => {
-    if (user) {
-       if (portal === 'department') {
-            router.push('/department-dashboard');
-       } else {
-            router.push('/');
-       }
-    }
-  }, [user, router, portal]);
-
 
   return (
     <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
