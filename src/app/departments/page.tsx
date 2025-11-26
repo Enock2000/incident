@@ -53,22 +53,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { createDepartment, updateDepartment, deleteDepartment } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { Department, IncidentType } from '@/lib/types';
 
-
-type Department = {
-    id: string;
-    name: string;
-    description: string;
-    category: string;
-    province: string;
-    district: string;
-    officeAddress?: string;
-    contactNumbers?: { landline?: string };
-    operatingHours?: string;
-    escalationRules?: string;
-    priorityAssignmentRules?: string;
-    incidentTypesHandled?: string[];
-}
 
 const initialState: { success: boolean; message: string; issues?: string[]; id?: string | null; } = {
   success: false,
@@ -173,6 +159,17 @@ export default function DepartmentsPage() {
   );
   const { data: departments, isLoading: isDepartmentsLoading } =
     useCollection<Department>(departmentsCollection);
+
+  const incidentTypesCollection = useMemoFirebase(
+      () => database ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null,
+      [database]
+  );
+  const { data: incidentTypes, isLoading: isTypesLoading } = useCollection<IncidentType>(incidentTypesCollection);
+
+  const departmentCategories = useMemo(() => {
+      if (!incidentTypes) return [];
+      return incidentTypes.filter(type => !type.parentId && type.isEnabled);
+  }, [incidentTypes]);
     
 
   return (
@@ -188,14 +185,14 @@ export default function DepartmentsPage() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
-              <DepartmentForm formAction={createFormAction} initialState={createState}>
+              <DepartmentForm formAction={createFormAction} initialState={createState} departmentCategories={departmentCategories}>
                 <SubmitButton>Create Department</SubmitButton>
               </DepartmentForm>
             </DialogContent>
         </Dialog>
       </div>
 
-       {isDepartmentsLoading ? (
+       {isDepartmentsLoading || isTypesLoading ? (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -254,6 +251,7 @@ export default function DepartmentsPage() {
                     formAction={updateFormAction}
                     initialState={updateState}
                     department={editingDepartment}
+                    departmentCategories={departmentCategories}
                 >
                     <SubmitButton>Save Changes</SubmitButton>
                 </DepartmentForm>
@@ -281,7 +279,7 @@ export default function DepartmentsPage() {
 
 
 // Reusable Department Form Component
-function DepartmentForm({ formAction, initialState, department, children }: { formAction: any, initialState: any, department?: Department | null, children: React.ReactNode }) {
+function DepartmentForm({ formAction, initialState, department, departmentCategories, children }: { formAction: any, initialState: any, department?: Department | null, departmentCategories: IncidentType[], children: React.ReactNode }) {
   const [province, setProvince] = useState(department?.province || '');
   const [district, setDistrict] = useState(department?.district || '');
   const [category, setCategory] = useState(department?.category || '');
@@ -327,12 +325,9 @@ function DepartmentForm({ formAction, initialState, department, children }: { fo
                     <Select name="category" value={category} onValueChange={setCategory} defaultValue={department?.category}>
                         <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Police">Police</SelectItem>
-                            <SelectItem value="Fire">Fire</SelectItem>
-                            <SelectItem value="Ambulance">Ambulance</SelectItem>
-                            <SelectItem value="Council">Council</SelectItem>
-                            <SelectItem value="Health">Health</SelectItem>
-                            <SelectItem value="Disaster">Disaster</SelectItem>
+                            {departmentCategories.map(cat => (
+                                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                            ))}
                             <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
