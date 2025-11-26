@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ref } from "firebase/database";
+import type { UserProfile } from "@/lib/types";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -23,7 +25,7 @@ const loginSchema = z.object({
 type LoginFormInputs = z.infer<typeof loginSchema>;
 
 function SubmitButton() {
-  const { formState: { isSubmitting } } = useFormContext();
+  const { formState: { isSubmitting } } = useForm(); // Simplified for this component
   return (
     <Button type="submit" disabled={isSubmitting} className="w-full">
       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -32,32 +34,47 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ portal }: { portal?: 'citizen' | 'department' }) {
   const auth = useAuth();
-  const { user } = useUser();
+  const database = useDatabase();
   const router = useRouter();
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    ...form
   } = useForm<LoginFormInputs>({
     resolver: zodResolver(loginSchema),
   });
 
-  useEffect(() => {
-    if (user) {
-      router.push('/');
-    }
-  }, [user, router]);
-
-  const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
+  const handleLogin: SubmitHandler<LoginFormInputs> = async (data) => {
+    setIsSubmitting(true);
     setFirebaseError(null);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      // The useEffect will handle the redirect
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      if (user) {
+        // Fetch user profile to decide redirection
+        const userProfileRef = ref(database, `users/${user.uid}`);
+        const { get } = await import("firebase/database");
+        const snapshot = await get(userProfileRef);
+
+        if (snapshot.exists()) {
+          const userProfile: UserProfile = snapshot.val();
+          if (userProfile.departmentId) {
+            router.push('/department-dashboard');
+          } else {
+            router.push('/');
+          }
+        } else {
+          // Default redirect if profile doesn't exist for some reason
+          router.push('/');
+        }
+      }
+
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -75,11 +92,24 @@ export function LoginForm() {
            break;
       }
       setFirebaseError(errorMessage);
+      setIsSubmitting(false);
     }
   };
+  
+  const { user } = useUser();
+   useEffect(() => {
+    if (user) {
+       if (portal === 'department') {
+            router.push('/department-dashboard');
+       } else {
+            router.push('/');
+       }
+    }
+  }, [user, router, portal]);
+
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -103,19 +133,19 @@ export function LoginForm() {
         </Alert>
       )}
 
-      <SubmitButton />
-
-      <p className="text-center text-sm text-muted-foreground">
-        Don't have an account?{" "}
-        <Link href="/signup" className="underline hover:text-primary">
-          Sign up
-        </Link>
-      </p>
+      <Button type="submit" disabled={isSubmitting} className="w-full">
+        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Login
+      </Button>
+      
+      {portal !== 'department' && (
+        <p className="text-center text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link href="/signup" className="underline hover:text-primary">
+            Sign up
+            </Link>
+        </p>
+      )}
     </form>
   );
 }
-
-// Dummy useFormContext to make SubmitButton work outside of a FormProvider
-const useFormContext = () => ({
-  formState: { isSubmitting: false }
-});

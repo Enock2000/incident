@@ -1,4 +1,3 @@
-
 // Fixed AppShell component with proper authentication state handling
 "use client";
 
@@ -131,14 +130,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/"); // Redirect to landing page on sign out
+      // If they were on a portal page, send them to the portal login. Otherwise, landing page.
+      if(pathname.startsWith('/department-dashboard') || pathname.startsWith('/portal')) {
+        router.push("/portal/login");
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
   
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
+  const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/portal/login';
 
   const userHasAccessToModule = (href: string) => {
     // Admins see everything

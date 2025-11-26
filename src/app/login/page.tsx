@@ -14,7 +14,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm />
+          <LoginForm portal="citizen" />
         </CardContent>
       </Card>
     </div>
