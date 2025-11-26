@@ -363,21 +363,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
   }
 
-  // Render public landing page if not logged in
+  // Render public landing page or auth pages if user is not logged in
   if (!user) {
     if (isAuthPage || isPortalLogin || isPublicFacingPage) {
         return <div className="min-h-screen bg-background">{children}</div>;
     }
-    // If not logged in and not on a public page, maybe redirect? For now, render content.
-    // This case might need a redirect to login in a real app.
+    // For any other page, it should probably redirect, but for now we'll just render the content
+    // which might lead to a redirect loop if the page itself requires auth.
+    // In a real app, this might redirect to a login page.
     return <div className="min-h-screen bg-background">{children}</div>;
   }
   
-  // If the user has a department ID, they are a portal user.
-  if (userProfile?.departmentId) {
-      return <PortalShell>{children}</PortalShell>
+  // If we have a user profile, we can decide which shell to render
+  if (userProfile) {
+    // If the user has a department ID, they are a portal user.
+    if (userProfile.departmentId) {
+        return <PortalShell>{children}</PortalShell>
+    }
+    
+    // Otherwise, render the citizen portal shell.
+    return <CitizenPortalShell>{children}</CitizenPortalShell>;
   }
-  
-  // Otherwise, render the citizen portal shell.
-  return <CitizenPortalShell>{children}</CitizenPortalShell>;
+
+  // Fallback for when user is loaded but profile is not yet.
+  // This can happen briefly. A loading screen is appropriate.
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
 }
