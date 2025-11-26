@@ -57,6 +57,7 @@ const IncidentTypeSchema = z.object({
   parentId: z.string().optional().nullable().transform(v => (v === 'null' || v === '' ? null : v)),
   defaultSeverity: z.string().optional(),
   order: z.coerce.number().optional(),
+  subTypes: z.string().optional().transform(val => val ? val.split(',').map(s => s.trim()).filter(Boolean) : []),
 });
 
 const SeveritySchema = z.object({
@@ -138,9 +139,40 @@ const AssetSchema = z.object({
 
 /* ---------- actions ---------- */
 export async function createOrUpdateIncidentType(_: any, formData: FormData) {
-  const raw = Object.fromEntries(formData);
-  if (!raw.isEnabled) raw.isEnabled = 'false';
-  return handleCreateOrUpdate(IncidentTypeSchema, 'incidentTypes', raw, '/admin/configuration/incident-types');
+  try {
+    const raw = Object.fromEntries(formData);
+    if (!raw.isEnabled) raw.isEnabled = 'false';
+
+    const v = IncidentTypeSchema.safeParse(raw);
+    if (!v.success) return errorState('Invalid form data.', Object.values(v.error.flatten().fieldErrors).flat() as string[]);
+
+    const { id, subTypes, ...data } = v.data;
+    const parentId = id || db.ref('incidentTypes').push()!.key!;
+
+    // Create or update the parent category
+    await db.ref(`incidentTypes/${parentId}`).set({ ...data, id: parentId });
+
+    // If subTypes are provided, create them as children
+    if (subTypes && subTypes.length > 0 && !data.parentId) {
+      for (const subTypeName of subTypes) {
+        const subTypeKey = db.ref('incidentTypes').push().key!;
+        await db.ref(`incidentTypes/${subTypeKey}`).set({
+          name: subTypeName,
+          parentId: parentId,
+          isEnabled: true,
+          defaultSeverity: data.defaultSeverity,
+          order: data.order,
+          id: subTypeKey
+        });
+      }
+    }
+
+    revalidatePath('/admin/configuration/incident-types');
+    return successState(id ? 'Record updated.' : 'Record created.', parentId);
+  } catch (e: any) {
+    console.error(`Error in incidentTypes:`, e);
+    return errorState(e.message || 'Server error.');
+  }
 }
 export async function deleteIncidentType(formData: FormData) {
   return handleDelete('incidentTypes', formData, '/admin/configuration/incident-types');
@@ -422,7 +454,7 @@ export async function addBranchToDepartment(_: any, formData: FormData) {
 const AssignStaffSchema = z.object({
   userId: z.string().min(1),
   departmentId: z.string().min(1),
-  branchId: z.string().min(1),
+  branchId: zstring().min(1),
 });
 
 export async function assignStaffToDepartment(_: any, formData: FormData) {

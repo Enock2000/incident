@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PlusCircle, Loader2, Edit, Trash2, ArrowLeft, CornerDownRight } from 'lucide-react';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
 
 const initialState: { success: boolean; message: string; issues?: string[]; } = {
   success: false,
@@ -246,6 +247,12 @@ export default function IncidentTypesPage() {
 }
 
 function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, onClose, children }: { formAction: any, initialState: any, incidentType?: IncidentType | null, allTypes: IncidentType[], onClose: () => void, children: React.ReactNode }) {
+    const [isTopLevel, setIsTopLevel] = useState(!incidentType?.parentId);
+    
+    const handleParentChange = (value: string) => {
+        setIsTopLevel(value === 'null');
+    };
+
     return (
         <form action={formAction} className="space-y-4">
             <DialogHeader>
@@ -266,7 +273,7 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="parentId">Parent Category</Label>
-                        <Select name="parentId" defaultValue={incidentType?.parentId || 'null'}>
+                        <Select name="parentId" defaultValue={incidentType?.parentId || 'null'} onValueChange={handleParentChange}>
                             <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="null">None (Top-Level)</SelectItem>
@@ -289,6 +296,14 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                         </Select>
                     </div>
                 </div>
+
+                {isTopLevel && (
+                     <div className="space-y-2">
+                        <Label htmlFor="subTypes">Add Sub-Types</Label>
+                        <Textarea id="subTypes" name="subTypes" placeholder="e.g., Theft, Murder, Assault (comma-separated)" />
+                        <p className="text-xs text-muted-foreground">For top-level categories, you can add multiple sub-types at once.</p>
+                    </div>
+                )}
 
                 <div className="space-y-2">
                     <Label htmlFor="order">Order</Label>
