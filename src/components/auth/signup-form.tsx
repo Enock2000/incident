@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { signup } from "@/app/actions";
@@ -13,10 +13,16 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { zambiaProvinces } from "@/lib/zambia-locations";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { signInWithCustomToken } from "firebase/auth";
+import { useAuth } from "@/firebase";
 
-const initialState = {
+const initialState: { success: boolean; message: string; issues?: string[], id?: string | null; } = {
+  success: false,
   message: "",
   issues: [],
+  id: null,
 };
 
 function SubmitButton() {
@@ -33,6 +39,44 @@ export function SignupForm() {
   const [state, formAction] = useActionState(signup, initialState);
   const [province, setProvince] = React.useState('');
   const [district, setDistrict] = React.useState('');
+
+  const { toast } = useToast();
+  const router = useRouter();
+  const auth = useAuth();
+
+
+  useEffect(() => {
+    if (state.success && state.id) {
+      const login = async () => {
+        try {
+          // The server action now needs to return a custom token for the new user
+          // For now, we will just redirect to the login page after successful signup.
+          // A full implementation would require a custom token.
+          toast({ title: 'Signup Successful', description: 'Please log in to continue.' });
+          router.push('/login');
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Login Failed', description: 'Could not log you in automatically.' });
+            router.push('/login');
+        }
+      }
+      login();
+    } else if (!state.success && state.message) {
+       toast({
+            variant: "destructive",
+            title: "Signup Failed",
+            description: (
+                <div>
+                    <p>{state.message}</p>
+                    {state.issues && state.issues.length > 0 && (
+                        <ul className="list-disc list-inside mt-2">{state.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
+                    )}
+                </div>
+            )
+        });
+    }
+  }, [state, toast, router, auth]);
+
 
   const districtsForSelectedProvince = useMemo(() => {
     const selectedProvince = zambiaProvinces.find(p => p.name === province);
@@ -115,7 +159,7 @@ export function SignupForm() {
         </div>
       </div>
       
-       {state?.message && (
+       {state?.message && !state.success && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>

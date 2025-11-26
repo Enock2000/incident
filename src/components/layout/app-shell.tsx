@@ -64,11 +64,9 @@ import React, { useEffect, useState } from "react";
 import type { Branch, Department } from "@/lib/types";
 import { ref } from "firebase/database";
 
-const publicNavItems = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/report", label: "Report Incident", icon: PlusCircle },
+const citizenPortalNavItems = [
     { href: "/citizen", label: "My Activity", icon: User },
-    { href: "/map", label: "Incident Map", icon: Map },
+    { href: "/report", label: "Report Incident", icon: PlusCircle },
     { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 
@@ -104,7 +102,7 @@ const electionModules = [
     { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
 ];
 
-export const allModules = [...publicNavItems, ...portalNavItems, ...portalManagementItems, ...electionModules];
+export const allModules = [...citizenPortalNavItems, ...portalNavItems, ...portalManagementItems, ...electionModules];
 
 function PortalShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -254,11 +252,11 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       );
 }
 
-function PublicShell({ children }: { children: React.ReactNode }) {
+function CitizenPortalShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const auth = useAuth();
-    const { user } = useUser();
+    const { user, userProfile } = useUser();
 
     const handleSignOut = async () => {
         await signOut(auth);
@@ -271,13 +269,13 @@ function PublicShell({ children }: { children: React.ReactNode }) {
             <SidebarHeader>
               <div className="flex items-center gap-2">
                 <ZtisLogo className="w-8 h-8" />
-                <span className="text-xl font-semibold font-headline">ZTIS</span>
+                <span className="text-xl font-semibold font-headline">Citizen Portal</span>
               </div>
             </SidebarHeader>
     
             <SidebarContent>
                 <SidebarMenu>
-                {publicNavItems.map((item) => (
+                {citizenPortalNavItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                     <Link href={item.href}>
                         <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
@@ -314,7 +312,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
                     <Avatar className="h-8 w-8">
                        {user?.photoURL && <AvatarImage src={user.photoURL} alt="User Avatar" />}
                        <AvatarFallback>
-                        {user?.displayName ? user.displayName.charAt(0) : <User />}
+                        {userProfile?.firstName ? userProfile.firstName.charAt(0) : <User />}
                        </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -344,7 +342,7 @@ function PublicShell({ children }: { children: React.ReactNode }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isUserLoading, userProfile } = useUser();
+  const { isUserLoading, user, userProfile } = useUser();
   const [mounted, setMounted] = useState(false);
 
   useLocationTracker();
@@ -353,10 +351,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  const isPublicFacingPage = pathname === '/';
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
   const isPortalLogin = pathname.startsWith('/portal/login');
   
-  // Wait for auth state and mounting to complete before rendering anything.
   if (!mounted || isUserLoading) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
@@ -365,16 +363,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
   }
 
-  // If on an auth page, just render the content without any shell.
-  if (isAuthPage || isPortalLogin) {
-     return <div className="min-h-screen bg-background">{children}</div>;
+  // Render public landing page if not logged in
+  if (!user) {
+    if (isAuthPage || isPortalLogin || isPublicFacingPage) {
+        return <div className="min-h-screen bg-background">{children}</div>;
+    }
+    // If not logged in and not on a public page, maybe redirect? For now, render content.
+    // This case might need a redirect to login in a real app.
+    return <div className="min-h-screen bg-background">{children}</div>;
   }
   
-  // If the user is a department user, render the portal shell.
+  // If the user has a department ID, they are a portal user.
   if (userProfile?.departmentId) {
       return <PortalShell>{children}</PortalShell>
   }
   
-  // Otherwise, render the public-facing shell.
-  return <PublicShell>{children}</PublicShell>;
+  // Otherwise, render the citizen portal shell.
+  return <CitizenPortalShell>{children}</CitizenPortalShell>;
 }

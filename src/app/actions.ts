@@ -5,6 +5,9 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
+import { UserRole } from '@/lib/types';
+
 
 /* ---------- types ---------- */
 type ActionState = { success: boolean; message: string; issues?: string[], id?: string | null };
@@ -501,13 +504,52 @@ const SignupSchema = z.object({
   lastName: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  nrc: z.string(),
+  phoneNumber: z.string(),
+  dateOfBirth: z.string(),
+  occupation: z.string(),
+  province: z.string(),
+  district: z.string(),
 });
 
-export async function signup(_: any, formData: FormData) {
+export async function signup(_: any, formData: FormData): Promise<ActionState & { id?: string | null }> {
   const v = SignupSchema.safeParse(Object.fromEntries(formData));
-  if (!v.success) return { success: false, message: 'Invalid data' };
-  // In a real app, you would create the user in Firebase Auth here
-  // and then create a user profile document in the database.
-  // For this stub, we just return success.
-  return successState('Signup successful! Please log in.');
+  if (!v.success) {
+    return {
+      success: false,
+      message: 'Invalid form data. Please check all fields.',
+      issues: Object.values(v.error.flatten().fieldErrors).flat() as string[],
+    };
+  }
+  const { email, password, firstName, lastName, ...profileData } = v.data;
+
+  try {
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: `${firstName} ${lastName}`,
+    });
+
+    const userProfile = {
+      id: userRecord.uid,
+      firstName,
+      lastName,
+      email,
+      ...profileData,
+      userType: 'citizen' as UserRole,
+    };
+
+    await db.ref(`users/${userRecord.uid}`).set(userProfile);
+    
+    return successState('Signup successful!', userRecord.uid);
+  } catch (error: any) {
+    console.error("Signup error:", error);
+    let message = 'An unexpected error occurred during signup.';
+    if (error.code === 'auth/email-already-exists') {
+      message = 'This email address is already in use by another account.';
+    } else if (error.code === 'auth/invalid-password') {
+      message = 'The password must be at least 6 characters long.';
+    }
+    return errorState(message);
+  }
 }

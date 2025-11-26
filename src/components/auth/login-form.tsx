@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -59,17 +60,14 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
             } else {
               setFirebaseError("You are not authorized to access this portal. Please contact an administrator.");
               await auth.signOut();
-              setIsSubmitting(false);
-              return;
             }
           } else {
-            router.push('/');
+            // Citizen portal redirection
+            router.push('/citizen');
           }
         } else {
            setFirebaseError("User profile not found. Please contact support.");
            await auth.signOut();
-           setIsSubmitting(false);
-           return;
         }
       }
     } catch (error: any) {
@@ -90,9 +88,7 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
       }
       setFirebaseError(errorMessage);
     } finally {
-        if (firebaseError === null) {
-          setIsSubmitting(false);
-        }
+        setIsSubmitting(false);
     }
   };
 
