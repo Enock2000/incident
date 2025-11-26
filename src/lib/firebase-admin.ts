@@ -1,5 +1,3 @@
-// src/lib/firebase-admin.ts
-'use server';
 
 import { getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getDatabase, type Database } from 'firebase-admin/database';
@@ -14,5 +12,4 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-// export the instance, not a function
 export const db: Database = getDatabase(app);
