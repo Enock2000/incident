@@ -3,8 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getAdminDB } from '@/lib/firebase-admin';
-
+import { db } from '@/lib/firebase-admin';
 // --- Types ---
 type ActionState = {
   success: boolean;
@@ -42,14 +41,11 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
       );
     }
 
-    // Initialize DB *inside* the try block
-    const adminDB = getAdminDB(); 
-
     const { id, ...data } = validatedFields.data;
-    const recordId = idOverride || id || adminDB.ref(collectionPath).push().key;
+    const recordId = idOverride || id || db.ref(collectionPath).push().key;
 
     // Ensure the ID is saved within the document as well
-    await adminDB.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
+    await db.ref(`${collectionPath}/${recordId}`).set({ ...data, id: recordId });
     
     revalidatePath(revalidateUrl);
     return successState(id ? "Record updated." : "Record created.");
@@ -68,11 +64,8 @@ async function handleDelete(
   try {
     const id = formData.get('id') as string;
     if (!id) return errorState("Missing ID for deletion.");
-
-    // Initialize DB *inside* the try block
-    const adminDB = getAdminDB();
     
-    await adminDB.ref(`${collectionPath}/${id}`).remove();
+    await db.ref(`${collectionPath}/${id}`).remove();
     revalidatePath(revalidateUrl);
     return successState("Record deleted.");
 
@@ -276,11 +269,10 @@ export async function deleteRole(formData: FormData) {
 // 12. Integration Settings
 export async function updateIntegrationSettings(prevState: any, formData: FormData) {
   try {
-    const adminDB = getAdminDB();
     const validatedFields = IntegrationSettingsSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid data");
 
-    await adminDB.ref('integrationSettings').set(validatedFields.data);
+    await db.ref('integrationSettings').set(validatedFields.data);
     revalidatePath('/admin/configuration/integrations');
     return successState("Integration settings updated.");
   } catch (e: any) {
@@ -291,14 +283,13 @@ export async function updateIntegrationSettings(prevState: any, formData: FormDa
 // 13. Election Mode
 export async function updateElectionMode(prevState: any, formData: FormData) {
   try {
-    const adminDB = getAdminDB();
     const raw = Object.fromEntries(formData);
     if (!raw.enabled) raw.enabled = 'false';
 
     const validatedFields = ElectionModeSchema.safeParse(raw);
     if (!validatedFields.success) return errorState("Invalid data");
 
-    await adminDB.ref('electionMode').set(validatedFields.data);
+    await db.ref('electionMode').set(validatedFields.data);
     revalidatePath('/admin/configuration/election-mode');
     return successState("Election mode updated.");
   } catch (e: any) {
@@ -309,14 +300,13 @@ export async function updateElectionMode(prevState: any, formData: FormData) {
 // 14. Assets
 export async function addAssetToDepartment(prevState: any, formData: FormData) {
   try {
-    const adminDB = getAdminDB();
     const validatedFields = AssetSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return errorState("Invalid data");
 
     const { departmentId, ...assetData } = validatedFields.data;
     
     // Fixed: .push() then .set()
-    const newRef = adminDB.ref(`departments/${departmentId}/assets`).push();
+    const newRef = db.ref(`departments/${departmentId}/assets`).push();
     await newRef.set(assetData);
 
     revalidatePath(`/departments/${departmentId}`);
@@ -343,13 +333,12 @@ const IncidentSchema = z.object({
 
 export async function createIncident(prevState: any, formData: FormData) {
   try {
-    const adminDB = getAdminDB();
     const validatedFields = IncidentSchema.safeParse(Object.fromEntries(formData));
     if (!validatedFields.success) return { success: false, message: "Validation failed" };
 
     const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = validatedFields.data;
     
-    const newIncidentRef = adminDB.ref('incidents').push();
+    const newIncidentRef = db.ref('incidents').push();
     
     const incidentData = {
       id: newIncidentRef.key,
@@ -383,14 +372,13 @@ const UpdateIncidentSchema = z.object({
 });
 export async function updateIncident(formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const validatedFields = UpdateIncidentSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
         const { incidentId, ...updates } = validatedFields.data;
         if (Object.keys(updates).length === 0) return errorState("No updates provided.");
         
-        await adminDB.ref(`incidents/${incidentId}`).update(updates);
+        await db.ref(`incidents/${incidentId}`).update(updates);
         revalidatePath(`/incidents/${incidentId}`);
         return successState("Incident updated.");
     } catch (e: any) {
@@ -407,13 +395,12 @@ const NoteSchema = z.object({
 });
 export async function addInvestigationNote(prevState: any, formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const validatedFields = NoteSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
         
         const { incidentId, userId, userName, note } = validatedFields.data;
         
-        const noteRef = adminDB.ref(`incidents/${incidentId}/investigationNotes`).push();
+        const noteRef = db.ref(`incidents/${incidentId}/investigationNotes`).push();
         await noteRef.set({
             id: noteRef.key,
             note,
@@ -436,13 +423,12 @@ const AssignResponderSchema = z.object({
 });
 export async function assignResponder(formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const validatedFields = AssignResponderSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
         const { incidentId, responder } = validatedFields.data;
         
-        await adminDB.ref(`incidents/${incidentId}`).update({
+        await db.ref(`incidents/${incidentId}`).update({
             assignedTo: responder,
             status: 'Team Dispatched',
             dateDispatched: new Date().toISOString()
@@ -508,7 +494,6 @@ const BranchSchema = z.object({
 });
 export async function addBranchToDepartment(prevState: any, formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const rawData = {
           ...Object.fromEntries(formData),
           accessibleModules: formData.getAll('accessibleModules'),
@@ -518,7 +503,7 @@ export async function addBranchToDepartment(prevState: any, formData: FormData) 
 
         const { departmentId, ...branchData } = validatedFields.data;
         
-        const newBranchRef = adminDB.ref(`departments/${departmentId}/branches`).push();
+        const newBranchRef = db.ref(`departments/${departmentId}/branches`).push();
         await newBranchRef.set({ ...branchData, id: newBranchRef.key });
 
         revalidatePath(`/departments/${departmentId}`);
@@ -538,13 +523,12 @@ const AssignStaffSchema = z.object({
 });
 export async function assignStaffToDepartment(prevState: any, formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const validatedFields = AssignStaffSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
         const { userId, departmentId, branchId } = validatedFields.data;
         
-        await adminDB.ref(`users/${userId}`).update({ departmentId, branchId });
+        await db.ref(`users/${userId}`).update({ departmentId, branchId });
         
         revalidatePath(`/departments/${departmentId}`);
         revalidatePath('/staff');
@@ -565,13 +549,12 @@ const ProfileSchema = z.object({
 })
 export async function updateProfile(prevState: any, formData: FormData) {
     try {
-        const adminDB = getAdminDB();
         const validatedFields = ProfileSchema.safeParse(Object.fromEntries(formData));
         if (!validatedFields.success) return errorState("Invalid data");
 
         const { userId, ...profileData } = validatedFields.data;
         
-        await adminDB.ref(`users/${userId}`).update(profileData);
+        await db.ref(`users/${userId}`).update(profileData);
         
         revalidatePath(`/profile/${userId}`);
         return successState("Profile updated successfully.");
@@ -604,3 +587,5 @@ export async function login(prevState: any, formData: FormData) {
      if (!validatedFields.success) return errorState("Invalid login data.");
      return errorState("This is a placeholder. Actual login is handled client-side.");
 }
+
+    
