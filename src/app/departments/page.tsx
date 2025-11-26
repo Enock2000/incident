@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -46,9 +44,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from "@/components/ui/textarea";
 import { zambiaProvinces } from '@/lib/zambia-locations';
-import { incidentCategories } from '@/lib/incident-categories';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { createDepartment, updateDepartment, deleteDepartment } from '@/app/actions';
@@ -394,18 +391,18 @@ function DepartmentForm({ formAction, initialState, department, departmentCatego
                         <CommandEmpty>No category found.</CommandEmpty>
                         <CommandGroup>
                             <CommandList>
-                                {incidentCategories.map((cat) => (
+                                {departmentCategories.map((cat) => (
                                     <CommandItem
-                                    key={cat}
-                                    onSelect={() => handleIncidentTypesChange(cat)}
+                                    key={cat.id}
+                                    onSelect={() => handleIncidentTypesChange(cat.name)}
                                     >
                                     <Check
                                         className={cn(
                                         "mr-2 h-4 w-4",
-                                        incidentTypes.includes(cat) ? "opacity-100" : "opacity-0"
+                                        incidentTypes.includes(cat.name) ? "opacity-100" : "opacity-0"
                                         )}
                                     />
-                                    {cat}
+                                    {cat.name}
                                     </CommandItem>
                                 ))}
                             </CommandList>
@@ -431,7 +428,7 @@ function DepartmentForm({ formAction, initialState, department, departmentCatego
                 <Label htmlFor="escalationRules">Escalation Rules</Label>
                 <Textarea id="escalationRules" name="escalationRules" placeholder="Describe rules for escalation..." defaultValue={department?.escalationRules}/>
             </div>
-            <div className="space-y-2">
+             <div className="space-y-2">
                 <Label htmlFor="priorityAssignmentRules">Priority Assignment Rules</Label>
                 <Textarea id="priorityAssignmentRules" name="priorityAssignmentRules" placeholder="Describe rules for priority assignment..." defaultValue={department?.priorityAssignmentRules}/>
             </div>
