@@ -59,12 +59,6 @@ const IncidentTypeSchema = z.object({
   order: z.coerce.number().optional(),
 });
 
-const CategorySchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
-  parentId: z.string().optional(),
-});
-
 const SeveritySchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
@@ -150,13 +144,6 @@ export async function createOrUpdateIncidentType(_: any, formData: FormData) {
 }
 export async function deleteIncidentType(formData: FormData) {
   return handleDelete('incidentTypes', formData, '/admin/configuration/incident-types');
-}
-
-export async function createOrUpdateCategory(_: any, formData: FormData) {
-  return handleCreateOrUpdate(CategorySchema, 'categories', Object.fromEntries(formData), '/admin/configuration/categories');
-}
-export async function deleteCategory(formData: FormData) {
-  return handleDelete('categories', formData, '/admin/configuration/categories');
 }
 
 export async function createOrUpdateSeverity(_: any, formData: FormData) {

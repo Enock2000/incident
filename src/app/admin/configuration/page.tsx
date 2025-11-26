@@ -3,12 +3,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Cat, Gauge, ShieldAlert, Siren, Map, Sliders, Waypoints, Bell, FileText, UserCheck, History, Plug, Vote } from "lucide-react";
+import { ArrowRight, Gauge, ShieldAlert, Siren, Map, Sliders, Waypoints, Bell, FileText, UserCheck, History, Plug, Vote } from "lucide-react";
 import Link from "next/link";
 
 const configItems = [
-    { href: "/admin/configuration/incident-types", title: "Incident Types", description: "Manage types of incidents", icon: Siren },
-    { href: "/admin/configuration/categories", title: "Categories", description: "Group incidents by category", icon: Cat },
+    { href: "/admin/configuration/incident-types", title: "Incident Categories", description: "Manage incident categories and types", icon: Siren },
     { href: "/admin/configuration/severities", title: "Severities", description: "Define incident severity levels", icon: ShieldAlert },
     { href: "/admin/configuration/department-rules", title: "Department Rules", description: "Assign incidents to departments", icon: Waypoints },
     { href: "/admin/configuration/escalations", title: "Escalations", description: "Configure escalation paths", icon: Sliders },
