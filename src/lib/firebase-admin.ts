@@ -1,15 +1,15 @@
+// src/lib/firebase-admin.ts  <-- NO 'use server' here
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getDatabase } from 'firebase-admin/database';
 
-import { getApps, initializeApp, type App } from 'firebase-admin/app';
-import { getDatabase, type Database } from 'firebase-admin/database';
+const apps = getApps();
+const app = apps.length ? apps[0] : initializeApp({
+  credential: cert({
+    projectId: process.env.FIREBASE_PROJECT_ID!,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+  }),
+  databaseURL: process.env.FIREBASE_DATABASE_URL!,
+});
 
-let app: App;
-
-if (!getApps().length) {
-  app = initializeApp({
-    databaseURL: 'https://studio-9903628032-db490-default-rtdb.firebaseio.com',
-  });
-} else {
-  app = getApps()[0];
-}
-
-export const db: Database = getDatabase(app);
+export const db = getDatabase(app);

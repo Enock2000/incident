@@ -492,16 +492,3 @@ export async function signup(_: any, formData: FormData) {
   // For this stub, we just return success.
   return successState('Signup successful! Please log in.');
 }
-
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-export async function login(_: any, formData: FormData) {
-  const v = LoginSchema.safeParse(Object.fromEntries(formData));
-  if (!v.success) return errorState('Invalid login data.');
-  // This is a placeholder. Actual login is handled client-side with Firebase Auth SDK.
-  // This action doesn't do anything but satisfy the form.
-  return errorState('This is a placeholder. Actual login is handled client-side.');
-}
