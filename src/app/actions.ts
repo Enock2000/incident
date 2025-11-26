@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -290,7 +291,6 @@ const IncidentSchema = z.object({
   location: z.string().min(3),
   category: z.string().min(1),
   userId: z.string().optional(),
-  isAnonymous: z.coerce.boolean(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
   departmentId: z.string().optional(),
@@ -300,7 +300,7 @@ export async function createIncident(_: any, formData: FormData) {
   try {
     const v = IncidentSchema.safeParse(Object.fromEntries(formData));
     if (!v.success) return { success: false, message: 'Validation failed' };
-    const { title, description, location, category, userId, isAnonymous, latitude, longitude, departmentId } = v.data;
+    const { title, description, location, category, userId, latitude, longitude, departmentId } = v.data;
     const ref = db.ref('incidents').push();
     const incident = {
       id: ref.key,
@@ -311,7 +311,7 @@ export async function createIncident(_: any, formData: FormData) {
       status: 'Reported',
       priority: 'Medium',
       dateReported: new Date().toISOString(),
-      reporter: { isAnonymous, userId: isAnonymous ? null : userId },
+      reporter: { userId: userId },
       departmentId: departmentId || null,
     };
     await ref.set(incident);

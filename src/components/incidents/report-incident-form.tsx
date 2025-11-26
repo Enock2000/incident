@@ -4,7 +4,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { createIncident, type FormState } from "@/app/actions";
+import { createIncident } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,11 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useDatabase, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ref, query, orderByChild } from "firebase/database";
 import type { Department, IncidentType } from "@/lib/types";
 
-const initialState: FormState = {
+const initialState: { success: boolean; message: string; issues?: string[], aiSuggestions?: any } = {
   success: false,
   message: "",
 };
@@ -43,7 +42,6 @@ export function ReportIncidentForm() {
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [departmentId, setDepartmentId] = useState('');
 
   const departmentsRef = useMemoFirebase(() => database ? query(ref(database, 'departments')) : null, [database]);
@@ -84,18 +82,23 @@ export function ReportIncidentForm() {
   
 
   useEffect(() => {
-    if (state?.success === false && state.message && state.issues) {
+    if (state?.success === false && state.message) {
       toast({
         variant: "destructive",
-        title: state.message,
+        title: "Validation Error",
         description: (
           <ul className="list-disc pl-5">
-            {state.issues.map((issue, i) => (
+            {state.issues?.map((issue, i) => (
               <li key={i}>{issue}</li>
             ))}
           </ul>
         ),
       });
+    } else if (state?.success === true) {
+        toast({
+            title: "Success",
+            description: state.message,
+        });
     }
   }, [state, toast]);
   
@@ -252,16 +255,6 @@ export function ReportIncidentForm() {
         <p className="text-sm text-muted-foreground">
           You can upload relevant photos or videos.
         </p>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Checkbox id="isAnonymous" name="isAnonymous" checked={isAnonymous} onCheckedChange={(checked) => setIsAnonymous(checked as boolean)} />
-        <label
-            htmlFor="isAnonymous"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-            Report Anonymously
-        </label>
       </div>
 
       <div className="pt-4">
