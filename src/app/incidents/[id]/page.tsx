@@ -13,7 +13,7 @@ import { IncidentStatusBadge, PriorityBadge } from "@/components/incidents/incid
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
 import { addInvestigationNote, updateIncident, assignResponder } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
