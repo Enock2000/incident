@@ -454,7 +454,7 @@ export async function addBranchToDepartment(_: any, formData: FormData) {
 const AssignStaffSchema = z.object({
   userId: z.string().min(1),
   departmentId: z.string().min(1),
-  branchId: zstring().min(1),
+  branchId: z.string().min(1),
 });
 
 export async function assignStaffToDepartment(_: any, formData: FormData) {
