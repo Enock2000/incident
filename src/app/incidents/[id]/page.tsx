@@ -84,7 +84,7 @@ function IncidentDetails({ id }: { id: string }) {
               <CardTitle>Incident Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-muted-foreground">{incident.description}</p>
+              <p>{incident.description}</p>
               <Separator />
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> <strong>Location:</strong> {typeof incident.location === 'object' ? incident.location.address : incident.location}</div>
@@ -281,5 +281,7 @@ function AssignResponderForm({ incident }: { incident: Incident }) {
         </form>
     )
 }
+
+    
 
     
