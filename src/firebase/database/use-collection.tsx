@@ -70,17 +70,20 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: Error) => {
-
+        console.error("Firebase useCollection Error:", error);
         const contextualError = new DatabasePermissionError({
           operation: 'list',
           path: memoizedDbRefOrQuery.toString(),
-        })
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
+        // This prevents the error from propagating further and crashing the app
+        // by emitting it to a dedicated listener.
         errorEmitter.emit('permission-error', contextualError);
+        return; // Explicitly return to stop execution
       }
     );
 

@@ -3,7 +3,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database'; // Import Realtime Database
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -18,12 +18,6 @@ export function initializeFirebase() {
       }
       firebaseApp = initializeApp(firebaseConfig);
     }
-    // Automatically sign in user anonymously
-    const auth = getAuth(firebaseApp);
-    signInAnonymously(auth).catch((error) => {
-      console.error("Anonymous sign-in failed:", error);
-    });
-
     return getSdks(firebaseApp);
   }
   return getSdks(getApp());
