@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser, useDatabase, useCollection, useMemoFirebase } from "@/firebase";
-import type { Incident } from "@/lib/types";
+import type { Incident, IncidentType } from "@/lib/types";
 import { ref, query, orderByChild } from "firebase/database";
 import { Loader2 } from "lucide-react";
 import { IncidentTable } from "@/components/incidents/incident-table";
@@ -18,7 +18,10 @@ export default function IncidentsPage() {
 
     const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsQuery);
 
-    if (isUserLoading || isIncidentsLoading) {
+    const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes')) : null, [database]);
+    const { data: incidentTypes, isLoading: isTypesLoading } = useCollection<IncidentType>(incidentTypesRef);
+
+    if (isUserLoading || isIncidentsLoading || isTypesLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
@@ -37,7 +40,7 @@ export default function IncidentsPage() {
                 </CardHeader>
                 <CardContent>
                     {sortedIncidents && sortedIncidents.length > 0 ? (
-                        <IncidentTable incidents={sortedIncidents} />
+                        <IncidentTable incidents={sortedIncidents} incidentTypes={incidentTypes || []} />
                     ) : (
                         <p>No incidents have been reported yet.</p>
                     )}

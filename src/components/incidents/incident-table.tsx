@@ -9,20 +9,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Incident } from "@/lib/types";
+import type { Incident, IncidentType } from "@/lib/types";
 import { IncidentStatusBadge, PriorityBadge } from "./incident-status-badge";
 import { Button } from "@/components/ui/button";
 import { Eye, FileImage, Search } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { IncidentImagesDialog } from "./incident-images-dialog";
+import { useMemo } from "react";
 
-export function IncidentTable({ incidents }: { incidents: Incident[] }) {
+export function IncidentTable({ incidents, incidentTypes }: { incidents: Incident[], incidentTypes: IncidentType[] }) {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "N/A";
     const date = new Date(timestamp);
     return format(date, "PPP");
   };
+
+  const categoryMap = useMemo(() => {
+    return new Map(incidentTypes.map(type => [type.id, type.name]));
+  }, [incidentTypes]);
 
   return (
     <Table>
@@ -40,7 +45,7 @@ export function IncidentTable({ incidents }: { incidents: Incident[] }) {
         {incidents.map((incident) => (
           <TableRow key={incident.id}>
             <TableCell className="font-medium">{incident.title}</TableCell>
-            <TableCell>{incident.category}</TableCell>
+            <TableCell>{categoryMap.get(incident.category) || incident.category}</TableCell>
             <TableCell>
               <IncidentStatusBadge status={incident.status} />
             </TableCell>
