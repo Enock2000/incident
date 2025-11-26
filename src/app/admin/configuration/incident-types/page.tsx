@@ -266,10 +266,10 @@ function IncidentTypeForm({ formAction, initialState, incidentType, allTypes, on
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="parentId">Parent Category</Label>
-                        <Select name="parentId" defaultValue={incidentType?.parentId || ''}>
+                        <Select name="parentId" defaultValue={incidentType?.parentId || 'null'}>
                             <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">None (Top-Level)</SelectItem>
+                                <SelectItem value="null">None (Top-Level)</SelectItem>
                                 {allTypes.filter(t => !t.parentId && t.id !== incidentType?.id).map(cat => (
                                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                 ))}

@@ -54,7 +54,7 @@ const IncidentTypeSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   isEnabled: z.coerce.boolean(),
-  parentId: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  parentId: z.string().optional().nullable().transform(v => (v === 'null' || v === '' ? null : v)),
   defaultSeverity: z.string().optional(),
   order: z.coerce.number().optional(),
 });

@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Loader2, Edit, Trash2, ArrowLeft, CornerDownRight } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const initialState: { success: boolean; message: string; issues?: string[]; } = {
   success: false,
@@ -262,9 +263,10 @@ function LocationForm({ formAction, initialState, location, allLocations, onClos
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="parentId">Parent Location</Label>
-                        <Select name="parentId" defaultValue={location?.parentId || ''}>
+                        <Select name="parentId" defaultValue={location?.parentId || 'null'}>
                             <SelectTrigger id="parentId"><SelectValue placeholder="None (Top-Level)" /></SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="null">None (Top-Level)</SelectItem>
                                 {allLocations.filter(l => l.id !== location?.id).map(loc => (
                                     <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                                 ))}
