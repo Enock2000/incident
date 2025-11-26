@@ -2,9 +2,9 @@
 'use client';
 
 import * as React from 'react';
-import { useDatabase, useDoc, useMemoFirebase, useUser } from "@/firebase";
-import { ref } from "firebase/database";
-import type { Incident, InvestigationNote, Priority, Responder, UserProfile } from "@/lib/types";
+import { useDatabase, useDoc, useMemoFirebase, useUser, useCollection } from "@/firebase";
+import { ref, query, orderByChild } from "firebase/database";
+import type { Incident, InvestigationNote, Priority, Responder, UserProfile, IncidentType } from "@/lib/types";
 import { notFound, useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, MapPin, Tag, ShieldAlert, Calendar, User, MessageSquare, Send, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,10 +36,20 @@ function IncidentDetails({ id }: { id: string }) {
   const reporterId = incident?.reporter?.userId;
   const reporterRef = useMemoFirebase(() => database && reporterId ? ref(database, `users/${reporterId}`) : null, [database, reporterId]);
   const { data: reporterInfo } = useDoc<UserProfile>(reporterRef);
+  
+  const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes'), orderByChild('name')) : null, [database]);
+  const { data: incidentTypes, isLoading: isLoadingTypes } = useCollection<IncidentType>(incidentTypesRef);
+  
+  const categoryName = useMemo(() => {
+    if (!incident || !incidentTypes) return incident?.category;
+    const foundType = incidentTypes.find(type => type.id === incident.category);
+    return foundType ? foundType.name : incident.category;
+  }, [incident, incidentTypes]);
+
 
   const investigationNotes = incident?.investigationNotes ? Object.entries(incident.investigationNotes).map(([noteId, note]) => ({...(note as InvestigationNote), id: noteId})).sort((a,b) => b.timestamp - a.timestamp) : [];
 
-  const isLoading = isAuthLoading || isIncidentLoading;
+  const isLoading = isAuthLoading || isIncidentLoading || isLoadingTypes;
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -84,11 +94,11 @@ function IncidentDetails({ id }: { id: string }) {
               <CardTitle>Incident Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p>{incident.description}</p>
+              <p className="text-foreground">{incident.description}</p>
               <Separator />
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> <strong>Location:</strong> {typeof incident.location === 'object' ? incident.location.address : incident.location}</div>
-                <div className="flex items-center gap-2"><Tag className="h-4 w-4 text-muted-foreground" /> <strong>Category:</strong> {incident.category}</div>
+                <div className="flex items-center gap-2"><Tag className="h-4 w-4 text-muted-foreground" /> <strong>Category:</strong> {categoryName}</div>
                 <div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> <strong>Priority:</strong> <PriorityBadge priority={incident.priority} /></div>
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Reported:</strong> {formatDate(incident.dateReported)}</div>
                  <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /> 
