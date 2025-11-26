@@ -1,3 +1,4 @@
+
 // Fixed AppShell component with proper authentication state handling
 "use client";
 
@@ -122,7 +123,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useLocationTracker();
 
-  // Ensure component is mounted on client
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -130,7 +130,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      // If they were on a portal page, send them to the portal login. Otherwise, landing page.
       if(pathname.startsWith('/department-dashboard') || pathname.startsWith('/portal')) {
         router.push("/portal/login");
       } else {
@@ -145,15 +144,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/portal/login';
 
   const userHasAccessToModule = (href: string) => {
-    // Admins see everything
     if (userProfile?.userType === 'admin') return true;
     
-    // If user is not in a branch or branch has no specific permissions, show all
     if (!branchData || !branchData.accessibleModules || branchData.accessibleModules.length === 0) {
       return true;
     }
     
-    // Check if the module href is in the branch's accessible modules
     return branchData.accessibleModules.includes(href);
   };
   
@@ -168,12 +164,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const visibleElectionModules = electionModules.filter(item => userHasAccessToModule(item.href));
 
 
-  // Don't render anything until mounted (prevents SSR issues)
   if (!mounted) {
     return null;
   }
   
-  // For auth pages or landing page (if user not logged in), render without app shell
   if (isAuthPage || !user) {
      return (
       <div className="min-h-screen bg-background">
@@ -182,7 +176,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show loading state while checking authentication
   if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -191,7 +184,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // User is logged in, render with sidebar
   return (
     <SidebarProvider>
       <Sidebar>

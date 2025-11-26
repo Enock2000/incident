@@ -73,11 +73,21 @@ export function ReportIncidentForm() {
 
 
   const relevantDepartments = useMemo(() => {
-      const selectedType = incidentTypes?.find(t => t.id === category);
-      if (!selectedType || !departments) return [];
+      if (!category || !departments || !incidentTypes) return [];
       
-      const categoryName = selectedType.name;
-      return departments.filter(d => d.incidentTypesHandled?.includes(categoryName)) || [];
+      const selectedType = incidentTypes.find(t => t.id === category);
+      if (!selectedType) return [];
+
+      let categoryName: string | undefined = selectedType.name;
+
+      // If the selected type is a sub-category, we might need to check based on the parent's name
+      if (selectedType.parentId) {
+          const parentType = incidentTypes.find(t => t.id === selectedType.parentId);
+          // Let's assume departments can be assigned to either parent or child categories explicitly.
+          // For simplicity, we just use the selected type's name. More complex logic could go here.
+      }
+      
+      return departments.filter(d => d.incidentTypesHandled?.includes(categoryName!)) || [];
   }, [category, departments, incidentTypes]);
   
 
@@ -86,13 +96,7 @@ export function ReportIncidentForm() {
       toast({
         variant: "destructive",
         title: "Validation Error",
-        description: (
-          <ul className="list-disc pl-5">
-            {state.issues?.map((issue, i) => (
-              <li key={i}>{issue}</li>
-            ))}
-          </ul>
-        ),
+        description: state.message
       });
     } else if (state?.success === true) {
         toast({
@@ -103,7 +107,6 @@ export function ReportIncidentForm() {
   }, [state, toast]);
   
   const handleSuggestedCategoryClick = (suggestedCategory: string) => {
-    // We check if the AI suggestion matches the `name` of any of our types
     const matchedType = incidentTypes?.find(type => type.name === suggestedCategory);
     if (matchedType) {
         setCategory(matchedType.id);
@@ -144,7 +147,6 @@ export function ReportIncidentForm() {
 
   return (
     <form action={formAction} className="space-y-6">
-      {/* Hidden input to pass the user ID to the server action */}
       {user && <input type="hidden" name="userId" value={user.uid} />}
       {latitude && <input type="hidden" name="latitude" value={latitude} />}
       {longitude && <input type="hidden" name="longitude" value={longitude} />}
@@ -180,8 +182,6 @@ export function ReportIncidentForm() {
               {rootCategories.map(rootCat => (
                 <SelectGroup key={rootCat.id}>
                   <SelectLabel>{rootCat.name}</SelectLabel>
-                  {/* Option to select the parent category itself */}
-                  <SelectItem value={rootCat.id}>{rootCat.name} (General)</SelectItem>
                   {subCategories.get(rootCat.id)?.map(subCat => (
                     <SelectItem key={subCat.id} value={subCat.id} className="pl-8">
                       {subCat.name}
@@ -221,8 +221,8 @@ export function ReportIncidentForm() {
            <AlertDescription>
              Based on your description, we suggest the following categories:
              <div className="flex gap-2 mt-2">
-              {state.aiSuggestions.category.map(c => (
-                 <Button key={c} size="sm" variant="outline" onClick={() => handleSuggestedCategoryClick(c)}>{c}</Button>
+              {state.aiSuggestions.category.map((c: string) => (
+                 <Button key={c} size="sm" variant="outline" type="button" onClick={() => handleSuggestedCategoryClick(c)}>{c}</Button>
               ))}
              </div>
            </AlertDescription>

@@ -5,9 +5,9 @@ export type IncidentStatus =
   | 'Team Dispatched'
   | 'In Progress'
   | 'Resolved'
-  | 'Rejected'; // Added Rejected status
+  | 'Rejected';
 
-export type Priority = 'Low' | 'Medium' | 'High' | 'Critical'; // Added Critical
+export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export type UserRole =
   | 'citizen'
@@ -17,9 +17,8 @@ export type UserRole =
   | 'dataAnalyst';
 
 export type Reporter = {
-  isAnonymous: boolean;
   userId: string | null;
-  name?: string; // This can be populated later from the user profile
+  name?: string; 
 };
 
 export type UserProfile = {
@@ -29,7 +28,7 @@ export type UserProfile = {
   email: string;
   userType: UserRole;
   departmentId?: string;
-  branchId?: string; // Add branchId to user profile
+  branchId?: string;
   nrc?: string;
   province?: string;
   district?: string;
@@ -40,10 +39,11 @@ export type UserProfile = {
 };
 
 export type InvestigationNote = {
+    id: string;
     note: string;
     authorId: string;
     authorName: string;
-    timestamp: any; // Firebase Timestamp
+    timestamp: any; 
 }
 
 export type Responder = 'Police' | 'Fire' | 'Ambulance';
@@ -58,15 +58,15 @@ export type Incident = {
   id: string;
   title: string;
   description: string;
-  location: IncidentLocation | any; // Use object for structured location
+  location: IncidentLocation | any;
   status: IncidentStatus;
   priority: Priority;
-  dateReported: any; // Using `any` for Firebase Timestamp
+  dateReported: any; 
   reporter?: Reporter;
   media: string[];
   category: string;
   departmentId?: string | null;
-investigationNotes?: Record<string, InvestigationNote>; // RTDB uses objects for lists
+  investigationNotes?: Record<string, InvestigationNote>;
   aiMetadata?: {
     suggestedCategories?: string[];
     isDuplicate?: boolean;
@@ -95,7 +95,7 @@ export type PollingStation = {
     hasPowerOutage: boolean;
     hasTamperingReport: boolean;
     registeredVoters: number;
-    lastCheckin: number; // as timestamp
+    lastCheckin: number; 
     location: {
         latitude: number;
         longitude: number;
@@ -107,7 +107,7 @@ export type Branch = {
     name: string;
     province: string;
     district: string;
-    address: string;
+    address?: string;
     accessibleModules?: string[];
 }
 
@@ -131,6 +131,7 @@ export type Department = {
     escalationRules?: string;
     priorityAssignmentRules?: string;
     incidentTypesHandled?: string[];
+    accessibleModules?: string[];
     branches?: Record<string, Branch>;
     assets?: Record<string, Asset>;
     created_at?: any;
@@ -140,10 +141,86 @@ export type Department = {
 export type IncidentType = {
     id: string;
     name: string;
-    // The 'category' field now links to a parent IncidentType
-    // to form a hierarchy. If it's a top-level category, it won't have a parentId.
     parentId?: string | null;
     isEnabled: boolean;
-    defaultSeverity: Priority;
-    order: number; // For custom sorting
+    defaultSeverity?: Priority;
+    order?: number;
 };
+
+export type Severity = {
+    id: string;
+    name: string;
+    level: number;
+    color: string;
+}
+
+export type DepartmentRule = {
+    id: string;
+    incidentTypeId: string;
+    departmentId: string;
+    priority: number;
+}
+
+export type Escalation = {
+    id: string;
+    name: string;
+    waitMinutes: number;
+}
+
+export type Status = {
+    id: string;
+    name: string;
+    order: number;
+}
+
+export type Location = {
+    id: string;
+    name: string;
+    type: 'province' | 'district' | 'ward' | 'village';
+    parentId?: string | null;
+}
+
+export type Sla = {
+    id: string;
+    incidentTypeId: string;
+    severityId: string;
+    responseMinutes: number;
+}
+
+export type NotificationRule = {
+    id: string;
+    name: string;
+    channels: string[];
+    incidentTypes: string[];
+}
+
+export type CustomField = {
+    id: string;
+    name: string;
+    type: 'text' | 'number' | 'select' | 'checkbox' | 'date' | 'file';
+    options?: string[];
+}
+
+export type Role = {
+    id: string;
+    name: string;
+    permissions: string[];
+}
+
+export type AuditEntry = {
+    id: string;
+    timestamp: any;
+    user: string;
+    action: string;
+    details: string;
+}
+
+export type IntegrationSettings = {
+    smsGateway?: string;
+    emailServer?: string;
+    mapProvider?: string;
+}
+
+export type ElectionMode = {
+    enabled: boolean;
+}
