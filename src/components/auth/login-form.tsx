@@ -57,8 +57,11 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
              router.push('/');
           } else if (userProfile.userType === 'staff' && userProfile.departmentId) {
              router.push('/department-dashboard');
-          } else {
+          } else if (userProfile.userType === 'citizen') {
             router.push('/citizen');
+          } else {
+            setFirebaseError("Your user role is not configured correctly. Access denied.");
+            await auth.signOut();
           }
         } else {
            setFirebaseError("User profile not found. Please contact support.");
