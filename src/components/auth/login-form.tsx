@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -54,15 +53,11 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
         if (snapshot.exists()) {
           const userProfile: UserProfile = snapshot.val();
           
-          if (portal === 'department') {
-            if (userProfile.departmentId) {
-              router.push('/department-dashboard');
-            } else {
-              setFirebaseError("You are not authorized to access this portal. Please contact an administrator.");
-              await auth.signOut();
-            }
+          if (userProfile.userType === 'admin') {
+             router.push('/');
+          } else if (userProfile.userType === 'staff' && userProfile.departmentId) {
+             router.push('/department-dashboard');
           } else {
-            // Citizen portal redirection
             router.push('/citizen');
           }
         } else {
