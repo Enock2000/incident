@@ -13,9 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ref, get } from "firebase/database";
 import type { UserProfile } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -28,7 +28,7 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
   const auth = useAuth();
   const database = useDatabase();
   const router = useRouter();
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -41,7 +41,6 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
 
   const handleLogin: SubmitHandler<LoginFormInputs> = async (data) => {
     setIsSubmitting(true);
-    setFirebaseError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
@@ -55,16 +54,18 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
           
           if (userProfile.userType === 'admin') {
              router.push('/');
-          } else if (userProfile.userType === 'staff' && userProfile.departmentId) {
+          } else if (userProfile.userType === 'staff') {
              router.push('/department-dashboard');
           } else if (userProfile.userType === 'citizen') {
             router.push('/citizen');
           } else {
-            setFirebaseError("Your user role is not configured correctly. Access denied.");
+            const errorMessage = "Your user role is not configured correctly. Access denied.";
+            toast({ variant: "destructive", title: "Login Failed", description: errorMessage });
             await auth.signOut();
           }
         } else {
-           setFirebaseError("User profile not found. Please contact support.");
+           const errorMessage = "User profile not found. Please contact support.";
+           toast({ variant: "destructive", title: "Login Failed", description: errorMessage });
            await auth.signOut();
         }
       }
@@ -84,7 +85,7 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
            errorMessage = "Too many failed login attempts. Please try again later.";
            break;
       }
-      setFirebaseError(errorMessage);
+      toast({ variant: "destructive", title: "Login Failed", description: errorMessage });
     } finally {
         setIsSubmitting(false);
     }
@@ -107,13 +108,6 @@ export function LoginForm({ portal = 'citizen' }: { portal?: 'citizen' | 'depart
         <Input id="password" type="password" {...register("password")} />
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
-
-      {firebaseError && (
-        <Alert variant="destructive">
-          <AlertTitle>Login Failed</AlertTitle>
-          <AlertDescription>{firebaseError}</AlertDescription>
-        </Alert>
-      )}
 
       <Button type="submit" disabled={isSubmitting} className="w-full">
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
