@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -13,7 +12,15 @@ import {
   SidebarInset,
   SidebarTrigger,
   SidebarSeparator,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ZtisLogo } from "@/components/icons";
 import {
   Home,
@@ -44,6 +51,7 @@ import {
   Swords,
   ListOrdered,
   SlidersHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -84,21 +92,25 @@ const portalManagementItems = [
 ];
 
 const electionModules = [
-  { href: "/election-incident-reporting", label: "Election Incident Reporting", icon: Vote },
-  { href: "/polling-station-monitoring", label: "Polling Station Monitoring", icon: Monitor },
-  { href: "/election-security-alerts", label: "Election Security Alerts", icon: Siren },
-  { href: "/voter-safety-incident", label: "Voter Safety Incident", icon: UserCheck },
-  { href: "/violence-intimidation-monitoring", label: "Violence & Intimidation", icon: Swords },
-  { href: "/political-activity-tracking", label: "Political Activity Tracking", icon: Flag },
-  { href: "/crowd-queue-management", label: "Crowd & Queue Management", icon: Users2 },
-  { href: "/illegal-campaign-activity", label: "Illegal Campaign Activity", icon: Scale },
-  { href: "/electoral-material-damage", label: "Electoral Material Damage", icon: Archive },
-  { href: "/polling-staff-emergency-support", label: "Polling Staff Support", icon: HelpCircle },
-  { href: "/election-logistics-disruption", label: "Logistics Disruption", icon: Truck },
-  { href: "/fake-news-misinformation", label: "Fake News & Misinformation", icon: FileWarning },
-  { href: "/transportation-route-monitoring", label: "Transport Monitoring", icon: Route },
-  { href: "/election-day-weather-risk", label: "Weather & Risk", icon: CloudSun },
-  { href: "/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
+  { href: "/elections", label: "Elections Dashboard", icon: Vote },
+];
+
+const electionSubModules = [
+  { href: "/elections/election-incident-reporting", label: "Incident Reporting", icon: Vote },
+  { href: "/elections/polling-station-monitoring", label: "Polling Stations", icon: Monitor },
+  { href: "/elections/election-security-alerts", label: "Security Alerts", icon: Siren },
+  { href: "/elections/voter-safety-incident", label: "Voter Safety", icon: UserCheck },
+  { href: "/elections/violence-intimidation-monitoring", label: "Violence & Intimidation", icon: Swords },
+  { href: "/elections/political-activity-tracking", label: "Political Activity", icon: Flag },
+  { href: "/elections/crowd-queue-management", label: "Crowd & Queues", icon: Users2 },
+  { href: "/elections/illegal-campaign-activity", label: "Illegal Campaigning", icon: Scale },
+  { href: "/elections/electoral-material-damage", label: "Material Damage", icon: Archive },
+  { href: "/elections/polling-staff-emergency-support", label: "Staff Support", icon: HelpCircle },
+  { href: "/elections/election-logistics-disruption", label: "Logistics", icon: Truck },
+  { href: "/elections/fake-news-misinformation", label: "Misinformation", icon: FileWarning },
+  { href: "/elections/transportation-route-monitoring", label: "Transport", icon: Route },
+  { href: "/elections/election-day-weather-risk", label: "Weather Risk", icon: CloudSun },
+  { href: "/elections/post-election-conflict-monitoring", label: "Post-Election Conflict", icon: Shield },
 ];
 
 export const allModules = [
@@ -177,20 +189,41 @@ function PortalShell({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem>
                 <span className="text-xs text-muted-foreground px-2 font-semibold">Election Modules</span>
               </SidebarMenuItem>
-              {visibleElectionModules.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href}>
-                    <SidebarMenuButton isActive={pathname.startsWith(item.href)} tooltip={item.label}>
-                      <item.icon />
-                      <span>{item.label}</span>
+
+              <Collapsible asChild defaultOpen={pathname.startsWith("/elections")} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton tooltip="Elections">
+                      <Vote />
+                      <span>Elections</span>
+                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
-                  </Link>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={pathname === "/elections"}>
+                          <Link href="/elections">
+                            <span>Dashboard</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      {electionSubModules.map((item) => (
+                        <SidebarMenuSubItem key={item.href}>
+                          <SidebarMenuSubButton asChild isActive={pathname.startsWith(item.href)}>
+                            <Link href={item.href}>
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
                 </SidebarMenuItem>
-              ))}
+              </Collapsible>
             </SidebarMenu>
           )}
         </SidebarContent>
-
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
