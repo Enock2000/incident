@@ -12,13 +12,19 @@ import { formatDistanceToNow } from 'date-fns';
 export default function ElectionSecurityAlertsPage() {
   const database = useDatabase();
   const alertsQuery = useMemoFirebase(() =>
-    database ? query(ref(database, 'incidents'), orderByChild('category'), equalTo('Public Disturbance')) : null,
+    database ? query(ref(database, 'incidents')) : null,
     [database]
   );
-  const { data: alerts, isLoading } = useCollection<Incident>(alertsQuery);
+  const { data: allIncidents, isLoading } = useCollection<Incident>(alertsQuery);
+
+  const alerts = allIncidents?.filter(incident =>
+    (incident.priority === 'High' || incident.priority === 'Critical') &&
+    incident.status !== 'Resolved' &&
+    incident.status !== 'Rejected'
+  );
 
   const getLevel = (priority: string) => {
-    switch(priority) {
+    switch (priority) {
       case 'Critical': return 'Critical';
       case 'High': return 'High';
       case 'Medium': return 'Medium';
