@@ -16,7 +16,7 @@ interface PermissionGateProps {
  *   <DeleteButton />
  * </PermissionGate>
  */
-export function PermissionGate({ permission, children, fallback = null }: Permission GateProps) {
+export function PermissionGate({ permission, children, fallback = null }: PermissionGateProps) {
     const { user } = useAuthUser();
 
     if (!user || !hasPermission(user.userType, permission)) {
