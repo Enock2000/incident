@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { UserRole } from '@/lib/types';
+import { getAuthenticatedUser, requirePermission, requireIncidentAccess, requireDepartmentAccess } from '@/lib/server-auth';
 
 
 /* ---------- types ---------- */
@@ -337,10 +338,18 @@ export async function updateIncident(formData: FormData) {
     if (!v.success) return errorState('Invalid data');
     const { incidentId, ...updates } = v.data;
     if (!Object.keys(updates).length) return errorState('No updates provided.');
+
+    // Check permission and access
+    const { user, incident } = await requireIncidentAccess(incidentId);
+
+    // Verify user can update incidents
+    await requirePermission('incidents.update');
+
     await db.ref(`incidents/${incidentId}`).update(updates);
     revalidatePath(`/incidents/${incidentId}`);
     return successState('Incident updated.');
   } catch (e: any) {
+    console.error('Update incident error:', e);
     return errorState(e.message);
   }
 }
@@ -357,11 +366,16 @@ export async function addInvestigationNote(_: any, formData: FormData) {
     const v = NoteSchema.safeParse(Object.fromEntries(formData));
     if (!v.success) return errorState('Invalid data');
     const { incidentId, userId, userName, note } = v.data;
+
+    // Check access to incident
+    await requireIncidentAccess(incidentId);
+
     const ref = db.ref(`incidents/${incidentId}/investigationNotes`).push();
     await ref.set({ id: ref.key, note, authorId: userId, authorName: userName, timestamp: new Date().toISOString() });
     revalidatePath(`/incidents/${incidentId}`);
     return successState('Note added.');
   } catch (e: any) {
+    console.error('Add investigation note error:', e);
     return errorState(e.message);
   }
 }
@@ -376,6 +390,13 @@ export async function assignResponder(formData: FormData) {
     const v = AssignResponderSchema.safeParse(Object.fromEntries(formData));
     if (!v.success) return errorState('Invalid data');
     const { incidentId, responder } = v.data;
+
+    // Check permission to assign incidents
+    await requirePermission('incidents.assign');
+
+    // Check access to incident
+    await requireIncidentAccess(incidentId);
+
     await db.ref(`incidents/${incidentId}`).update({
       assignedTo: responder,
       status: 'Team Dispatched',
@@ -384,6 +405,7 @@ export async function assignResponder(formData: FormData) {
     revalidatePath(`/incidents/${incidentId}`);
     return successState(`Assigned to ${responder}.`);
   } catch (e: any) {
+    console.error('Assign responder error:', e);
     return errorState(e.message);
   }
 }
@@ -404,28 +426,51 @@ const DepartmentSchema = z.object({
   priorityAssignmentRules: z.string().optional(),
   accessibleModules: z.array(z.string()).optional(),
 });
-
 export async function createDepartment(_: any, formData: FormData) {
-  const raw = {
-    ...Object.fromEntries(formData),
-    incidentTypesHandled: formData.getAll('incidentTypesHandled'),
-    accessibleModules: formData.getAll('accessibleModules'),
-  };
-  if (raw.category === 'Other' && raw.otherCategory) raw.category = raw.otherCategory;
-  return handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+  try {
+    // Only admins can create departments
+    await requirePermission('departments.manage');
+
+    const raw: any = {
+      ...Object.fromEntries(formData),
+      incidentTypesHandled: formData.getAll('incidentTypesHandled'),
+      accessibleModules: formData.getAll('accessibleModules'),
+    };
+    if (raw.category === 'Other' && raw.otherCategory) raw.category = raw.otherCategory;
+    return handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+  } catch (e: any) {
+    console.error('Create department error:', e);
+    return errorState(e.message);
+  }
 }
 
 export async function updateDepartment(_: any, formData: FormData) {
-  const raw = {
-    ...Object.fromEntries(formData),
-    incidentTypesHandled: formData.getAll('incidentTypesHandled'),
-    accessibleModules: formData.getAll('accessibleModules'),
-  };
-  return handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+  try {
+    // Only admins can update departments
+    await requirePermission('departments.manage');
+
+    const raw = {
+      ...Object.fromEntries(formData),
+      incidentTypesHandled: formData.getAll('incidentTypesHandled'),
+      accessibleModules: formData.getAll('accessibleModules'),
+    };
+    return handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+  } catch (e: any) {
+    console.error('Update department error:', e);
+    return errorState(e.message);
+  }
 }
 
 export async function deleteDepartment(formData: FormData) {
-  return handleDelete('departments', formData, '/departments');
+  try {
+    // Only admins can delete departments
+    await requirePermission('departments.manage');
+
+    return handleDelete('departments', formData, '/departments');
+  } catch (e: any) {
+    console.error('Delete department error:', e);
+    return errorState(e.message);
+  }
 }
 
 /* ---------- branches ---------- */
@@ -540,7 +585,7 @@ export async function signup(_: any, formData: FormData): Promise<ActionState & 
     };
 
     await db.ref(`users/${userRecord.uid}`).set(userProfile);
-    
+
     return successState('Signup successful!', userRecord.uid);
   } catch (error: any) {
     console.error("Signup error:", error);

@@ -25,272 +25,287 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { allModules } from "@/components/layout/app-shell";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 interface DepartmentDetailsPageProps {
-  params: { id: string };
+    params: { id: string };
 }
 
 interface DepartmentDetailsProps {
-  id: string;
+    id: string;
 }
 
 function DepartmentDetails({ id }: DepartmentDetailsProps) {
-  const router = useRouter();
-  const database = useDatabase();
+    const router = useRouter();
+    const database = useDatabase();
 
-  const deptRef = useMemoFirebase(() => database ? ref(database, `departments/${id}`) : null, [database, id]);
-  const { data: department, isLoading } = useDoc<Department>(deptRef);
-  
-  const staffQuery = useMemoFirebase(() =>
-    database ? query(ref(database, 'users'), orderByChild('departmentId'), equalTo(id)) : null
-  , [database, id]);
+    const deptRef = useMemoFirebase(() => database ? ref(database, `departments/${id}`) : null, [database, id]);
+    const { data: department, isLoading } = useDoc<Department>(deptRef);
 
-  const { data: staff, isLoading: isStaffLoading } = useCollection<UserProfile>(staffQuery);
+    const staffQuery = useMemoFirebase(() =>
+        database ? query(ref(database, 'users'), orderByChild('departmentId'), equalTo(id)) : null
+        , [database, id]);
 
-  if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
-  }
+    const { data: staff, isLoading: isStaffLoading } = useCollection<UserProfile>(staffQuery);
 
-  if (!department) {
-    notFound();
-  }
-  
-  const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...(branch as Branch), id: branchId })) : [];
+    if (isLoading) {
+        return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    }
 
-  return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-       <div className="flex items-center space-x-4 mb-4">
-         <Link href="/departments" passHref>
-            <Button variant="outline" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-            </Button>
-         </Link>
-         <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold tracking-tight font-headline">
-            {department.name}
-            </h1>
-            <Badge variant="secondary">{department.category}</Badge>
-         </div>
-         <div className="ml-auto">
-            <Link href={`/departments/${department.id}/edit`}>
-              <Button>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Department
-              </Button>
-            </Link>
-          </div>
-       </div>
+    if (!department) {
+        notFound();
+    }
 
-        <Tabs defaultValue="overview">
-            <TabsList className="mb-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="branches">Branches</TabsTrigger>
-                <TabsTrigger value="staff">Staff / Users</TabsTrigger>
-                <TabsTrigger value="assets">Assets</TabsTrigger>
-                <TabsTrigger value="performance">Performance</TabsTrigger>
-            </TabsList>
+    const branchesList = department?.branches ? Object.entries(department.branches).map(([branchId, branch]) => ({ ...(branch as Branch), id: branchId })) : [];
 
-            <TabsContent value="overview">
-                <div className="grid gap-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Core Information</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> <strong>Location:</strong> {department.province}, {department.district}</div>
-                            <div className="flex items-center gap-2"><Building className="h-4 w-4 text-muted-foreground" /> <strong>Address:</strong> {department.officeAddress || 'N/A'}</div>
-                            <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Landline:</strong> {department.contactNumbers?.landline || 'N/A'}</div>
-                            <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /> <strong>Hours:</strong> {department.operatingHours || 'N/A'}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Operational Settings</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <h4 className="font-semibold flex items-center gap-2"><ListChecks className="h-4 w-4"/> Incident Types Handled</h4>
-                                <p className="text-muted-foreground">{department.incidentTypesHandled?.join(', ') || 'Not specified'}</p>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold flex items-center gap-2"><ArrowUpCircle className="h-4 w-4"/> Escalation Rules</h4>
-                                <p className="text-muted-foreground">{department.escalationRules || 'Not specified'}</p>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4"/> Priority Assignment Rules</h4>
-                                <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+    return (
+
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            <div className="flex items-center space-x-4 mb-4">
+                <Link href="/departments" passHref>
+                    <Button variant="outline" size="icon" className="h-8 w-8">
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="sr-only">Back</span>
+                    </Button>
+                </Link>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold tracking-tight font-headline">
+                        {department.name}
+                    </h1>
+                    <Badge variant="secondary">{department.category}</Badge>
                 </div>
-            </TabsContent>
-            
-            <TabsContent value="branches">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Branches</CardTitle>
-                            <CardDescription>Manage the physical branches for this department.</CardDescription>
-                        </div>
-                        <AddBranchDialog departmentId={department.id} />
-                    </CardHeader>
-                    <CardContent>
-                        {branchesList.length > 0 ? (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Branch Name</TableHead>
-                                        <TableHead>Location</TableHead>
-                                        <TableHead>Accessible Modules</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {branchesList.map(branch => (
-                                        <TableRow key={branch.id}>
-                                            <TableCell className="font-medium">{branch.name}</TableCell>
-                                            <TableCell>{branch.district}, {branch.province}</TableCell>
-                                            <TableCell className="max-w-xs">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {branch.accessibleModules?.map(m => <Badge variant="secondary" key={m}>{allModules.find(mod => mod.href === m)?.label || m}</Badge>) ?? <span className="text-muted-foreground text-xs">All</span>}
-                                                </div>
-                                            </TableCell>
+                <div className="ml-auto">
+                    <PermissionGate permission="departments.manage">
+                        <Link href={`/departments/${department.id}/edit`}>
+                            <Button>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Department
+                            </Button>
+                        </Link>
+                    </PermissionGate>
+                </div>
+            </div>
+
+            <Tabs defaultValue="overview">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="branches">Branches</TabsTrigger>
+                    <TabsTrigger value="staff">Staff / Users</TabsTrigger>
+                    <TabsTrigger value="assets">Assets</TabsTrigger>
+                    <TabsTrigger value="performance">Performance</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview">
+                    <div className="grid gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Core Information</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
+                                <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> <strong>Location:</strong> {department.province}, {department.district}</div>
+                                <div className="flex items-center gap-2"><Building className="h-4 w-4 text-muted-foreground" /> <strong>Address:</strong> {department.officeAddress || 'N/A'}</div>
+                                <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Landline:</strong> {department.contactNumbers?.landline || 'N/A'}</div>
+                                <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /> <strong>Hours:</strong> {department.operatingHours || 'N/A'}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Operational Settings</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <h4 className="font-semibold flex items-center gap-2"><ListChecks className="h-4 w-4" /> Incident Types Handled</h4>
+                                    <p className="text-muted-foreground">{department.incidentTypesHandled?.join(', ') || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold flex items-center gap-2"><ArrowUpCircle className="h-4 w-4" /> Escalation Rules</h4>
+                                    <p className="text-muted-foreground">{department.escalationRules || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Priority Assignment Rules</h4>
+                                    <p className="text-muted-foreground">{department.priorityAssignmentRules || 'Not specified'}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="branches">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Branches</CardTitle>
+                                <CardDescription>Manage the physical branches for this department.</CardDescription>
+                            </div>
+                            <PermissionGate permission="departments.manage">
+                                <AddBranchDialog departmentId={department.id} />
+                            </PermissionGate>
+                        </CardHeader>
+                        <CardContent>
+                            {branchesList.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Branch Name</TableHead>
+                                            <TableHead>Location</TableHead>
+                                            <TableHead>Accessible Modules</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center text-center p-10 min-h-[200px]">
-                                <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                                <Home className="h-10 w-10 text-primary" />
+                                    </TableHeader>
+                                    <TableBody>
+                                        {branchesList.map(branch => (
+                                            <TableRow key={branch.id}>
+                                                <TableCell className="font-medium">{branch.name}</TableCell>
+                                                <TableCell>{branch.district}, {branch.province}</TableCell>
+                                                <TableCell className="max-w-xs">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {branch.accessibleModules?.map(m => <Badge variant="secondary" key={m}>{allModules.find(mod => mod.href === m)?.label || m}</Badge>) ?? <span className="text-muted-foreground text-xs">All</span>}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center p-10 min-h-[200px]">
+                                    <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                                        <Home className="h-10 w-10 text-primary" />
+                                    </div>
+                                    <h3 className="mt-4 text-xl font-headline">
+                                        No Branches Found
+                                    </h3>
+                                    <p className="text-muted-foreground">
+                                        Add your first branch to get started.
+                                    </p>
+                                    <div className="mt-4">
+                                        <PermissionGate permission="departments.manage">
+                                            <AddBranchDialog departmentId={department.id} />
+                                        </PermissionGate>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="staff">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Staff & Roles</CardTitle>
+                                <CardDescription>Manage staff members assigned to this department.</CardDescription>
+                            </div>
+                            <PermissionGate permission="departments.manage">
+                                <AssignStaffDialog departmentId={department.id} branches={branchesList} />
+                            </PermissionGate>
+                        </CardHeader>
+                        <CardContent>
+                            {isStaffLoading ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : staff && staff.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Branch</TableHead>
+                                            <TableHead>Role</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {staff.map(member => (
+                                            <TableRow key={member.id}>
+                                                <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
+                                                <TableCell>{member.email}</TableCell>
+                                                <TableCell>{branchesList.find(b => b.id === member.branchId)?.name || 'N/A'}</TableCell>
+                                                <TableCell><Badge variant="secondary">{member.userType}</Badge></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center p-10 min-h-[200px]">
+                                    <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                                        <Users className="h-10 w-10 text-primary" />
+                                    </div>
+                                    <h3 className="mt-4 text-xl font-headline">
+                                        No Staff Assigned
+                                    </h3>
+                                    <p className="text-muted-foreground">
+                                        Assign staff members to this department to manage roles and permissions.
+                                    </p>
+                                    <div className="mt-4">
+                                        <PermissionGate permission="departments.manage">
+                                            <AssignStaffDialog departmentId={department.id} branches={branchesList} />
+                                        </PermissionGate>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="assets">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>Assets</CardTitle>
+                            <PermissionGate permission="departments.manage">
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Asset
+                                </Button>
+                            </PermissionGate>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
+                            <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                                <Package className="h-10 w-10 text-primary" />
                             </div>
                             <h3 className="mt-4 text-xl font-headline">
-                                No Branches Found
+                                No Assets Found
                             </h3>
                             <p className="text-muted-foreground">
-                                Add your first branch to get started.
+                                Track vehicles, equipment, and other assets for this department.
                             </p>
-                            <div className="mt-4">
-                                <AddBranchDialog departmentId={department.id} />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="performance">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Department Performance</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
+                            <div className="mx-auto bg-primary/10 p-4 rounded-full">
+                                <BarChart2 className="h-10 w-10 text-primary" />
                             </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
+                            <h3 className="mt-4 text-xl font-headline">
+                                Performance Data Unavailable
+                            </h3>
+                            <p className="text-muted-foreground">
+                                Performance analytics for this department will be available soon.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-            <TabsContent value="staff">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Staff & Roles</CardTitle>
-                            <CardDescription>Manage staff members assigned to this department.</CardDescription>
-                        </div>
-                        <AssignStaffDialog departmentId={department.id} branches={branchesList} />
-                    </CardHeader>
-                     <CardContent>
-                        {isStaffLoading ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : staff && staff.length > 0 ? (
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Branch</TableHead>
-                                        <TableHead>Role</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {staff.map(member => (
-                                        <TableRow key={member.id}>
-                                            <TableCell className="font-medium">{member.firstName} {member.lastName}</TableCell>
-                                            <TableCell>{member.email}</TableCell>
-                                             <TableCell>{branchesList.find(b => b.id === member.branchId)?.name || 'N/A'}</TableCell>
-                                            <TableCell><Badge variant="secondary">{member.userType}</Badge></TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        ) : (
-                             <div className="flex flex-col items-center justify-center text-center p-10 min-h-[200px]">
-                                <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                                <Users className="h-10 w-10 text-primary" />
-                                </div>
-                                <h3 className="mt-4 text-xl font-headline">
-                                    No Staff Assigned
-                                </h3>
-                                <p className="text-muted-foreground">
-                                    Assign staff members to this department to manage roles and permissions.
-                                </p>
-                                <div className="mt-4">
-                                    <AssignStaffDialog departmentId={department.id} branches={branchesList} />
-                                </div>
-                             </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
+            </Tabs>
+        </div>
 
-            <TabsContent value="assets">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Assets</CardTitle>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Add Asset
-                        </Button>
-                    </CardHeader>
-                     <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
-                        <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                           <Package className="h-10 w-10 text-primary" />
-                       </div>
-                       <h3 className="mt-4 text-xl font-headline">
-                           No Assets Found
-                       </h3>
-                       <p className="text-muted-foreground">
-                           Track vehicles, equipment, and other assets for this department.
-                       </p>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-            <TabsContent value="performance">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Department Performance</CardTitle>
-                    </CardHeader>
-                     <CardContent className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
-                         <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                            <BarChart2 className="h-10 w-10 text-primary" />
-                        </div>
-                        <h3 className="mt-4 text-xl font-headline">
-                            Performance Data Unavailable
-                        </h3>
-                        <p className="text-muted-foreground">
-                            Performance analytics for this department will be available soon.
-                        </p>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
-        </Tabs>
-    </div>
-  );
+    );
 }
 
 export default function DepartmentDetailsPage({ params }: DepartmentDetailsPageProps) {
-  const { id } = params;
-  return <DepartmentDetails id={id} />;
+    const { id } = params;
+    return <DepartmentDetails id={id} />;
 }
 
 
 function SubmitButton({ children, ...props }: React.ComponentProps<typeof Button>) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} {...props}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      {children}
-    </Button>
-  );
+    const { pending } = useFormStatus();
+    return (
+        <Button type="submit" disabled={pending} {...props}>
+            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {children}
+        </Button>
+    );
 }
 
 
@@ -315,21 +330,21 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
     };
 
     const handleModuleToggle = (moduleHref: string) => {
-        setAccessibleModules(prev => 
-            prev.includes(moduleHref) 
-            ? prev.filter(m => m !== moduleHref) 
-            : [...prev, moduleHref]
+        setAccessibleModules(prev =>
+            prev.includes(moduleHref)
+                ? prev.filter(m => m !== moduleHref)
+                : [...prev, moduleHref]
         );
     }
-    
+
     useEffect(() => {
-        if(state.message) {
-            if(state.success) {
+        if (state.message) {
+            if (state.success) {
                 toast({ title: 'Success', description: state.message });
                 setIsOpen(false);
                 setAccessibleModules([]);
             } else {
-                 toast({ variant: 'destructive', title: 'Error', description: state.message });
+                toast({ variant: 'destructive', title: 'Error', description: state.message });
             }
         }
     }, [state, toast])
@@ -357,7 +372,7 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="province">Province</Label>
-                             <Select name="province" value={province} onValueChange={handleProvinceChange}>
+                            <Select name="province" value={province} onValueChange={handleProvinceChange}>
                                 <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
                                 <SelectContent>
                                     {zambiaProvinces.map(p => (
@@ -382,47 +397,47 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                         <Label htmlFor="address">Address</Label>
                         <Input id="address" name="address" placeholder="e.g., 123 Main St" />
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                         <Label>Accessible Modules</Label>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
+                                    variant="outline"
+                                    role="combobox"
+                                    className="w-full justify-between"
                                 >
-                                <span className="truncate">
-                                    {accessibleModules.length > 0 ? `${accessibleModules.length} selected` : 'Select modules...'}
-                                </span>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    <span className="truncate">
+                                        {accessibleModules.length > 0 ? `${accessibleModules.length} selected` : 'Select modules...'}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                 <Command>
-                                <CommandInput placeholder="Search modules..." />
-                                <CommandEmpty>No modules found.</CommandEmpty>
-                                <CommandGroup>
-                                    <CommandList>
-                                        {allModules.map((module) => (
-                                            <CommandItem
-                                            key={module.href}
-                                            onSelect={() => handleModuleToggle(module.href)}
-                                            >
-                                            <Check
-                                                className={cn(
-                                                "mr-2 h-4 w-4",
-                                                accessibleModules.includes(module.href) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {module.label}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandList>
-                                </CommandGroup>
+                                    <CommandInput placeholder="Search modules..." />
+                                    <CommandEmpty>No modules found.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandList>
+                                            {allModules.map((module) => (
+                                                <CommandItem
+                                                    key={module.href}
+                                                    onSelect={() => handleModuleToggle(module.href)}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            accessibleModules.includes(module.href) ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {module.label}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandList>
+                                    </CommandGroup>
                                 </Command>
                             </PopoverContent>
                         </Popover>
-                         <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap gap-1 mt-2">
                             {accessibleModules.map(href => (
                                 <Badge key={href} variant="secondary">{allModules.find(m => m.href === href)?.label}</Badge>
                             ))}
@@ -432,7 +447,7 @@ function AddBranchDialog({ departmentId }: { departmentId: string }) {
                         ))}
                     </div>
                     <div className="flex justify-end">
-                       <SubmitButton>Add Branch</SubmitButton>
+                        <SubmitButton>Add Branch</SubmitButton>
                     </div>
                 </form>
             </DialogContent>
@@ -446,7 +461,7 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
     const [selectedBranch, setSelectedBranch] = useState<string>('');
     const { toast } = useToast();
     const database = useDatabase();
-    
+
     const initialState = { success: false, message: "", issues: [] };
     const [state, formAction] = useActionState(assignStaffToDepartment, initialState);
 
@@ -456,14 +471,14 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
     const unassignedUsers = useMemo(() => allUsers?.filter(user => !user.departmentId) ?? [], [allUsers]);
 
     useEffect(() => {
-        if(state.message) {
-            if(state.success) {
+        if (state.message) {
+            if (state.success) {
                 toast({ title: 'Success', description: state.message });
                 setIsOpen(false);
                 setSelectedUser(null);
                 setSelectedBranch('');
             } else {
-                 toast({ variant: 'destructive', title: 'Error', description: state.message });
+                toast({ variant: 'destructive', title: 'Error', description: state.message });
             }
         }
     }, [state, toast])
@@ -471,7 +486,7 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button><UserPlus className="mr-2 h-4 w-4"/>Assign Staff</Button>
+                <Button><UserPlus className="mr-2 h-4 w-4" />Assign Staff</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -485,9 +500,9 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
                     <input type="hidden" name="userId" value={selectedUser?.id || ''} />
                     <input type="hidden" name="branchId" value={selectedBranch || ''} />
 
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                         <Label>User</Label>
-                         <Select onValueChange={(userId) => setSelectedUser(unassignedUsers.find(u => u.id === userId) || null)}>
+                        <Select onValueChange={(userId) => setSelectedUser(unassignedUsers.find(u => u.id === userId) || null)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a user...">
                                     {selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email})` : 'Select a user...'}
@@ -496,7 +511,7 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
                             <SelectContent>
                                 {usersLoading ? <div className="p-4 text-center">Loading...</div> : unassignedUsers.map(user => (
                                     <SelectItem key={user.id} value={user.id}>
-                                       {user.firstName} {user.lastName} ({user.email})
+                                        {user.firstName} {user.lastName} ({user.email})
                                     </SelectItem>
                                 ))}
                                 {!usersLoading && unassignedUsers.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No unassigned users found.</div>}
@@ -511,10 +526,10 @@ function AssignStaffDialog({ departmentId, branches }: { departmentId: string, b
                                 <SelectValue placeholder="Assign to a branch..." />
                             </SelectTrigger>
                             <SelectContent>
-                               {branches.map(branch => (
-                                 <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-                               ))}
-                               {branches.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No branches exist for this department.</div>}
+                                {branches.map(branch => (
+                                    <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                                ))}
+                                {branches.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No branches exist for this department.</div>}
                             </SelectContent>
                         </Select>
                     </div>

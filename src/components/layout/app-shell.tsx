@@ -66,6 +66,8 @@ import {
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
 import { useAuth, useUser } from "@/firebase";
+import { useAuthUser } from "@/hooks/use-auth-user";
+import { hasPermission } from "@/lib/permissions";
 import { signOut } from "firebase/auth";
 import { useLocationTracker } from "@/hooks/use-location-tracker";
 import React, { useEffect, useState } from "react";
@@ -124,17 +126,28 @@ function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user, userProfile } = useUser();
+  const { user } = useAuthUser();
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push("/portal/login");
   };
 
-  // For portal users, show all relevant modules (admin access assumed for now)
-  const visibleNavItems = portalNavItems;
-  const visibleManagementItems = portalManagementItems;
-  const visibleElectionModules = electionModules;
+  // Filter navigation items based on permissions
+  const visibleNavItems = portalNavItems.filter(item => {
+    if (item.href === '/analytics') return hasPermission(user?.userType, 'analytics.view');
+    return true;
+  });
+
+  const visibleManagementItems = portalManagementItems.filter(item => {
+    if (item.href === '/departments') return hasPermission(user?.userType, 'departments.manage');
+    if (item.href === '/staff') return hasPermission(user?.userType, 'users.manage');
+    if (item.href === '/assets') return hasPermission(user?.userType, 'departments.manage');
+    if (item.href === '/admin/configuration') return hasPermission(user?.userType, 'config.manage');
+    return false;
+  });
+
+  const visibleElectionModules = hasPermission(user?.userType, 'elections.access') ? electionModules : [];
 
   return (
     <SidebarProvider>

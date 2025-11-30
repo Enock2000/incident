@@ -1,0 +1,22 @@
+{
+    "rules": {
+        "incidents": {
+            "$incidentId": {
+                ".read": "auth != null && (root.child('users').child(auth.uid).child('userType').val() == 'admin' || root.child('users').child(auth.uid).child('userType').val() == 'dataAnalyst' || root.child('users').child(auth.uid).child('userType').val() == 'regionalAuthority' || (data.child('departmentId').val() == root.child('users').child(auth.uid).child('departmentId').val() && root.child('users').child(auth.uid).child('userType').val() == 'responseUnit') || (data.child('reporter').child('userId').val() == auth.uid && root.child('users').child(auth.uid).child('userType').val() == 'citizen'))",
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('userType').val() == 'admin' || root.child('users').child(auth.uid).child('userType').val() == 'regionalAuthority' || (data.child('departmentId').val() == root.child('users').child(auth.uid).child('departmentId').val() && root.child('users').child(auth.uid).child('userType').val() == 'responseUnit') || (!data.exists() && root.child('users').child(auth.uid).child('userType').val() == 'citizen'))"
+            }
+        },
+        "departments": {
+            ".read": "auth != null",
+            "$departmentId": {
+                ".write": "auth != null && root.child('users').child(auth.uid).child('userType').val() == 'admin'"
+            }
+        },
+        "users": {
+            "$userId": {
+                ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('userType').val() == 'admin' || root.child('users').child(auth.uid).child('userType').val() == 'responseUnit' || root.child('users').child(auth.uid).child('userType').val() == 'regionalAuthority')",
+                ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('userType').val() == 'admin')"
+            }
+        }
+    }
+}
