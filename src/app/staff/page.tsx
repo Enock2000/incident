@@ -1,129 +1,79 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
-import { ref, query } from "firebase/database";
-import type { UserProfile, Department } from "@/lib/types";
-import { Loader2, Users } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
+import { ref, query, orderByChild } from "firebase/database";
+import type { UserProfile } from "@/lib/types";
+import { PlusCircle, UserCog, Loader2 } from "lucide-react";
+import { CreateStaffDialog } from "@/components/staff/create-staff-dialog";
+import { StaffTable } from "@/components/staff/staff-table";
+import { useAuthUser } from "@/hooks/use-auth-user";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-export default function StaffPage() {
+export default function StaffManagementPage() {
+  const { user, isLoading: isAuthLoading } = useAuthUser();
   const database = useDatabase();
-  const [searchTerm, setSearchTerm] = useState("");
+  const router = useRouter();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const usersQuery = useMemoFirebase(() => database ? query(ref(database, 'users')) : null, [database]);
-  const { data: users, isLoading: usersLoading } = useCollection<UserProfile>(usersQuery);
+  // Redirect if not admin
+  useEffect(() => {
+    if (!isAuthLoading && user && !user.isAdmin) {
+      router.push('/');
+    }
+  }, [user, isAuthLoading, router]);
 
-  const departmentsQuery = useMemoFirebase(() => database ? query(ref(database, 'departments')) : null, [database]);
-  const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
+  const usersQuery = useMemoFirebase(() =>
+    database ? query(ref(database, 'users'), orderByChild('userType')) : null,
+    [database]
+  );
 
-  const departmentMap = useMemo(() => {
-    if (!departments) return new Map();
-    return new Map(departments.map(dept => [dept.id, dept.name]));
-  }, [departments]);
-  
-  const getInitials = (firstName?: string, lastName?: string) => {
-    if (!firstName) return 'U';
-    if (!lastName) return firstName[0].toUpperCase();
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
+
+  // Filter to staff users (responseUnit, regionalAuthority)
+  const staffUsers = users?.filter(u =>
+    u.userType === 'responseUnit' || u.userType === 'regionalAuthority'
+  ) || [];
+
+  if (isAuthLoading || isLoading) {
+    return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  const filteredUsers = useMemo(() => {
-    if (!users) return [];
-    return users.filter(user =>
-      (user.firstName?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (user.lastName?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (user.email?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
-    );
-  }, [users, searchTerm]);
-
-  const isLoading = usersLoading || departmentsLoading;
+  if (!user?.isAdmin) return null;
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <h1 className="font-headline text-3xl font-bold tracking-tight">
-        Staff & Roles
-      </h1>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold font-headline">Staff Management</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage department staff accounts and credentials
+          </p>
+        </div>
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Create Staff Account
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Manage Staff</CardTitle>
-          <CardDescription>View, search, and manage staff members across all departments.</CardDescription>
-           <div className="pt-4">
-             <Input 
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-             />
-           </div>
+          <CardTitle className="flex items-center gap-2">
+            <UserCog className="h-5 w-5" />
+            Staff Accounts ({staffUsers.length})
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : filteredUsers && filteredUsers.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={user.photoURL} />
-                          <AvatarFallback>{getInitials(user.firstName, user.lastName)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{user.firstName} {user.lastName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                        {user.departmentId ? departmentMap.get(user.departmentId) || 'Unknown Dept.' : <span className="text-muted-foreground">Unassigned</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.userType === 'admin' ? 'destructive' : 'secondary'}>
-                        {user.userType}
-                      </Badge>
-                    </TableCell>
-                     <TableCell className="text-right">
-                       <Link href={`/profile/${user.id}`}>
-                          <Button variant="outline" size="sm">View Profile</Button>
-                       </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-             <div className="flex flex-col items-center justify-center text-center p-10 min-h-[300px]">
-                <div className="mx-auto bg-primary/10 p-4 rounded-full">
-                    <Users className="h-10 w-10 text-primary" />
-                </div>
-                <h3 className="mt-4 text-xl font-headline">
-                    No Staff Found
-                </h3>
-                <p className="text-muted-foreground">
-                    There are no users matching your search.
-                </p>
-             </div>
-          )}
+          <StaffTable users={staffUsers} isLoading={isLoading} />
         </CardContent>
       </Card>
+
+      <CreateStaffDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+      />
     </div>
   );
 }

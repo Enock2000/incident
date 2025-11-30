@@ -86,7 +86,8 @@ export default function ElectionsDashboard() {
         // Let's stick to 0 for now to be accurate to data, or maybe mock it if user wants "demo" feel? 
         // User asked to "remove mock data", so we should show 0 or N/A if no data.
         const totalRegistered = stations.reduce((acc, curr) => acc + (curr.registeredVoters || 0), 0);
-        const voterTurnout = totalRegistered > 0 ? 0 : 0; // We don't have votes cast data in type yet.
+        const totalVotes = stations.reduce((acc, curr) => acc + (curr.votesCast || 0), 0);
+        const voterTurnout = totalRegistered > 0 ? ((totalVotes / totalRegistered) * 100).toFixed(1) : 0;
 
         return {
             activeIncidents,

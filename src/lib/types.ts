@@ -1,41 +1,44 @@
 
 export type IncidentStatus =
-  | 'Reported'
-  | 'Verified'
-  | 'Team Dispatched'
-  | 'In Progress'
-  | 'Resolved'
-  | 'Rejected';
+    | 'Reported'
+    | 'Verified'
+    | 'Team Dispatched'
+    | 'In Progress'
+    | 'Resolved'
+    | 'Rejected';
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export type UserRole =
-  | 'citizen'
-  | 'admin'
-  | 'regionalAuthority'
-  | 'responseUnit'
-  | 'dataAnalyst';
+    | 'citizen'
+    | 'admin'
+    | 'regionalAuthority'
+    | 'responseUnit'
+    | 'dataAnalyst';
 
 export type Reporter = {
-  userId: string | null;
-  name?: string; 
+    userId: string | null;
+    name?: string;
 };
 
 export type UserProfile = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  userType: UserRole;
-  departmentId?: string;
-  branchId?: string;
-  nrc?: string;
-  province?: string;
-  district?: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
-  occupation?: string;
-  photoURL?: string;
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    userType: UserRole;
+    departmentId?: string;
+    branchId?: string;
+    nrc?: string;
+    province?: string;
+    district?: string;
+    phoneNumber?: string;
+    dateOfBirth?: string;
+    occupation?: string;
+    photoURL?: string;
+    username?: string;
+    createdAt?: string;
+    createdBy?: string;
 };
 
 export type InvestigationNote = {
@@ -43,39 +46,93 @@ export type InvestigationNote = {
     note: string;
     authorId: string;
     authorName: string;
-    timestamp: any; 
+    timestamp: any;
+};
+
+export type Coordinates = {
+    latitude: number;
+    longitude: number;
+    geocoded: boolean;
+    geocodedAt?: string;
+};
+
+export type Address = {
+    province: string;
+    district: string;
+    constituency?: string;
+    address?: string;
+};
+
+export type IncidentEscalation = {
+    id: string;
+    fromBranchId?: string;
+    toBranchId?: string;
+    fromDepartmentId?: string;
+    toDepartmentId?: string;
+    reason: string;
+    escalatedBy: {
+        userId: string;
+        name: string;
+    };
+    escalatedAt: string;
+};
+
+export type InternalNote = {
+    author: string;
+    authorId: string;
+    content: string;
+    timestamp: number;
+    visibility: 'department' | 'admin';
+}
+
+export type IncidentResolution = {
+    resolvedBy: {
+        userId: string;
+        name: string;
+    };
+    resolvedAt: string;
+    resolutionType: 'Resolved' | 'Closed - No Action' | 'Closed - Duplicate' | 'Escalated';
+    resolutionNotes: string;
+    actionsTaken: string[];
+    preventiveMeasures?: string;
+    followUpRequired: boolean;
+    followUpDate?: string;
 }
 
 export type Responder = 'Police' | 'Fire' | 'Ambulance';
 
-export type IncidentLocation = {
-  latitude: number;
-  longitude: number;
-  address: string;
-}
-
 export type Incident = {
-  id: string;
-  title: string;
-  description: string;
-  location: IncidentLocation | any;
-  status: IncidentStatus;
-  priority: Priority;
-  dateReported: any; 
-  reporter?: Reporter;
-  media: string[];
-  category: string;
-  departmentId?: string | null;
-  investigationNotes?: Record<string, InvestigationNote>;
-  aiMetadata?: {
-    suggestedCategories?: string[];
-    isDuplicate?: boolean;
-    isSuspicious?: boolean;
-  };
-  assignedTo?: Responder | null;
-  dateVerified?: any;
-  dateDispatched?: any;
-  dateResolved?: any;
+    id: string;
+    title: string;
+    description: string;
+    category: string; // Using string as IncidentCategory is not explicitly defined as a type alias in this file
+    location: string | Address;
+    status: IncidentStatus;
+    priority: Priority;
+    images?: string[];
+    video?: string;
+    audio?: string;
+    reporter?: Reporter;
+    departmentId?: string;
+    branchId?: string;
+    dateReported: number;
+    updatedAt?: string;
+    escalations?: Record<string, IncidentEscalation>;
+    resolution?: IncidentResolution;
+    internalNotes?: Record<string, InternalNote>;
+    assignedTo?: {
+        userId: string;
+        name: string;
+        assignedAt: string;
+    };
+    aiMetadata?: {
+        suggestedCategories?: string[];
+        isDuplicate?: boolean;
+        isSuspicious?: boolean;
+    };
+    dateVerified?: any;
+    dateDispatched?: any;
+    dateResolved?: any;
 };
 
 export type PollingStationStatus = 'Open' | 'Closed' | 'Delayed' | 'Interrupted';
@@ -95,7 +152,8 @@ export type PollingStation = {
     hasPowerOutage: boolean;
     hasTamperingReport: boolean;
     registeredVoters: number;
-    lastCheckin: number; 
+    votesCast: number;
+    lastCheckin: number;
     location: {
         latitude: number;
         longitude: number;
@@ -107,9 +165,13 @@ export type Branch = {
     name: string;
     province: string;
     district: string;
+    constituency?: string;
     address?: string;
+    coordinates?: Coordinates;
+    contactNumber?: string;
+    responsibleStaff?: string[];
     accessibleModules?: string[];
-}
+};
 
 export type Asset = {
     id: string;
@@ -125,7 +187,9 @@ export type Department = {
     category: string;
     province: string;
     district: string;
+    constituency?: string;
     officeAddress?: string;
+    coordinates?: Coordinates;
     contactNumbers?: { landline?: string; responders?: string[] };
     operatingHours?: string;
     escalationRules?: string;
@@ -136,7 +200,7 @@ export type Department = {
     assets?: Record<string, Asset>;
     created_at?: any;
     updated_at?: any;
-}
+};
 
 export type IncidentType = {
     id: string;

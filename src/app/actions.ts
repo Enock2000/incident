@@ -437,7 +437,27 @@ export async function createDepartment(_: any, formData: FormData) {
       accessibleModules: formData.getAll('accessibleModules'),
     };
     if (raw.category === 'Other' && raw.otherCategory) raw.category = raw.otherCategory;
-    return handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+
+    // Import geocoding
+    const { geocodeAddress } = await import('@/lib/geocoding');
+
+    // Auto-geocode department HQ location
+    const coordinates = await geocodeAddress({
+      province: raw.province,
+      district: raw.district,
+      constituency: raw.constituency,
+      address: raw.officeAddress
+    });
+
+    // Add coordinates to data
+    raw.coordinates = coordinates;
+
+    const result = await handleCreateOrUpdate(DepartmentSchema, 'departments', raw, '/departments');
+
+    // Revalidate map page too
+    revalidatePath('/map');
+
+    return result;
   } catch (e: any) {
     console.error('Create department error:', e);
     return errorState(e.message);
@@ -479,22 +499,98 @@ const BranchSchema = z.object({
   name: z.string().min(2),
   province: z.string().min(1),
   district: z.string().min(1),
+  constituency: z.string().optional(),
   address: z.string().optional(),
+  contactNumber: z.string().optional(),
   accessibleModules: z.array(z.string()).optional(),
 });
 
 export async function addBranchToDepartment(_: any, formData: FormData) {
   try {
-    const raw = { ...Object.fromEntries(formData), accessibleModules: formData.getAll('accessibleModules') };
+    await requirePermission('departments.manage');
+
+    const raw = {
+      ...Object.fromEntries(formData),
+      accessibleModules: formData.getAll('accessibleModules')
+    };
     const v = BranchSchema.safeParse(raw);
     if (!v.success) return errorState('Invalid branch data.');
     const { departmentId, ...branch } = v.data;
+
+    // Import geocoding
+    const { geocodeAddress } = await import('@/lib/geocoding');
+
+    // Auto-geocode branch location
+    const coordinates = await geocodeAddress({
+      province: branch.province,
+      district: branch.district,
+      constituency: branch.constituency,
+      address: branch.address
+    });
+
     const ref = db.ref(`departments/${departmentId}/branches`).push();
-    await ref.set({ ...branch, id: ref.key });
+    await ref.set({
+      ...branch,
+      id: ref.key,
+      coordinates,
+      created_at: Date.now()
+    });
+
     revalidatePath(`/departments/${departmentId}`);
+    revalidatePath('/map');
     return successState('Branch added successfully.');
   } catch (e: any) {
     return errorState(e.message);
+  }
+}
+
+/* ---------- escalations ---------- */
+export async function escalateIncident(_: any, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await getAuthenticatedUser();
+    const incidentId = formData.get('incidentId') as string;
+
+    await requireIncidentAccess(incidentId);
+    await requirePermission('incidents.update');
+
+    const escalation = {
+      id: db.ref().push().key!,
+      fromBranchId: formData.get('fromBranchId') as string || undefined,
+      toBranchId: formData.get('toBranchId') as string || undefined,
+      fromDepartmentId: formData.get('fromDepartmentId') as string || undefined,
+      toDepartmentId: formData.get('toDepartmentId') as string || undefined,
+      reason: formData.get('reason') as string,
+      escalatedBy: {
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`
+      },
+      escalatedAt: new Date().toISOString()
+    };
+
+    // Add to escalations record
+    const escalationsRef = db.ref(`incidents/${incidentId}/escalations`);
+    await escalationsRef.push(escalation);
+
+    // Update current assignment
+    const updates: any = {
+      updatedAt: new Date().toISOString()
+    };
+
+    if (escalation.toBranchId) {
+      updates.branchId = escalation.toBranchId;
+    }
+    if (escalation.toDepartmentId) {
+      updates.departmentId = escalation.toDepartmentId;
+    }
+
+    await db.ref(`incidents/${incidentId}`).update(updates);
+
+    revalidatePath(`/incidents/${incidentId}`);
+    revalidatePath(`/resolution-portal`);
+    return successState('Incident escalated successfully');
+  } catch (error: any) {
+    console.error('Escalation error:', error);
+    return errorState(error.message);
   }
 }
 
@@ -594,6 +690,210 @@ export async function signup(_: any, formData: FormData): Promise<ActionState & 
       message = 'This email address is already in use by another account.';
     } else if (error.code === 'auth/invalid-password') {
       message = 'The password must be at least 6 characters long.';
+    }
+    return errorState(message);
+  }
+}
+
+/* ---------- RESOLUTION PORTAL ACTIONS ---------- */
+
+// Resolve incident
+export async function resolveIncident(_: any, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await getAuthenticatedUser();
+    const incidentId = formData.get('incidentId') as string;
+
+    // Check access
+    const { incident } = await requireIncidentAccess(incidentId);
+    await requirePermission('incidents.update');
+
+    const resolution = {
+      resolvedBy: {
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+      },
+      resolvedAt: new Date().toISOString(),
+      resolutionType: formData.get('resolutionType') as string,
+      resolutionNotes: formData.get('resolutionNotes') as string,
+      actionsTaken: formData.getAll('actionsTaken') as string[],
+      preventiveMeasures: formData.get('preventiveMeasures') as string || undefined,
+      followUpRequired: formData.get('followUpRequired') === 'on',
+      followUpDate: formData.get('followUpDate') as string || undefined,
+    };
+
+    await db.ref(`incidents/${incidentId}`).update({
+      resolution,
+      status: 'Resolved',
+      updatedAt: new Date().toISOString(),
+      dateResolved: new Date().toISOString(),
+    });
+
+    revalidatePath(`/resolution-portal/${incidentId}`);
+    revalidatePath('/resolution-portal');
+    return successState('Incident resolved successfully');
+  } catch (error: any) {
+    console.error('Resolve incident error:', error);
+    return errorState(error.message);
+  }
+}
+
+// Add internal note
+export async function addInternalNote(_: any, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await getAuthenticatedUser();
+    const incidentId = formData.get('incidentId') as string;
+
+    // Check access
+    await requireIncidentAccess(incidentId);
+
+    const noteRef = db.ref(`incidents/${incidentId}/internalNotes`).push();
+    const note = {
+      author: `${user.firstName} ${user.lastName}`,
+      authorId: user.id,
+      content: formData.get('content') as string,
+      timestamp: Date.now(),
+      visibility: 'department',
+    };
+
+    await noteRef.set(note);
+    revalidatePath(`/resolution-portal/${incidentId}`);
+    revalidatePath(`/incidents/${incidentId}`);
+    return successState('Internal note added');
+  } catch (error: any) {
+    console.error('Add internal note error:', error);
+    return errorState(error.message);
+  }
+}
+
+// Assign incident to staff member
+export async function assignIncidentToStaff(_: any, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await getAuthenticatedUser();
+    const incidentId = formData.get('incidentId') as string;
+    const staffId = formData.get('staffId') as string;
+    const staffName = formData.get('staffName') as string;
+
+    // Check access and permission
+    await requireIncidentAccess(incidentId);
+    await requirePermission('incidents.assign');
+
+    await db.ref(`incidents/${incidentId}/assignedTo`).set({
+      userId: staffId,
+      name: staffName,
+      assignedAt: new Date().toISOString(),
+    });
+
+    revalidatePath('/resolution-portal');
+    revalidatePath(`/resolution-portal/${incidentId}`);
+    return successState('Incident assigned successfully');
+  } catch (error: any) {
+    console.error('Assign incident error:', error);
+    return errorState(error.message);
+  }
+}
+
+/* ---------- STAFF MANAGEMENT ---------- */
+
+// Generate username from name
+function generateUsername(firstName: string, lastName: string, existingUsernames: string[]): string {
+  const baseUsername = `${firstName}_${lastName}`
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '');
+
+  let username = baseUsername;
+  let counter = 1;
+
+  while (existingUsernames.includes(username)) {
+    username = `${baseUsername}${counter}`;
+    counter++;
+  }
+
+  return username;
+}
+
+// Generate secure password
+function generatePassword(): string {
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*';
+  const all = uppercase + lowercase + numbers + special;
+
+  let password = '';
+  password += uppercase[Math.floor(Math.random() * uppercase.length)];
+  password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += special[Math.floor(Math.random() * special.length)];
+
+  for (let i = 4; i < 12; i++) {
+    password += all[Math.floor(Math.random() * all.length)];
+  }
+
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+// Create staff user
+export async function createStaffUser(_: any, formData: FormData): Promise<ActionState & { username?: string; password?: string }> {
+  try {
+    const adminUser = await getAuthenticatedUser();
+
+    // Only admins can create staff
+    if (adminUser.userType !== 'admin') {
+      return errorState('Permission denied: Only admins can create staff accounts');
+    }
+
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const email = formData.get('email') as string;
+    const phoneNumber = formData.get('phoneNumber') as string;
+    const userType = formData.get('userType') as string;
+    const departmentId = formData.get('departmentId') as string;
+
+    // Get all existing users to check username uniqueness
+    const usersSnapshot = await db.ref('users').once('value');
+    const users = usersSnapshot.val() || {};
+    const existingUsernames = Object.values(users).map((u: any) => u.username || '').filter(Boolean);
+
+    // Generate unique username
+    const username = generateUsername(firstName, lastName, existingUsernames);
+
+    // Generate secure password
+    const password = generatePassword();
+
+    // Create Firebase Auth user
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: `${firstName} ${lastName}`,
+    });
+
+    // Create user profile in database
+    await db.ref(`users/${userRecord.uid}`).set({
+      id: userRecord.uid,
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      userType,
+      departmentId,
+      username,
+      createdAt: new Date().toISOString(),
+      createdBy: adminUser.id,
+    });
+
+    revalidatePath('/staff');
+
+    return {
+      success: true,
+      message: 'Staff account created successfully',
+      username,
+      password,
+    };
+  } catch (error: any) {
+    console.error('Create staff error:', error);
+    let message = 'Failed to create staff account';
+    if (error.code === 'auth/email-already-exists') {
+      message = 'This email is already registered';
     }
     return errorState(message);
   }

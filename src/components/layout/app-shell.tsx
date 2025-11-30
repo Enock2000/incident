@@ -52,6 +52,7 @@ import {
   ListOrdered,
   SlidersHorizontal,
   ChevronRight,
+  CheckSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -82,13 +83,14 @@ const citizenPortalNavItems = [
 const portalNavItems = [
   { href: "/department-dashboard", label: "Dashboard", icon: Home },
   { href: "/incidents", label: "All Incidents", icon: ListOrdered },
+  { href: "/resolution-portal", label: "Resolution Portal", icon: CheckSquare },
   { href: "/map", label: "Map View", icon: Map },
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
 ];
 
 const portalManagementItems = [
   { href: "/departments", label: "Departments", icon: Building },
-  { href: "/staff", label: "Staff & Roles", icon: Users },
+  { href: "/staff", label: "Staff Management", icon: Users },
   { href: "/assets", label: "Assets", icon: Package },
   { href: "/admin/configuration", label: "Configuration", icon: SlidersHorizontal },
 ];
