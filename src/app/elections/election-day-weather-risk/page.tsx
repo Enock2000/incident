@@ -1,65 +1,168 @@
-
 'use client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Sun, CloudRain, Wind, AlertTriangle, MapPin, Loader2 } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Cloud, AlertTriangle, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useCollection, useDatabase, useMemoFirebase } from "@/firebase";
-import { ref, query } from "firebase/database";
+import { ref } from "firebase/database";
 import type { PollingStation } from "@/lib/types";
+import { useEffect, useState } from "react";
+
+const WEATHER_API_KEY = '48ede7dd937a45dc978161013253011';
+
+interface WeatherData {
+  location: string;
+  condition: string;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+}
 
 export default function ElectionDayWeatherRiskPage() {
   const database = useDatabase();
-  const stationsQuery = useMemoFirebase(() => database ? query(ref(database, 'polling-stations')) : null, [database]);
-  const { data: stations, isLoading } = useCollection<PollingStation>(stationsQuery);
+  const stationsRef = useMemoFirebase(() => database ? ref(database, 'polling-stations') : null, [database]);
+  const { data: stations, isLoading } = useCollection<PollingStation>(stationsRef);
+  const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
+  const [loadingWeather, setLoadingWeather] = useState(false);
 
-  // This would ideally come from a weather API, but for now we'll simulate it
-  const getWeatherForProvince = (province: string) => {
-    const conditions = [
-      { risk: "Low", condition: "Sunny", temp: "28°C", icon: <Sun className="text-yellow-500" /> },
-      { risk: "Medium", condition: "Rain Showers", temp: "22°C", icon: <CloudRain className="text-blue-500" /> },
-      { risk: "High", condition: "Strong Winds", temp: "30°C", icon: <Wind className="text-gray-500" /> },
-      { risk: "Low", condition: "Partly Cloudy", temp: "26°C", icon: <Sun className="text-yellow-500" /> },
-    ];
-    // Simple hash to get a consistent-ish condition per province
-    const index = province.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % conditions.length;
-    return conditions[index];
-  };
+  useEffect(() => {
+    if (!stations || stations.length === 0) return;
+
+    const fetchWeather = async () => {
+      setLoadingWeather(true);
+      const weatherMap: Record<string, WeatherData> = {};
+
+      // Get unique locations (province/district combinations)
+      const uniqueLocations = Array.from(
+        new Set(stations.map(s => `${s.province}, ${s.district}`))
+      );
+
+      try {
+        for (const location of uniqueLocations) {
+          const response = await fetch(
+            `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(location)}&aqi=no`
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const condition = data.current.condition.text;
+            const temp = data.current.temp_c;
+            const humidity = data.current.humidity;
+            const wind = data.current.wind_kph;
+
+            // Determine risk level based on conditions
+            let riskLevel: 'Low' | 'Medium' | 'High' = 'Low';
+            if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('storm') || wind > 30) {
+              riskLevel = 'High';
+            } else if (temp > 35 || humidity > 80 || wind > 20) {
+              riskLevel = 'Medium';
+            }
+
+            weatherMap[location] = {
+              location,
+              condition,
+              temperature: temp,
+              humidity,
+              windSpeed: wind,
+              riskLevel
+            };
+          }
+        }
+        setWeatherData(weatherMap);
+      } catch (error) {
+        console.error('Error fetching weather data:', error);
+      } finally {
+        setLoadingWeather(false);
+      }
+    };
+
+    fetchWeather();
+  }, [stations]);
+
+  if (isLoading || loadingWeather) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  const stationsWithWeather = stations?.map(station => ({
+    ...station,
+    weather: weatherData[`${station.province}, ${station.district}`]
+  })) || [];
+
+  const highRiskCount = stationsWithWeather.filter(s => s.weather?.riskLevel === 'High').length;
+  const mediumRiskCount = stationsWithWeather.filter(s => s.weather?.riskLevel === 'Medium').length;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h1 className="font-headline text-3xl font-bold tracking-tight">
-        Election Day Weather & Risk
+        Election Day Weather & Risk Assessment
       </h1>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">High Risk Areas</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{highRiskCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Medium Risk Areas</CardTitle>
+            <Cloud className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{mediumRiskCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Stations Monitored</CardTitle>
+            <Cloud className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stationsWithWeather.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Weather Risk Assessment</CardTitle>
-          <CardDescription>Potential weather-related disruptions for key districts.</CardDescription>
+          <CardTitle>Weather Conditions by Station</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : stations && stations.length > 0 ? (
-                stations.slice(0, 5).map((station) => {
-                  const weather = getWeatherForProvince(station.province);
-                  return (
-                     <div key={station.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="text-3xl">{weather.icon}</div>
-                        <div>
-                          <p className="font-bold text-lg">{station.district}, {station.province}</p>
-                          <p className="text-sm text-muted-foreground">{weather.condition} - {weather.temp}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                         <AlertTriangle className={`h-5 w-5 ${weather.risk === 'High' ? 'text-red-500' : weather.risk === 'Medium' ? 'text-yellow-500' : 'text-green-500'}`} />
-                         <span className="font-semibold">{weather.risk} Risk</span>
-                      </div>
-                    </div>
-                  )
-                })
-            ) : (
-               <p className="text-center py-10">No polling station data to assess weather risk.</p>
-            )}
+          <div className="space-y-3">
+            {stationsWithWeather.map(station => (
+              <div key={station.id} className="flex items-center justify-between border-b pb-3">
+                <div className="flex-1">
+                  <p className="font-medium">{station.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {station.province}, {station.district}
+                  </p>
+                  {station.weather && (
+                    <p className="text-sm mt-1">
+                      {station.weather.condition} • {station.weather.temperature}°C •
+                      Wind: {station.weather.windSpeed} km/h • Humidity: {station.weather.humidity}%
+                    </p>
+                  )}
+                </div>
+                {station.weather && (
+                  <Badge variant={
+                    station.weather.riskLevel === 'High' ? 'destructive' :
+                      station.weather.riskLevel === 'Medium' ? 'default' :
+                        'secondary'
+                  }>
+                    {station.weather.riskLevel} Risk
+                  </Badge>
+                )}
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
