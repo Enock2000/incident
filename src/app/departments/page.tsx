@@ -49,7 +49,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { zambiaProvinces } from '@/lib/zambia-locations';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { createDepartment, updateDepartment, deleteDepartment } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Department, IncidentType } from '@/lib/types';
 import { PermissionGate } from '@/components/auth/permission-gate';
@@ -353,10 +352,21 @@ export default function DepartmentsPage() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <form action={deleteDepartment}>
-                          <input type="hidden" name="id" value={dept.id} />
-                          <SubmitButton>Delete</SubmitButton>
-                        </form>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            if (!database) return;
+                            try {
+                              const { ref, remove } = await import('firebase/database');
+                              await remove(ref(database, `departments/${dept.id}`));
+                              toast({ title: 'Success', description: 'Department deleted successfully' });
+                            } catch (error: any) {
+                              console.error('Delete error:', error);
+                              toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete department' });
+                            }
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
