@@ -4,7 +4,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
+import { db, isFirebaseAdminReady, getFirebaseAdminError } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { UserRole } from '@/lib/types';
 import { getAuthenticatedUser, requirePermission, requireIncidentAccess, requireDepartmentAccess } from '@/lib/server-auth';
@@ -17,6 +17,18 @@ type ActionState = { success: boolean; message: string; issues?: string[], id?: 
 const errorState = (m: string, i?: string[]): ActionState => ({ success: false, message: m, issues: i || [] });
 const successState = (m: string, id?: string | null): ActionState => ({ success: true, message: m, id });
 
+// Check if Firebase Admin is ready before any operation
+function checkFirebaseAdmin(): ActionState | null {
+  if (!isFirebaseAdminReady()) {
+    const error = getFirebaseAdminError();
+    return errorState(
+      'Server configuration error. Please contact administrator.',
+      [error || 'Firebase Admin SDK is not initialized. Please configure FIREBASE_SERVICE_ACCOUNT environment variable.']
+    );
+  }
+  return null;
+}
+
 /* ---------- generic CRUD ---------- */
 async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   schema: T,
@@ -26,6 +38,10 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
   idOverride?: string
 ): Promise<ActionState> {
   try {
+    // Check Firebase Admin readiness first
+    const adminCheck = checkFirebaseAdmin();
+    if (adminCheck) return adminCheck;
+
     const v = schema.safeParse(rawData);
     if (!v.success)
       return errorState('Invalid form data.', Object.values(v.error.flatten().fieldErrors).flat() as string[]);
@@ -43,6 +59,10 @@ async function handleCreateOrUpdate<T extends z.ZodTypeAny>(
 
 async function handleDelete(collectionPath: string, formData: FormData, revalidateUrl: string): Promise<ActionState> {
   try {
+    // Check Firebase Admin readiness first
+    const adminCheck = checkFirebaseAdmin();
+    if (adminCheck) return adminCheck;
+
     const id = formData.get('id') as string;
     if (!id) return errorState('Missing ID for deletion.');
     await db.ref(`${collectionPath}/${id}`).remove();
