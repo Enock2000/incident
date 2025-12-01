@@ -1,10 +1,7 @@
 
 "use client";
 
-import React, { useMemo, useEffect } from "react";
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { signup } from "@/app/actions";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,68 +12,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zambiaProvinces } from "@/lib/zambia-locations";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithCustomToken } from "firebase/auth";
-import { useAuth } from "@/firebase";
-
-const initialState: { success: boolean; message: string; issues?: string[], id?: string | null; } = {
-  success: false,
-  message: "",
-  issues: [],
-  id: null,
-};
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Create Account
-    </Button>
-  );
-}
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { ref, set } from "firebase/database";
+import { useAuth, useDatabase } from "@/firebase";
 
 export function SignupForm() {
-  const [state, formAction] = useActionState(signup, initialState);
-  const [province, setProvince] = React.useState('');
-  const [district, setDistrict] = React.useState('');
+  const [province, setProvince] = useState('');
+  const [district, setDistrict] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
-
-
-  useEffect(() => {
-    if (state.success && state.id) {
-      const login = async () => {
-        try {
-          // The server action now needs to return a custom token for the new user
-          // For now, we will just redirect to the login page after successful signup.
-          // A full implementation would require a custom token.
-          toast({ title: 'Signup Successful', description: 'Please log in to continue.' });
-          router.push('/login');
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Login Failed', description: 'Could not log you in automatically.' });
-            router.push('/login');
-        }
-      }
-      login();
-    } else if (!state.success && state.message) {
-       toast({
-            variant: "destructive",
-            title: "Signup Failed",
-            description: (
-                <div>
-                    <p>{state.message}</p>
-                    {state.issues && state.issues.length > 0 && (
-                        <ul className="list-disc list-inside mt-2">{state.issues.map((issue: string, i: number) => <li key={i}>{issue}</li>)}</ul>
-                    )}
-                </div>
-            )
-        });
-    }
-  }, [state, toast, router, auth]);
-
+  const database = useDatabase();
 
   const districtsForSelectedProvince = useMemo(() => {
     const selectedProvince = zambiaProvinces.find(p => p.name === province);
@@ -84,13 +33,87 @@ export function SignupForm() {
   }, [province]);
 
   const handleProvinceChange = (value: string) => {
-      setProvince(value);
-      setDistrict(''); // Reset district when province changes
+    setProvince(value);
+    setDistrict(''); // Reset district when province changes
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const phoneNumber = formData.get('phoneNumber') as string;
+    const nrc = formData.get('nrc') as string;
+    const dateOfBirth = formData.get('dateOfBirth') as string;
+    const occupation = formData.get('occupation') as string;
+
+    if (!auth || !database) {
+      setError('Firebase is not initialized. Please refresh the page.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Create user profile in Realtime Database
+      await set(ref(database, `users/${user.uid}`), {
+        id: user.uid,
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        nrc,
+        dateOfBirth,
+        occupation,
+        province,
+        district,
+        userType: 'citizen',
+        createdAt: new Date().toISOString(),
+      });
+
+      toast({
+        title: 'Signup Successful!',
+        description: 'Your account has been created. Redirecting to dashboard...',
+      });
+
+      // Redirect to home/dashboard
+      router.push('/');
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      let errorMessage = 'An unexpected error occurred during signup.';
+
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email address is already in use by another account.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'The password must be at least 6 characters long.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'The email address is invalid.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setError(errorMessage);
+      toast({
+        variant: 'destructive',
+        title: 'Signup Failed',
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <form action={formAction} className="space-y-4">
-       <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="firstName">First Name</Label>
           <Input id="firstName" name="firstName" required />
@@ -110,70 +133,67 @@ export function SignupForm() {
           required
         />
       </div>
-       <div className="space-y-2">
+      <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" required />
+        <Input id="password" name="password" type="password" required minLength={6} />
+        <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
       </div>
-       <div className="grid grid-cols-2 gap-4">
-         <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
           <Label htmlFor="phoneNumber">Phone Number</Label>
           <Input id="phoneNumber" name="phoneNumber" required />
         </div>
-         <div className="space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="nrc">NRC Number</Label>
           <Input id="nrc" name="nrc" placeholder="e.g., 123456/10/1" required />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-            <Label htmlFor="dateOfBirth">Date of Birth</Label>
-            <Input id="dateOfBirth" name="dateOfBirth" placeholder="YYYY-MM-DD" required />
+          <Label htmlFor="dateOfBirth">Date of Birth</Label>
+          <Input id="dateOfBirth" name="dateOfBirth" type="date" required />
         </div>
         <div className="space-y-2">
-            <Label htmlFor="occupation">Occupation</Label>
-            <Input id="occupation" name="occupation" required />
+          <Label htmlFor="occupation">Occupation</Label>
+          <Input id="occupation" name="occupation" required />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-            <Label htmlFor="province">Province</Label>
-              <Select name="province" required onValueChange={handleProvinceChange} value={province}>
-                <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
-                <SelectContent>
-                    {zambiaProvinces.map(p => (
-                        <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+          <Label htmlFor="province">Province</Label>
+          <Select name="province" required onValueChange={handleProvinceChange} value={province}>
+            <SelectTrigger><SelectValue placeholder="Select province..." /></SelectTrigger>
+            <SelectContent>
+              {zambiaProvinces.map(p => (
+                <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
-            <Label htmlFor="district">District</Label>
-             <Select name="district" required disabled={!province} onValueChange={setDistrict} value={district}>
-                <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
-                <SelectContent>
-                    {districtsForSelectedProvince.map(d => (
-                         <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+          <Label htmlFor="district">District</Label>
+          <Select name="district" required disabled={!province} onValueChange={setDistrict} value={district}>
+            <SelectTrigger><SelectValue placeholder="Select district..." /></SelectTrigger>
+            <SelectContent>
+              {districtsForSelectedProvince.map(d => (
+                <SelectItem key={d} value={d}>{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-      
-       {state?.message && !state.success && (
+
+      {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            {state.message}
-            {state.issues && state.issues.length > 0 && (
-                <ul className="list-disc list-inside mt-2">
-                    {state.issues.map((issue, i) => <li key={i}>{issue}</li>)}
-                </ul>
-            )}
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <SubmitButton />
+      <Button type="submit" disabled={isLoading} className="w-full">
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Create Account
+      </Button>
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
