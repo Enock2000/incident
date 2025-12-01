@@ -360,7 +360,7 @@ function CitizenPortalShell({ children }: { children: React.ReactNode }) {
                 <Avatar className="h-8 w-8">
                   {user?.photoURL && <AvatarImage src={user.photoURL} alt="User Avatar" />}
                   <AvatarFallback>
-                    {userProfile?.firstName ? userProfile.firstName.charAt(0) : <User />}
+                    {userProfile?.firstName ? userProfile?.firstName.charAt(0) : <User />}
                   </AvatarFallback>
                 </Avatar>
               </Button>
