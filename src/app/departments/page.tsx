@@ -86,7 +86,16 @@ function DepartmentForm({ department, onSuccess }: { department?: Department, on
   const [province, setProvince] = useState(department?.province || '');
   const [district, setDistrict] = useState(department?.district || '');
   const [category, setCategory] = useState(department?.category || '');
-  const [incidentTypes, setIncidentTypes] = useState<string[]>(department?.incidentTypesHandled || []);
+  const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>(department?.incidentTypesHandled || []);
+
+  const database = useDatabase();
+  const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null, [database]);
+  const { data: allIncidentTypes, isLoading: isLoadingTypes } = useCollection<IncidentType>(incidentTypesRef);
+
+  // Filter only enabled types
+  const enabledIncidentTypes = useMemo(() =>
+    allIncidentTypes?.filter(t => t.isEnabled) || [],
+    [allIncidentTypes]);
 
   const districtsForSelectedProvince = useMemo(() => {
     const selectedProvince = zambiaProvinces.find(p => p.name === province);
@@ -98,11 +107,11 @@ function DepartmentForm({ department, onSuccess }: { department?: Department, on
     setDistrict('');
   };
 
-  const handleIncidentTypesChange = (selectedCategory: string) => {
-    setIncidentTypes(prev => {
-      const newTypes = prev.includes(selectedCategory)
-        ? prev.filter(c => c !== selectedCategory)
-        : [...prev, selectedCategory];
+  const handleIncidentTypesChange = (typeName: string) => {
+    setSelectedIncidentTypes(prev => {
+      const newTypes = prev.includes(typeName)
+        ? prev.filter(c => c !== typeName)
+        : [...prev, typeName];
       return newTypes;
     });
   };
@@ -196,29 +205,33 @@ function DepartmentForm({ department, onSuccess }: { department?: Department, on
                 className="w-full justify-between"
               >
                 <span className="truncate">
-                  {incidentTypes.length > 0 ? `${incidentTypes.length} selected` : 'Select incident types...'}
+                  {selectedIncidentTypes.length > 0 ? `${selectedIncidentTypes.length} selected` : 'Select incident types...'}
                 </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
-                <CommandInput placeholder="Search categories..." />
-                <CommandEmpty>No category found.</CommandEmpty>
-                <CommandGroup>
+                <CommandInput placeholder="Search incident types..." />
+                <CommandEmpty>No incident type found.</CommandEmpty>
+                <CommandGroup className="max-h-[200px] overflow-y-auto">
                   <CommandList>
-                    {departmentCategories.map((cat) => (
+                    {isLoadingTypes ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : enabledIncidentTypes.map((type) => (
                       <CommandItem
-                        key={cat.id}
-                        onSelect={() => handleIncidentTypesChange(cat.name)}
+                        key={type.id}
+                        onSelect={() => handleIncidentTypesChange(type.name)}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            incidentTypes.includes(cat.name) ? "opacity-100" : "opacity-0"
+                            selectedIncidentTypes.includes(type.name) ? "opacity-100" : "opacity-0"
                           )}
                         />
-                        {cat.name}
+                        {type.name}
                       </CommandItem>
                     ))}
                   </CommandList>
@@ -227,11 +240,11 @@ function DepartmentForm({ department, onSuccess }: { department?: Department, on
             </PopoverContent>
           </Popover>
           <div className="flex flex-wrap gap-2 mt-2">
-            {incidentTypes.map(type => (
+            {selectedIncidentTypes.map(type => (
               <Badge key={type} variant="secondary">{type}</Badge>
             ))}
           </div>
-          {incidentTypes.map(type => (
+          {selectedIncidentTypes.map(type => (
             <input key={type} type="hidden" name="incidentTypesHandled" value={type} />
           ))}
         </div>
