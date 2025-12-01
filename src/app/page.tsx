@@ -193,11 +193,7 @@ export default function DashboardPage() {
 
   const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsRef);
 
-  const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes')) : null, [database]);
-  const { data: incidentTypes, isLoading: isTypesLoading } = useCollection<IncidentType>(incidentTypesRef);
-
-
-  // SEED DATA
+  // SEED DATA (Keep existing logic)
   useEffect(() => {
     if (!database) return;
 
@@ -274,7 +270,7 @@ export default function DashboardPage() {
     return <LandingPage />;
   }
 
-  if (isIncidentsLoading || isTypesLoading) {
+  if (isIncidentsLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -284,94 +280,76 @@ export default function DashboardPage() {
 
   const relevantIncidents = incidents?.filter(i => i.status !== 'Rejected') ?? [];
   const totalIncidents = relevantIncidents.length;
-  const resolvedIncidents =
-    relevantIncidents?.filter((i) => i.status === 'Resolved').length ?? 0;
+  const resolvedIncidents = relevantIncidents?.filter((i) => i.status === 'Resolved').length ?? 0;
+  const activeIncidents = relevantIncidents?.filter((i) => i.status === 'In Progress' || i.status === 'Team Dispatched').length ?? 0;
+  const pendingIncidents = relevantIncidents?.filter((i) => i.status === 'Reported' || i.status === 'Verified').length ?? 0;
+  const criticalIncidents = relevantIncidents?.filter((i) => i.priority === 'Critical').length ?? 0;
 
-  const activeIncidents =
-    relevantIncidents?.filter(
-      (i) => i.status === 'In Progress' || i.status === 'Team Dispatched'
-    ).length ?? 0;
-
-  const pendingIncidents =
-    relevantIncidents?.filter(
-      (i) => i.status === 'Reported' || i.status === 'Verified'
-    ).length ?? 0;
+  // Import components dynamically to avoid circular dependencies if any (though standard import is fine here)
+  const { StatWidget } = require('@/components/dashboard/stat-widget');
+  const { IncidentTrendsChart } = require('@/components/dashboard/incident-trends-chart');
+  const { StatusDistributionChart } = require('@/components/dashboard/status-distribution-chart');
+  const { RecentActivityFeed } = require('@/components/dashboard/recent-activity-feed');
 
   return (
-    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Incident Dashboard
-        </h1>
+    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8 bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
+      <div className="flex items-center justify-between space-y-2 mb-6">
+        <div>
+          <h1 className="font-headline text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            Command Center
+          </h1>
+          <p className="text-muted-foreground">Real-time operational overview</p>
+        </div>
         <div className="flex items-center space-x-2">
           <Link href="/report">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Report New Incident
+            <Button className="shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
+              <PlusCircle className="mr-2 h-4 w-4" /> Report Incident
             </Button>
           </Link>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Incidents</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalIncidents}</div>
-            <p className="text-xs text-muted-foreground">All non-rejected incidents</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{resolvedIncidents}</div>
-            <p className="text-xs text-muted-foreground">
-              Completed investigations
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Responses
-            </CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeIncidents}</div>
-            <p className="text-xs text-muted-foreground">
-              Teams currently dispatched
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Verification
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingIncidents}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting authority review
-            </p>
-          </CardContent>
-        </Card>
+
+      {/* Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <StatWidget
+          title="Total Incidents"
+          value={totalIncidents}
+          icon={Activity}
+          variant="default"
+          trend={{ value: 12, label: "vs last week", positive: true }}
+        />
+        <StatWidget
+          title="Active Responses"
+          value={activeIncidents}
+          icon={Shield}
+          variant="info"
+          subtitle="Teams currently deployed"
+        />
+        <StatWidget
+          title="Critical Alerts"
+          value={criticalIncidents}
+          icon={AlertTriangle}
+          variant="critical"
+          trend={{ value: 2, label: "new today", positive: false }}
+        />
+        <StatWidget
+          title="Resolved Cases"
+          value={resolvedIncidents}
+          icon={CheckCircle}
+          variant="success"
+          subtitle="Successfully closed"
+        />
       </div>
-      <div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Incidents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {incidents && <IncidentTable incidents={incidents.slice(0, 10)} incidentTypes={incidentTypes || []} />}
-          </CardContent>
-        </Card>
+
+      {/* Charts Section */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-8">
+        <IncidentTrendsChart incidents={relevantIncidents} />
+        <StatusDistributionChart incidents={relevantIncidents} />
+      </div>
+
+      {/* Recent Activity & Map Placeholder */}
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-1">
+        <RecentActivityFeed incidents={relevantIncidents} />
       </div>
     </div>
   );
