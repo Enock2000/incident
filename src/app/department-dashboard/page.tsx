@@ -75,43 +75,42 @@ export default function DepartmentDashboardPage() {
 
     const sortedIncidents = incidents ? [...incidents].reverse() : [];
 
+    // Import StatWidget dynamically
+    const { StatWidget } = require('@/components/dashboard/stat-widget');
+
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <h1 className="font-headline text-3xl font-bold tracking-tight">
-                {department.name} Dashboard
-            </h1>
+        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="font-headline text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                        {department.name}
+                    </h1>
+                    <p className="text-muted-foreground mt-1">Department Operations Dashboard</p>
+                </div>
+            </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Incidents</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{metrics.total}</div>
-                        <p className="text-xs text-muted-foreground">All time</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Cases</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-warning" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{metrics.active}</div>
-                        <p className="text-xs text-muted-foreground">Requires attention</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-                        <CheckCircle className="h-4 w-4 text-success" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{metrics.resolved}</div>
-                        <p className="text-xs text-muted-foreground">Completed cases</p>
-                    </CardContent>
-                </Card>
+                <StatWidget
+                    title="Total Incidents"
+                    value={metrics.total}
+                    icon={Activity}
+                    variant="default"
+                    subtitle="All time"
+                />
+                <StatWidget
+                    title="Active Cases"
+                    value={metrics.active}
+                    icon={AlertCircle}
+                    variant="warning"
+                    subtitle="Requires attention"
+                />
+                <StatWidget
+                    title="Resolved Cases"
+                    value={metrics.resolved}
+                    icon={CheckCircle}
+                    variant="success"
+                    subtitle="Completed cases"
+                />
             </div>
 
             <Card>
