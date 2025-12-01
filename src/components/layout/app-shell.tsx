@@ -128,7 +128,7 @@ function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useAuthUser();
+  const { user, userProfile } = useUser();
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -137,19 +137,19 @@ function PortalShell({ children }: { children: React.ReactNode }) {
 
   // Filter navigation items based on permissions
   const visibleNavItems = portalNavItems.filter(item => {
-    if (item.href === '/analytics') return hasPermission(user?.userType, 'analytics.view');
+    if (item.href === '/analytics') return hasPermission(userProfile?.userType, 'analytics.view');
     return true;
   });
 
   const visibleManagementItems = portalManagementItems.filter(item => {
-    if (item.href === '/departments') return hasPermission(user?.userType, 'departments.manage');
-    if (item.href === '/staff') return hasPermission(user?.userType, 'users.manage');
-    if (item.href === '/assets') return hasPermission(user?.userType, 'departments.manage');
-    if (item.href === '/admin/configuration') return hasPermission(user?.userType, 'config.manage');
+    if (item.href === '/departments') return hasPermission(userProfile?.userType, 'departments.manage');
+    if (item.href === '/staff') return hasPermission(userProfile?.userType, 'users.manage');
+    if (item.href === '/assets') return hasPermission(userProfile?.userType, 'departments.manage');
+    if (item.href === '/admin/configuration') return hasPermission(userProfile?.userType, 'config.manage');
     return false;
   });
 
-  const visibleElectionModules = hasPermission(user?.userType, 'elections.access') ? electionModules : [];
+  const visibleElectionModules = hasPermission(userProfile?.userType, 'elections.access') ? electionModules : [];
 
   return (
     <SidebarProvider>
