@@ -1,10 +1,9 @@
 export const firebaseConfig = {
-  "apiKey": "AIzaSyDFOr0AMAkxZ_oMf2aAwOi2TskISfy-UGg",
-  "authDomain": "studio-9903628032-db490.firebaseapp.com",
-  "databaseURL": "https://studio-9903628032-db490-default-rtdb.firebaseio.com",
-  "projectId": "studio-9903628032-db490",
-  "storageBucket": "studio-9903628032-db490.firebasestorage.app",
-  "messagingSenderId": "414769317546",
-  "appId": "1:414769317546:web:5355c7bccea67c1e6172d3"
+  apiKey: "AIzaSyCE5eS0HckFqM5sN66HcmpZtjSFNroR0hY",
+  authDomain: "incident-4c64d.firebaseapp.com",
+  databaseURL: "https://incident-4c64d-default-rtdb.firebaseio.com",
+  projectId: "incident-4c64d",
+  storageBucket: "incident-4c64d.firebasestorage.app",
+  messagingSenderId: "207382051042",
+  appId: "1:207382051042:web:907aafbf55b58c8beb06bb"
 };
-

@@ -81,12 +81,12 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 }
 
 function DepartmentForm({ department, onSuccess }: { department?: Department, onSuccess?: () => void }) {
-  const [state, formAction] = useActionState(department ? updateDepartment : createDepartment, initialState);
   const { toast } = useToast();
   const [province, setProvince] = useState(department?.province || '');
   const [district, setDistrict] = useState(department?.district || '');
   const [category, setCategory] = useState(department?.category || '');
   const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>(department?.incidentTypesHandled || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const database = useDatabase();
   const incidentTypesRef = useMemoFirebase(() => database ? query(ref(database, 'incidentTypes'), orderByChild('order')) : null, [database]);
